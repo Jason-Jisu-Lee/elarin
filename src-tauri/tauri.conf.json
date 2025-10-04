@@ -4,8 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.elarin.app",
   "build": {
-    "frontendDist": "../src",
-    "devUrl": "http://localhost:1420"
+    "frontendDist": "../src"
   },
   "app": {
     "windows": [
@@ -20,7 +19,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "icon": ["icons/elarin_icon.ico"]
+    "targets": ["nsis"],
+    "icon": ["icons/elarin_icon.ico"],
+    "identifier": "com.elarin.app",
+    "publisher": "Elarin",
+    "copyright": "© 2025 Elarin"
   }
 }

@@ -13,15 +13,21 @@
         "width": 800,
         "height": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/elarin_icon.ico"],
-    "identifier": "com.elarin.app",
     "publisher": "Elarin",
     "copyright": "© 2025 Elarin"
   }

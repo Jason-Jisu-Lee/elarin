@@ -1,24 +1,61 @@
-/* Floater base */
-#floater {
-  position: fixed;
-  max-width: 300px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-family: system-ui, sans-serif;
-  opacity: 0;
-  transition: opacity 1s ease-in-out;
-  pointer-events: none;
-  z-index: 9999;
-  line-height: 1.4;
+/* ===== General Reset ===== */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* Placements */
-.bottom-right { bottom: 20px; right: 20px; }
-.bottom-left { bottom: 20px; left: 20px; }
-.top-right { top: 20px; right: 20px; }
-.top-left { top: 20px; left: 20px; }
+/* ===== Floater Core ===== */
+#floater {
+  position: fixed;
+  color: #ffffff;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 1.2rem;
+  text-align: center;
+  line-height: 1.4;
+  padding: 0.8rem 1.2rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  opacity: 0.9;
+  cursor: move;
+  max-width: 400px;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    background 0.25s ease;
+}
 
-#floater.visible { opacity: 1; }
+/* ===== Visibility Animation ===== */
+#floater.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#floater:not(.visible) {
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+/* ===== Placement Options ===== */
+#floater.bottom-right { bottom: 40px; right: 40px; }
+#floater.bottom-left  { bottom: 40px; left: 40px; }
+#floater.top-right    { top: 40px; right: 40px; }
+#floater.top-left     { top: 40px; left: 40px; }
+#floater.center       { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+/* ===== Hover Feedback ===== */
+#floater:hover {
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 1;
+}
+
+/* ===== Text Selection Prevention ===== */
+#floater::selection {
+  background: transparent;
+}

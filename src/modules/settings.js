@@ -31,45 +31,60 @@ async function loadJsonWithFallbacks(name) {
 }
 
 export async function loadResources() {
+  console.log("⏳ loadResources() starting...");
   try {
-    const [sentData, cfgData] = await Promise.all([
-      loadJsonWithFallbacks("sentences.json"),
-      loadJsonWithFallbacks("config.json")
+    // --- Prevent race condition with Tauri asset server ---
+    await new Promise((r) => setTimeout(r, 120)); // small delay fixes early-fetch race
+
+    const [sentResp, configResp] = await Promise.allSettled([
+      fetch("sentences.json"),
+      fetch("config.json")
     ]);
 
-    // Sentences
-    if (Array.isArray(sentData) && sentData.length > 0) {
-      sentences.splice(0, sentences.length, ...sentData);
-      console.log(`✅ Loaded ${sentData.length} sentences`);
+    // ----- Sentences -----
+    if (sentResp.status === "fulfilled" && sentResp.value.ok) {
+      const data = await sentResp.value.json();
+      if (Array.isArray(data) && data.length > 0) {
+        sentences.splice(0, sentences.length, ...data);
+        console.log(`✅ Loaded ${data.length} sentences`);
+      } else {
+        console.warn("⚠️ sentences.json empty or invalid, using fallback");
+        sentences.splice(0, sentences.length,
+          "Bananas are berries, but strawberries are not."
+        );
+      }
     } else {
-      console.warn("⚠️ sentences.json missing/invalid, using fallback");
+      console.warn("⚠️ sentences.json fetch failed, using fallback");
       sentences.splice(0, sentences.length,
         "Bananas are berries, but strawberries are not."
       );
     }
 
-    // Config
-    if (cfgData && typeof cfgData === "object") {
-      Object.assign(config, cfgData);
+    // ----- Config -----
+    if (configResp.status === "fulfilled" && configResp.value.ok) {
+      const base = await configResp.value.json();
+      Object.assign(config, base || {});
       console.log("✅ Config loaded:", config);
     } else {
-      console.warn("⚠️ config.json missing/invalid, using defaults");
+      console.warn("⚠️ config.json fetch failed, using defaults");
     }
 
-    // Merge persisted prefs
+    // ----- Merge persisted user preferences -----
     const savedInterval = localStorage.getItem(CFG_INTERVAL_KEY);
     const savedPlacement = localStorage.getItem(CFG_PLACEMENT_KEY);
     if (savedInterval) config.interval = savedInterval;
     if (savedPlacement) config.placement = savedPlacement;
 
-    // Prep deck
+    // ----- Prepare shuffled deck -----
     deck.splice(0, deck.length, ...shuffle([...sentences]));
+    console.log("♻️ Deck prepared");
     return true;
   } catch (e) {
     console.error("❌ loadResources error:", e);
     return false;
   }
 }
+
 
 export async function saveConfig(newConfig) {
   if (!newConfig) return;

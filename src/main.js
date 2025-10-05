@@ -1,47 +1,35 @@
 import { loadResources } from "./modules/settings.js";
 import { startLoop } from "./modules/textRotation.js";
-import { enableOverlayFeatures, ensureControlsWindow, initControlsWindowIfNeeded } from "./modules/overlay.js";
+import { enableOverlayFeatures } from "./modules/overlay.js";
 
 function hasTauri() {
-  return !!(window.__TAURI__ && window.__TAURI__.window && window.__TAURI__.event);
+  return !!(window.__TAURI__ && window.__TAURI__.window);
 }
 
-async function initMain() {
+async function init() {
   const floater = document.getElementById("floater");
+
+  // Build inner DOM (adds #floater-text + controls)
+  enableOverlayFeatures(floater);
+
+  // Load data
   const ok = await loadResources();
   if (!ok) {
-    floater.textContent = "Failed to load resources.";
+    const textEl = document.getElementById("floater-text");
+    if (textEl) textEl.textContent = "Failed to load resources.";
     return;
   }
 
-  await enableOverlayFeatures(floater);
-  startLoop(floater);
+  // Start rotation on the TEXT span, not the container
+  const textEl = document.getElementById("floater-text");
+  startLoop(textEl);
 
+  // Do NOT enable OS-level click-through here; it breaks hover
   if (hasTauri()) {
-    await ensureControlsWindow(floater);
-    try {
-      const appWin = await window.__TAURI__.window.getCurrent();
-      setTimeout(async () => {
-        await appWin.setIgnoreCursorEvents(true);
-        console.log("Main click-through enabled");
-      }, 300);
-    } catch (err) {
-      console.error("setIgnoreCursorEvents failed:", err);
-    }
-
-    await window.__TAURI__.event.listen("app:close", async () => {
-      try { const aw = await window.__TAURI__.window.getCurrent(); await aw.close(); } catch {}
-    });
+    console.log("Running with Tauri. Window remains interactive for hover icons.");
   } else {
-    console.warn("Running without Tauri window features.");
+    console.log("Running without Tauri window API.");
   }
 }
 
-(function bootstrap() {
-  const role = new URLSearchParams(location.search).get("role") || "main";
-  if (role === "controls") {
-    initControlsWindowIfNeeded();
-  } else {
-    initMain();
-  }
-})();
+init();

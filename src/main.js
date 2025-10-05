@@ -1,8 +1,12 @@
 import { loadResources } from "./modules/settings.js";
 import { startLoop } from "./modules/textRotation.js";
-import { enableOverlayFeatures } from "./modules/overlay.js";
+import { enableOverlayFeatures, ensureControlsWindow, initControlsWindowIfNeeded } from "./modules/overlay.js";
 
-async function init() {
+function hasTauri() {
+  return !!(window.__TAURI__ && window.__TAURI__.window && window.__TAURI__.event);
+}
+
+async function initMain() {
   const floater = document.getElementById("floater");
   const ok = await loadResources();
   if (!ok) {
@@ -10,22 +14,34 @@ async function init() {
     return;
   }
 
-  enableOverlayFeatures(floater);
+  await enableOverlayFeatures(floater);
   startLoop(floater);
-}
 
-// Enable OS-level click-through only after the webview is visible
-async function enableClickThrough() {
-  try {
-    const appWindow = await window.__TAURI__.window.getCurrent();
-    // small delay ensures the compositor created the surface
-    setTimeout(async () => {
-      await appWindow.setIgnoreCursorEvents(true);
-      console.log("✅ Click-through enabled");
-    }, 500);
-  } catch (err) {
-    console.error("Click-through failed:", err);
+  if (hasTauri()) {
+    await ensureControlsWindow(floater);
+    try {
+      const appWin = await window.__TAURI__.window.getCurrent();
+      setTimeout(async () => {
+        await appWin.setIgnoreCursorEvents(true);
+        console.log("Main click-through enabled");
+      }, 300);
+    } catch (err) {
+      console.error("setIgnoreCursorEvents failed:", err);
+    }
+
+    await window.__TAURI__.event.listen("app:close", async () => {
+      try { const aw = await window.__TAURI__.window.getCurrent(); await aw.close(); } catch {}
+    });
+  } else {
+    console.warn("Running without Tauri window features.");
   }
 }
 
-init().then(enableClickThrough);
+(function bootstrap() {
+  const role = new URLSearchParams(location.search).get("role") || "main";
+  if (role === "controls") {
+    initControlsWindowIfNeeded();
+  } else {
+    initMain();
+  }
+})();

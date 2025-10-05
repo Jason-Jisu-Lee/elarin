@@ -9,12 +9,10 @@
   "app": {
     "windows": [
       {
-        "title": "elarin",
-        "width": 800,
-        "height": 600,
-        "resizable": false,
-        "decorations": false,
+        "label": "main",
+        "url": "index.html",
         "transparent": true,
+        "decorations": false,
         "alwaysOnTop": true,
         "fullscreen": false
       }

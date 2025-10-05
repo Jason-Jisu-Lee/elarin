@@ -1,9 +1,18 @@
-// modules/textRotation.js
+// src/modules/textRotation.js
 export let sentences = [];
 export let deck = [];
 export let config = { interval: "medium", placement: "bottom-right" };
 
-// Utility: shuffle
+// cycle timing (ms)
+const CYCLE_MS = 5000;   // total: 5 s
+const FADE_MS  = 1000;   // css fade duration
+const HOLD_MS  = CYCLE_MS - 2 * FADE_MS; // 3 s visible
+
+let cycleTimer = null;
+let fadeTimer  = null;
+let running    = false;
+
+// Fisher–Yates shuffle
 export function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -12,54 +21,46 @@ export function shuffle(array) {
   return array;
 }
 
-// Next fact (no repeats until deck empty)
 export function nextFact() {
-  if (deck.length === 0) deck = shuffle([...sentences]);
+  if (deck.length === 0) {
+    deck = shuffle([...sentences]);
+    console.log("♻️ Deck reshuffled");
+  }
   return deck.pop();
 }
 
-// Show fact on floater
-export function showFact(floater) {
-  if (!floater) return;
+function cycle(floater) {
+  if (!running || !floater) return;
 
-  if (sentences.length === 0) {
-    sentences = ["Debug: fallback fact"];
-    deck = shuffle([...sentences]);
-  }
+  floater.classList.remove("visible");
+  // force reflow so CSS transition restarts
+  // eslint-disable-next-line no-unused-expressions
+  floater.offsetWidth;
 
-  const fact = nextFact();
+  const fact = nextFact() || "…";
   floater.textContent = fact;
-  floater.className = "";
-  floater.classList.add(config.placement, "visible");
 
-  const wordCount = fact.split(" ").length;
-  const duration = wordCount < 10 ? 5000 : 7000;
+  floater.classList.add("visible");
 
-  let hideTimeout = setTimeout(() => {
+  clearTimeout(fadeTimer);
+  fadeTimer = setTimeout(() => {
     floater.classList.remove("visible");
-  }, duration);
+  }, FADE_MS + HOLD_MS); // fade-out at 4 s
 
-  floater.onmouseenter = () => clearTimeout(hideTimeout);
-  floater.onmouseleave = () => {
-    hideTimeout = setTimeout(() => {
-      floater.classList.remove("visible");
-    }, 2000);
-  };
-}
-
-// Interval logic
-export function getInterval() {
-  switch (config.interval) {
-    case "low": return Math.floor(Math.random() * (600000 - 360000 + 1)) + 360000;
-    case "high": return Math.floor(Math.random() * (120000 - 60000 + 1)) + 60000;
-    default: return Math.floor(Math.random() * (360000 - 120000 + 1)) + 120000;
-  }
+  clearTimeout(cycleTimer);
+  cycleTimer = setTimeout(() => cycle(floater), CYCLE_MS);
 }
 
 export function startLoop(floater) {
-  const interval = getInterval();
-  setTimeout(() => {
-    showFact(floater);
-    startLoop(floater);
-  }, interval);
+  if (running) return;
+  running = true;
+  cycle(floater);
+}
+
+export function stopLoop() {
+  running = false;
+  clearTimeout(cycleTimer);
+  clearTimeout(fadeTimer);
+  cycleTimer = null;
+  fadeTimer = null;
 }

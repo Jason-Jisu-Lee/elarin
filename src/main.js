@@ -1,21 +1,31 @@
 import { loadResources } from "./modules/settings.js";
-import { showFact, startLoop } from "./modules/textRotation.js";
+import { startLoop } from "./modules/textRotation.js";
 import { enableOverlayFeatures } from "./modules/overlay.js";
 
-const floater = document.getElementById("floater");
-
 async function init() {
-  const loaded = await loadResources();
+  const floater = document.getElementById("floater");
+  const ok = await loadResources();
+  if (!ok) {
+    floater.textContent = "Failed to load resources.";
+    return;
+  }
 
-  if (loaded) {
-    enableOverlayFeatures(floater);
-    setTimeout(() => {
-      showFact(floater);
-      startLoop(floater);
-    }, 3000);
-  } else {
-    floater.textContent = "Error loading data.";
+  enableOverlayFeatures(floater);
+  startLoop(floater);
+}
+
+// Enable OS-level click-through only after the webview is visible
+async function enableClickThrough() {
+  try {
+    const appWindow = await window.__TAURI__.window.getCurrent();
+    // small delay ensures the compositor created the surface
+    setTimeout(async () => {
+      await appWindow.setIgnoreCursorEvents(true);
+      console.log("✅ Click-through enabled");
+    }, 500);
+  } catch (err) {
+    console.error("Click-through failed:", err);
   }
 }
 
-init();
+init().then(enableClickThrough);

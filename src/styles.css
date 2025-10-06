@@ -21,44 +21,26 @@ html, body {
   top: 12vh;
   max-width: 45vw;
 
-  font-family: "Helvetica Neue", sans-serif;
-  font-weight: 800;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
   font-size: 1.5rem;
   letter-spacing: 0.015em;
   line-height: 1.35;
   text-align: right;
 
   color: #000000;
-  -webkit-text-stroke: 0.8px #ffffff;
-  text-shadow:
-    0 0 1px rgba(255, 255, 255, 0.8),
-    0 0 2px rgba(255, 255, 255, 0.6);
 
-  opacity: 0.95;
-  transform: translateY(12px);
-  transition:
-    opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* fade only */
+  opacity: 0;
+  transition: opacity 1s ease;
 }
 
 #floater.visible {
   opacity: 1;
-  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
   #floater {
     transition: none;
-  }
-}
-
-@supports not (-webkit-text-stroke: 0.8px #ffffff) {
-  #floater {
-    text-shadow:
-      -1px -1px 0 #ffffff,
-      1px -1px 0 #ffffff,
-      -1px 1px 0 #ffffff,
-      1px 1px 0 #ffffff;
-    color: #000000;
   }
 }

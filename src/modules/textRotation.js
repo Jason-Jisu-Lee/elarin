@@ -2,10 +2,12 @@ export let sentences = [];
 export let deck = [];
 export let config = { interval: "medium", placement: "bottom-right" };
 
-// cycle timing (ms)
-const CYCLE_MS = 5000;
-const FADE_MS  = 1000;
-const HOLD_MS  = CYCLE_MS - 2 * FADE_MS;
+// timings (ms)
+const FADE_IN_MS  = 1000;  // 1s
+const HOLD_MS     = 6000;  // 6s visible
+const FADE_OUT_MS = 2000;  // 2s
+const PAUSE_MS    = 5000;  // 5s hidden pause
+const CYCLE_MS    = FADE_IN_MS + HOLD_MS + FADE_OUT_MS + PAUSE_MS;
 
 let cycleTimer = null;
 let fadeTimer  = null;
@@ -31,21 +33,27 @@ export function nextFact() {
 function cycle(floater) {
   if (!running || !floater) return;
 
+  // ensure starting hidden
   floater.classList.remove("visible");
   // force reflow so CSS transition restarts
-  floater.offsetWidth;
+  void floater.offsetWidth;
 
   const fact = nextFact() || "…";
   floater.textContent = fact;
 
+  // fade in
+  floater.style.transition = `opacity ${FADE_IN_MS}ms ease`;
   floater.classList.add("visible");
 
   clearTimeout(fadeTimer);
+  // schedule fade out after hold
   fadeTimer = setTimeout(() => {
-    floater.classList.remove("visible");
-  }, FADE_MS + HOLD_MS);
+    floater.style.transition = `opacity ${FADE_OUT_MS}ms ease`;
+    floater.classList.remove("visible"); // fades out over FADE_OUT_MS
+  }, FADE_IN_MS + HOLD_MS);
 
   clearTimeout(cycleTimer);
+  // next cycle after fade-out completes + pause
   cycleTimer = setTimeout(() => cycle(floater), CYCLE_MS);
 }
 

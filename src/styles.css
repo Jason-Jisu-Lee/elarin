@@ -1,8 +1,7 @@
 /* =========================================
-   Floating Overlay — Click-through text + separate controls window
+   Elarin Overlay — Pure Contrast Style
    ========================================= */
 
-/* ---------- MAIN window defaults ---------- */
 html, body {
   margin: 0;
   padding: 0;
@@ -12,14 +11,14 @@ html, body {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  pointer-events: none; /* main window is fully click-through */
+  pointer-events: none; /* click-through */
 }
 
-/* Floating text */
+/* Floating Text */
 #floater {
   position: fixed;
-  top: 12vh;
   right: 5vw;
+  top: 12vh;
   max-width: 45vw;
 
   font-family: "Helvetica Neue", sans-serif;
@@ -40,23 +39,19 @@ html, body {
   transition:
     opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1),
     transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
-
-  pointer-events: none;   /* keep text non-interactive */
-  z-index: 2147483646;
 }
 
-/* Fade state for your rotation loop */
 #floater.visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  #floater { transition: none; }
+  #floater {
+    transition: none;
+  }
 }
 
-/* Stroke fallback */
 @supports not (-webkit-text-stroke: 0.8px #ffffff) {
   #floater {
     text-shadow:
@@ -67,51 +62,3 @@ html, body {
     color: #000000;
   }
 }
-
-/* ---------- CONTROLS window styles ---------- */
-body.controls {
-  pointer-events: auto !important; /* interactive */
-  background: transparent;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-}
-
-/* hide floater if this HTML is loaded in the controls window */
-body.controls #floater { display: none !important; }
-
-#controls-root {
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-
-.ctl-btn {
-  width: 18px;
-  height: 18px;
-  font-size: 14px;
-  line-height: 18px;
-  text-align: center;
-  border-radius: 3px;
-  color: #fff;
-  background-color: rgba(0,0,0,0.45);
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.15s ease, transform 0.12s ease;
-}
-
-.ctl-btn:hover {
-  background-color: rgba(0,0,0,0.7);
-  transform: scale(1.12);
-}
-
-.ctl-close { color: #ff4f4f; font-weight: 800; }
-.ctl-drag  { cursor: grab; }
-.ctl-drag:active { cursor: grabbing; }
-.ctl-gear  { font-size: 13px; }

@@ -2,34 +2,31 @@ import { loadResources } from "./modules/settings.js";
 import { startLoop } from "./modules/textRotation.js";
 import { enableOverlayFeatures } from "./modules/overlay.js";
 
-function hasTauri() {
-  return !!(window.__TAURI__ && window.__TAURI__.window);
-}
-
 async function init() {
   const floater = document.getElementById("floater");
-
-  // Build inner DOM (adds #floater-text + controls)
   enableOverlayFeatures(floater);
 
-  // Load data
   const ok = await loadResources();
+  const textEl = document.getElementById("floater-text") || floater;
   if (!ok) {
-    const textEl = document.getElementById("floater-text");
-    if (textEl) textEl.textContent = "Failed to load resources.";
+    textEl.textContent = "Failed to load resources.";
     return;
   }
 
-  // Start rotation on the TEXT span, not the container
-  const textEl = document.getElementById("floater-text");
   startLoop(textEl);
+}
 
-  // Do NOT enable OS-level click-through here; it breaks hover
-  if (hasTauri()) {
-    console.log("Running with Tauri. Window remains interactive for hover icons.");
-  } else {
-    console.log("Running without Tauri window API.");
+// keep the overlay always click-through
+async function enableClickThrough() {
+  try {
+    const appWindow = await window.__TAURI__.window.getCurrent();
+    setTimeout(async () => {
+      await appWindow.setIgnoreCursorEvents(true);
+      console.log("✅ Click-through enabled");
+    }, 500);
+  } catch (err) {
+    console.error("Click-through failed:", err);
   }
 }
 
-init();
+init().then(enableClickThrough);

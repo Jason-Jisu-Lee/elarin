@@ -1,12 +1,11 @@
-// src/modules/textRotation.js
 export let sentences = [];
 export let deck = [];
 export let config = { interval: "medium", placement: "bottom-right" };
 
 // cycle timing (ms)
-const CYCLE_MS = 5000;   // total: 5 s
-const FADE_MS  = 1000;   // css fade duration
-const HOLD_MS  = CYCLE_MS - 2 * FADE_MS; // 3 s visible
+const CYCLE_MS = 5000;
+const FADE_MS  = 1000;
+const HOLD_MS  = CYCLE_MS - 2 * FADE_MS;
 
 let cycleTimer = null;
 let fadeTimer  = null;
@@ -34,7 +33,6 @@ function cycle(floater) {
 
   floater.classList.remove("visible");
   // force reflow so CSS transition restarts
-  // eslint-disable-next-line no-unused-expressions
   floater.offsetWidth;
 
   const fact = nextFact() || "…";
@@ -45,7 +43,7 @@ function cycle(floater) {
   clearTimeout(fadeTimer);
   fadeTimer = setTimeout(() => {
     floater.classList.remove("visible");
-  }, FADE_MS + HOLD_MS); // fade-out at 4 s
+  }, FADE_MS + HOLD_MS);
 
   clearTimeout(cycleTimer);
   cycleTimer = setTimeout(() => cycle(floater), CYCLE_MS);

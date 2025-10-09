@@ -6,24 +6,27 @@ async function init() {
   const floater = document.getElementById("floater");
   enableOverlayFeatures(floater);
 
-  const ok = await loadResources();
-  const textEl = document.getElementById("floater-text") || floater;
-  if (!ok) {
-    textEl.textContent = "Failed to load resources.";
-    return;
-  }
+  try {
+    const ok = await loadResources();
+    if (!ok) {
+      floater.textContent = "Error: Cannot Connect To The Atlas. Please Contact The Developer.";
+      floater.classList.add("visible");
+      return;
+    }
 
-  startLoop(textEl);
+    startLoop(floater);
+  } catch (err) {
+    console.error("init error:", err);
+    floater.textContent = "Error: Cannot Connect To The Atlas. Please Contact The Developer.";
+    floater.classList.add("visible");
+  }
 }
 
-// keep the overlay always click-through
+// always click-through
 async function enableClickThrough() {
   try {
     const appWindow = await window.__TAURI__.window.getCurrent();
-    setTimeout(async () => {
-      await appWindow.setIgnoreCursorEvents(true);
-      console.log("✅ Click-through enabled");
-    }, 500);
+    setTimeout(() => appWindow.setIgnoreCursorEvents(true), 500);
   } catch (err) {
     console.error("Click-through failed:", err);
   }

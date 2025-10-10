@@ -25,4 +25,4 @@ dist-ssr
 
 .env
 .env.local
-/src/secrets/token.js
+src/secrets/token.js

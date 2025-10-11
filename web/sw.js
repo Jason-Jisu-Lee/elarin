@@ -1,8 +1,8 @@
-// SW v4
-const CACHE = "elarin-static-v4";
+// SW v5 (no bundle)
+const CACHE = "elarin-static-v5";
 const ASSETS = [
   "/", "/index.html", "/styles.css", "/floater.css",
-  "/app.bundle.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"
+  "/app.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"
 ];
 
 self.addEventListener("install", e => {

@@ -26,3 +26,4 @@ dist-ssr
 .env
 .env.local
 src/secrets/token.js
+.dev.vars

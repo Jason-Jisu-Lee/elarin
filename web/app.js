@@ -4,9 +4,8 @@ import { loadResources } from "../src/modules/settings.js";
 import { startLoop } from "../src/modules/textRotation.js";
 import { enableOverlayFeatures } from "../src/modules/overlay.js";
 
-// Register PWA service worker
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(console.error);
+  navigator.serviceWorker.register("/sw.js", { scope: "/" });
 }
 
 (async function init() {

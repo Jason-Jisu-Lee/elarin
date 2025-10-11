@@ -1,13 +1,14 @@
-const CACHE = "elarin-static-v1";
+const CACHE = "elarin-static-v2";        // bump version
 const ASSETS = [
-  "./index.html",
-  "./styles.css",
-  "./floater.css",
-  "./app.js",            // swap to ./app.bundle.js after bundling
-  "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+  "/index.html",
+  "/styles.css",
+  "/floater.css",
+  "/app.bundle.js",                      // swap from app.js
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png"
 ];
+
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));

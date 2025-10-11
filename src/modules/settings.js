@@ -38,7 +38,7 @@ export async function loadResources() {
     console.error("loadResources error:", e);
     const floater = document.getElementById("floater");
     if (floater)
-      floater.textContent = "Error: Cannot Connect To The Atlas. Please Contact The Developer.";
+      floater.textContent = "Error! Cannot Connect To The Atlas. Please Contact The Developer.";
     return false;
   }
 }

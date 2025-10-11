@@ -41,5 +41,13 @@
 
   <!-- For dev: use app.js. For prod: switch to app.bundle.js after bundling -->
 <script type="module" src="./app.bundle.js"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js?v=4');
+      navigator.serviceWorker.getRegistration().then(r => r && r.update());
+    });
+  }
+  </script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 /**
- * GET /api/sentences
+ * GET /api/sentences?bust=timestamp
  * Cloudflare Pages Function. Fetches JSON from GitHub using server-side token.
+ * Honors ?bust=... or request "cache-control: no-cache" to bypass caches.default.
  */
-// functions/api/sentences.js
 export async function onRequestGet({ request, env }) {
   const GITHUB_URL =
     "https://api.github.com/repos/Jason-Jisu-Lee/elarin-atlas/contents/philosophy/general/set_001.json";
@@ -10,7 +10,7 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const noCache =
     url.searchParams.has("bust") ||
-    (request.headers.get("cache-control") || "").includes("no-cache");
+    (request.headers.get("cache-control") || "").toLowerCase().includes("no-cache");
 
   try {
     const cache = caches.default;
@@ -36,7 +36,9 @@ export async function onRequestGet({ request, env }) {
       });
     }
 
+    // Raw file is JSON text; parse -> re-emit
     const data = await gh.json();
+
     const headers = {
       "Content-Type": "application/json",
       "Cache-Control": noCache ? "no-store" : "public, max-age=300, s-maxage=300"

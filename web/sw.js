@@ -1,5 +1,5 @@
-// SW v5 (no bundle)
-const CACHE = "elarin-static-v5";
+// SW v6
+const CACHE = "elarin-static-v6";
 const ASSETS = [
   "/", "/index.html", "/styles.css", "/floater.css",
   "/app.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"
@@ -21,16 +21,12 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
-
   const url = new URL(e.request.url);
-  if (url.origin !== self.location.origin) return;          // same-origin only
-
-  if (url.pathname.startsWith("/api/")) {                   // never cache API
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) {
     e.respondWith(fetch(new Request(e.request, { cache: "no-store" })));
     return;
   }
-
-  // cache-first for static assets
   e.respondWith(
     caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
       if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));

@@ -3,9 +3,9 @@ export let deck = [];
 export let config = { interval: "medium", placement: "bottom-right" };
 
 // timings (ms)
-const FADE_IN_MS  = 2000;  // 1s
-const HOLD_MS     = 10500;  // 6s visible
-const FADE_OUT_MS = 3000;  // 2s
+const FADE_IN_MS  = 1000;  // 1s
+const HOLD_MS     = 6000;  // 6s visible
+const FADE_OUT_MS = 2000;  // 2s
 const PAUSE_MS    = 5000;  // 5s hidden pause
 const CYCLE_MS    = FADE_IN_MS + HOLD_MS + FADE_OUT_MS + PAUSE_MS;
 

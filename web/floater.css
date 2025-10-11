@@ -1,0 +1,31 @@
+#floater {
+  position: fixed;
+  top: 82vh;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80vw;
+
+  font-family: "Roboto Condensed", sans-serif;
+  font-weight: 300;
+  font-size: 2.2rem;
+  letter-spacing: 0.028em;
+  line-height: 1.4;
+  text-align: center;
+
+  color: #2e2e2e;
+
+  text-shadow:
+    0 1px 1.5px rgba(255,255,255,0.22),
+    0 2px 3px rgba(0,0,0,0.28);
+
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.25));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  opacity: 0;
+  transition: opacity 0.9s ease-in-out;
+  user-select: none;
+  pointer-events: none;
+}
+#floater.visible { opacity: 1; }

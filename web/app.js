@@ -1,16 +1,13 @@
-// Dev mode: reuse your existing modules directly.
-// These relative imports work when served from project root.
-import { loadResources } from "../src/modules/settings.js";
-import { startLoop } from "../src/modules/textRotation.js";
-import { enableOverlayFeatures } from "../src/modules/overlay.js";
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js", { scope: "/" });
-}
+// Web entry — no bundler required
+import { loadResources } from "./modules/settings.js";
+import { startLoop, sentences } from "./modules/textRotation.js";
+import { enableOverlayFeatures } from "./modules/overlay.js";
 
 (async function init() {
   const floater = document.getElementById("floater");
-  // Web keeps clicks available. Desktop sets ignore-cursor via Tauri only.
+  if (!floater) return;
+
+  // minimal UI hooks
   enableOverlayFeatures(floater);
 
   try {
@@ -20,9 +17,16 @@ if ("serviceWorker" in navigator) {
       floater.classList.add("visible");
       return;
     }
+
+    if (!Array.isArray(sentences) || sentences.length === 0) {
+      floater.textContent = "No sentences loaded.";
+      floater.classList.add("visible");
+      return;
+    }
+
     startLoop(floater);
   } catch (err) {
-    console.error("web init error:", err);
+    console.error("init error:", err);
     floater.textContent = "Error: Cannot Connect To The Atlas. Please Contact The Developer.";
     floater.classList.add("visible");
   }

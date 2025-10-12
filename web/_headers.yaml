@@ -9,3 +9,9 @@
 
 /api/*
   Cache-Control: no-store
+  
+/app.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/modules/*
+  Cache-Control: no-cache, no-store, must-revalidate

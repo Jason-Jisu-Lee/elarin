@@ -33,6 +33,18 @@ body {
   font-weight: 800;
   letter-spacing: 0.06em;
   font-size: 14px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.brand:visited {
+  color: var(--ink);
+}
+.brand:hover {
+  opacity: 0.65;
+}
+.brand:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.6);
+  outline-offset: 3px;
 }
 .site-nav a {
   text-decoration: none;
@@ -93,3 +105,7 @@ body {
     margin-left: 18px;
   }
 }
+/* 
+a {
+  -webkit-tap-highlight-color: transparent;
+} */

@@ -76,24 +76,21 @@ function render(path) {
   switch (p) {
     case "/":
       swapContent("tpl-home");
-      mountFloater();
       break;
     case "/about/":
       swapContent("tpl-about");
-      unmountFloater();
       break;
     case "/login/":
       swapContent("tpl-login");
-      unmountFloater();
       break;
     case "/contact/":
       swapContent("tpl-contact");
-      unmountFloater();
       break;
     default:
       swapContent("tpl-home");
-      mountFloater();
   }
+  // floater on every page
+  mountFloater();
 }
 
 function onLinkClick(e) {

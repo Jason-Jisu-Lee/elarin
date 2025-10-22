@@ -1,55 +1,57 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Elarin</title>
-  <link rel="manifest" href="./manifest.webmanifest">
-  <meta name="theme-color" content="#f5f5f3">
-  <!-- Floater styles copied for web -->
-  <link rel="stylesheet" href="./floater.css" />
-  <!-- Site chrome -->
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body>
-  <header class="site-header">
-    <a class="brand" href="/">ELARIN</a>
-    <nav class="site-nav">
-      <a href="/about/">About</a>
-      <a href="/login/">Log In</a>
-      <a href="/contact/">Contact</a>
-       </nav>
-  </header>
-  <div class="hairline"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Elarin</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#f5f5f3" />
+    <!-- Floater styles copied for web -->
+    <link rel="stylesheet" href="./floater.css" />
+    <!-- Site chrome -->
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">ELARIN</a>
+      <nav class="site-nav">
+        <a href="/about/">About</a>
+        <a href="/login/">Log In</a>
+        <a href="/contact/">Contact</a>
+      </nav>
+    </header>
+    <div class="hairline"></div>
 
-  <main class="site-main">
-    <section class="hero">
-      <h1 class="hero-title">ELARIN</h1>
-      <div class="hero-grid">
-        <figure class="hero-media" aria-label="placeholder"></figure>
-        <div class="hero-copy">
-          <h2>Web and Atlas connection successful</h2>
-          <p>You are overwhelmed with information.</p>
-          <p>Get non-intrusive filtered vital information on your screen.</p>
+    <main class="site-main">
+      <section class="hero">
+        <h1 class="hero-title">ELARIN</h1>
+        <div class="hero-grid">
+          <figure class="hero-media" aria-label="placeholder"></figure>
+          <div class="hero-copy">
+            <h2>Web and Atlas connection successful</h2>
+            <p>You are overwhelmed with information.</p>
+            <p>Get non-intrusive filtered vital information on your screen.</p>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Same id as desktop so modules work -->
-    <div id="floater">Loading…</div>
-  </main>
+      <!-- Same id as desktop so modules work -->
+      <div id="floater">Loading…</div>
+    </main>
 
-  <!-- Use app.js in dev -->
-  <script type="module" src="./app.js"></script>
+    <!-- Use app.js in dev -->
+    <script type="module" src="./app.js"></script>
 
-  <!-- Service worker registration -->
-  <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-navigator.serviceWorker.register('/sw.js?v=6');
-      navigator.serviceWorker.getRegistration().then(r => r && r.update());
-    });
-  }
-  </script>
-</body>
+    <!-- Service worker registration -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js?v=6");
+          navigator.serviceWorker
+            .getRegistration()
+            .then((r) => r && r.update());
+        });
+      }
+    </script>
+  </body>
 </html>

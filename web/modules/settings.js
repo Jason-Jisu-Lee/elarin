@@ -6,7 +6,7 @@ export async function loadResources() {
     // Single path for web and Tauri: hit the Pages Function
     const res = await fetch(`/api/sentences?bust=${Date.now()}`, {
       headers: { Accept: "application/json" },
-      cache: "no-store"
+      cache: "no-store",
     });
     if (!res.ok) throw new Error(`API ${res.status}`);
 
@@ -20,7 +20,8 @@ export async function loadResources() {
     console.error("loadResources error:", e);
     const floater = document.getElementById("floater");
     if (floater)
-      floater.textContent = "Error! Cannot Connect To The Atlas. Please Contact The Developer.";
+      floater.textContent =
+        "Error! Cannot Connect To The Atlas. Please Contact The Developer.";
     return false;
   }
 }

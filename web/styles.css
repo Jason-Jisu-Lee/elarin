@@ -116,8 +116,9 @@ a:focus-visible {
   text-align: center;
 }
 .hero-copy.narrow {
+  max-width: 760px;
   margin: 0 auto;
-  padding-top: 35px;
+  padding-top: 24px;
 }
 
 /* legacy nav (kept if .site-nav appears in older pages) */

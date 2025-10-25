@@ -1,7 +1,6 @@
 // /modules/dino404.js
-// Runner game with a pixel-art CAT drawn entirely in code (no images).
+// Runner with 4-frame pixel-art sprite loaded from PNGs.
 // Controls: Space/ArrowUp = start + jump, R = restart.
-// Minimal surface: same mount/unmount API as before.
 
 let canvas,
   ctx,
@@ -10,39 +9,59 @@ let state = "idle"; // idle | running | dead
 let groundY, frame, score;
 let dino, obstacles;
 
-// Physics and pace
+// Physics
 const GRAVITY = 0.7;
 const JUMP_V = -12.5;
 const SPEED_BASE = 6;
 
-// Cat sprite grid
-// Drawn on a 16×16 logical grid with integer scaling for crisp pixels.
-const GRID_W = 16;
-const GRID_H = 16;
-const SCALE = 3; // 16*3 => 48px sprite height
+// Sprite config
+const FRAME_URLS = [
+  "/assets/cat_run_0.png",
+  "/assets/cat_run_1.png",
+  "/assets/cat_run_2.png",
+  "/assets/cat_run_3.png",
+];
+const SPRITE_FPS = 10; // frames per second while running
+const SCALE = 2; // integer pixel scale for crispness
 
-// Animation
-const SPRITE_FRAMES = 3; // 0,1,2 cycling
-const SPRITE_FPS = 8; // animation speed
-let spriteFrame = 0;
+let images = [];
+let framesReady = false;
+let animFrameIndex = 0;
 
-// Colors
-const C_BODY = "#3b3b3b"; // dark gray
-const C_OUT = "#1f2937"; // near-black outline
-const C_WHISK = "#9ca3af"; // whiskers gray
-const C_EYE = "#111111"; // eye
-const C_NOSE = "#f59e9e"; // soft pink
-const C_BELLY = "#6b7280"; // mid gray
+function preloadFrames() {
+  if (framesReady && images.length === FRAME_URLS.length)
+    return Promise.resolve();
+  images = [];
+  framesReady = false;
+  return Promise.all(
+    FRAME_URLS.map(
+      (src) =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("Failed to load " + src));
+        })
+    )
+  )
+    .then((imgs) => {
+      images = imgs;
+      framesReady = true;
+    })
+    .catch(() => {
+      framesReady = false;
+    });
+}
 
 function resetGame() {
   frame = 0;
   score = 0;
   obstacles = [];
-  const w = GRID_W * SCALE;
-  const h = GRID_H * SCALE;
-  dino = { x: 50, y: 0, w, h, vy: 0 };
+  const baseW = framesReady ? images[0].naturalWidth * SCALE : 44;
+  const baseH = framesReady ? images[0].naturalHeight * SCALE : 48;
+  dino = { x: 50, y: 0, w: baseW, h: baseH, vy: 0 };
   dino.y = groundY - dino.h;
-  spriteFrame = 0;
+  animFrameIndex = 0;
 }
 
 function start() {
@@ -90,18 +109,18 @@ function update() {
   frame++;
   score += 1;
 
-  // advance animation when running
-  if (state === "running" && SPRITE_FRAMES > 1) {
+  // animate sprite when running
+  if (state === "running" && framesReady && images.length > 1) {
     if (frame % Math.max(1, Math.floor(60 / SPRITE_FPS)) === 0) {
-      spriteFrame = (spriteFrame + 1) % SPRITE_FRAMES;
+      animFrameIndex = (animFrameIndex + 1) % images.length;
     }
   }
 
-  // spawn obstacles
+  // obstacle spawn
   const spawnEvery = Math.max(45, 90 - Math.floor(score / 20));
   if (frame % spawnEvery === 0) spawnObstacle();
 
-  // gravity
+  // gravity and movement
   dino.vy += GRAVITY;
   dino.y += dino.vy;
   if (onGround()) {
@@ -118,7 +137,7 @@ function update() {
     if (collide(dino, o)) {
       state = "dead";
       stop();
-      draw(); // render final frame with "Game Over"
+      draw();
       return;
     }
   }
@@ -129,12 +148,25 @@ function drawGround() {
   ctx.moveTo(0, groundY + 0.5);
   ctx.lineTo(canvas.width, groundY + 0.5);
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "#9CA3AF"; // gray-400
+  ctx.strokeStyle = "#9CA3AF";
   ctx.stroke();
 }
 
+function drawDino() {
+  if (framesReady) {
+    const img = images[animFrameIndex] || images[0];
+    const dx = Math.round(dino.x);
+    const dy = Math.round(dino.y);
+    ctx.drawImage(img, dx, dy, dino.w, dino.h);
+    return;
+  }
+  // fallback rectangle if images not yet loaded
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+}
+
 function drawObstacles() {
-  ctx.fillStyle = "#374151"; // gray-700
+  ctx.fillStyle = "#374151";
   for (const o of obstacles) ctx.fillRect(o.x, o.y, o.w, o.h);
 }
 
@@ -154,118 +186,13 @@ function drawScore() {
   ctx.fillText(s, canvas.width - 70, 24);
 }
 
-// ---------- Pixel-art CAT (code-drawn) ----------
-
-function px(x, y, w, h, color) {
-  // draw in grid units, scaled with integer multiplier for crisp pixels
-  ctx.fillStyle = color;
-  ctx.fillRect(
-    Math.round(dino.x + x * SCALE),
-    Math.round(dino.y + y * SCALE),
-    Math.round(w * SCALE),
-    Math.round(h * SCALE)
-  );
-}
-
-function outlineRect(x, y, w, h) {
-  ctx.fillStyle = C_OUT;
-  // top and bottom
-  px(x, y, w, 1, C_OUT);
-  px(x, y + h - 1, w, 1, C_OUT);
-  // left and right
-  px(x, y, 1, h, C_OUT);
-  px(x + w - 1, y, 1, h, C_OUT);
-}
-
-/**
- * Draw a 16x16 pixel-art cat using block rectangles.
- * frame = 0,1,2 for walk cycle. Facing right.
- */
-function drawCat(frameIdx) {
-  // Base body block positions in grid coords
-  // Body core
-  px(5, 8, 8, 4, C_BODY); // torso
-  outlineRect(5, 8, 8, 4);
-
-  // Back hump
-  px(10, 7, 3, 2, C_BODY);
-  outlineRect(10, 7, 3, 2);
-
-  // Chest
-  px(4, 9, 2, 3, C_BODY);
-  outlineRect(4, 9, 2, 3);
-
-  // Head
-  px(2, 7, 4, 4, C_BODY);
-  outlineRect(2, 7, 4, 4);
-
-  // Ears
-  px(2, 6, 1, 1, C_BODY);
-  px(4, 6, 1, 1, C_BODY);
-
-  // Eye and nose
-  px(4, 8, 1, 1, C_EYE); // eye
-  px(3, 10, 1, 1, C_NOSE); // nose
-
-  // Whiskers
-  px(1, 10, 2, 1, C_WHISK); // left side
-  px(3, 11, 2, 1, C_WHISK); // lower whisk
-
-  // Belly highlight
-  px(7, 10, 3, 1, C_BELLY);
-
-  // Tail (animate slightly)
-  // Base at (13,8)
-  if (frameIdx === 0) {
-    px(13, 8, 1, 3, C_BODY); // up
-    px(14, 7, 1, 2, C_BODY);
-  } else if (frameIdx === 1) {
-    px(13, 9, 1, 3, C_BODY); // mid
-    px(14, 10, 1, 1, C_BODY);
-  } else {
-    px(13, 10, 1, 2, C_BODY); // down
-    px(14, 11, 1, 1, C_BODY);
-  }
-
-  // Legs (animate)
-  // Front legs at x ~5,6 ; Back legs at x ~10,11
-  if (frameIdx === 0) {
-    // FL forward, BL back
-    px(5, 12, 1, 3, C_BODY); // FL
-    px(6, 12, 1, 2, C_BODY);
-    px(10, 12, 1, 2, C_BODY); // BL
-    px(11, 12, 1, 3, C_BODY);
-  } else if (frameIdx === 1) {
-    // neutral mid
-    px(5, 12, 1, 2, C_BODY);
-    px(6, 12, 1, 2, C_BODY);
-    px(10, 12, 1, 2, C_BODY);
-    px(11, 12, 1, 2, C_BODY);
-  } else {
-    // FL back, BL forward
-    px(5, 12, 1, 3, C_BODY); // FL
-    px(6, 12, 1, 2, C_BODY);
-    px(10, 12, 1, 3, C_BODY); // BL
-    px(11, 12, 1, 2, C_BODY);
-  }
-
-  // Paw outlines for definition
-  px(5, 15, 1, 1, C_OUT);
-  px(6, 14, 1, 1, C_OUT);
-  px(10, 14, 1, 1, C_OUT);
-  px(11, 15, 1, 1, C_OUT);
-}
-
-function drawDino() {
-  // Clear sprite area before drawing cat
-  // (main clear is already done in draw())
-  drawCat(spriteFrame);
-}
-
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGround();
-  if (state === "idle") drawText("Press Space to start", 90);
+  if (state === "idle") {
+    if (!framesReady) drawText("Loading sprite…", 70);
+    drawText("Press Space to start", 90);
+  }
   drawDino();
   drawObstacles();
   drawScore();
@@ -280,15 +207,20 @@ function loop() {
 
 export function mount(targetCanvas) {
   if (!targetCanvas) return;
-  if (canvas === targetCanvas && rafId) return; // already running here
+  if (canvas === targetCanvas && rafId) return;
   canvas = targetCanvas;
   ctx = canvas.getContext("2d");
   groundY = canvas.height - 20;
-  ctx.imageSmoothingEnabled = false; // crisp pixels
+  ctx.imageSmoothingEnabled = false;
+
   window.addEventListener("keydown", onKey);
   state = "idle";
-  resetGame();
-  draw();
+
+  // preload frames then reset with correct sprite size
+  preloadFrames().finally(() => {
+    resetGame();
+    draw();
+  });
 }
 
 export function unmount() {

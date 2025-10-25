@@ -3,15 +3,15 @@ export let deck = [];
 export let config = { interval: "medium", placement: "bottom-right" };
 
 // timings (ms)
-const FADE_IN_MS  = 1000;  // 1s
-const HOLD_MS     = 6000;  // 6s visible
-const FADE_OUT_MS = 2000;  // 2s
-const PAUSE_MS    = 5000;  // 5s hidden pause
-const CYCLE_MS    = FADE_IN_MS + HOLD_MS + FADE_OUT_MS + PAUSE_MS;
+const FADE_IN_MS = 1200; // 1s
+const HOLD_MS = 8000; // 6s visible
+const FADE_OUT_MS = 4000; // 2s
+const PAUSE_MS = 5000; // 5s hidden pause
+const CYCLE_MS = FADE_IN_MS + HOLD_MS + FADE_OUT_MS + PAUSE_MS;
 
 let cycleTimer = null;
-let fadeTimer  = null;
-let running    = false;
+let fadeTimer = null;
+let running = false;
 
 // Fisher–Yates shuffle
 export function shuffle(array) {

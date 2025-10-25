@@ -14,47 +14,56 @@ const GRAVITY = 0.7;
 const JUMP_V = -12.5;
 const SPEED_BASE = 6;
 
-// Sprite config
+// Frame names (identical WxH PNGs)
 const FRAME_NAMES = ["1.png", "2.png", "3.png", "4.png"];
-// Resolve relative to this module so it works under any base path.
-// Place PNGs in /assets/ inside your deployed root (e.g., web/assets in repo).
-const FRAME_URLS = FRAME_NAMES.map(
-  (n) => new URL(`../assets/${n}`, import.meta.url).href
-);
-
 const SPRITE_FPS = 10; // frames per second while running
-const SCALE = 2; // integer pixel scale for crispness
+const SCALE = 2; // integer pixel scale
 
 let images = [];
 let framesReady = false;
 let spriteError = false;
 let animFrameIndex = 0;
 
+function urlCandidates(name) {
+  // Prefer root /assets, then module-local /modules/assets
+  const root = new URL(`/assets/${name}`, location.origin).href;
+  const local = new URL(`./assets/${name}`, import.meta.url).href; // resolves to /modules/assets/...
+  return [root, local];
+}
+
+function loadFirst(candidates) {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    const tryNext = () => {
+      if (i >= candidates.length) {
+        reject(new Error("All candidates failed: " + candidates.join(", ")));
+        return;
+      }
+      const src = candidates[i++];
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => resolve(img);
+      img.onerror = tryNext;
+      img.src = src + (src.includes("?") ? "&" : "?") + "bust=" + Date.now();
+    };
+    tryNext();
+  });
+}
+
 function preloadFrames() {
   images = [];
   framesReady = false;
   spriteError = false;
-
-  return Promise.all(
-    FRAME_URLS.map(
-      (src) =>
-        new Promise((resolve, reject) => {
-          const img = new Image();
-          img.decoding = "async";
-          img.src = src;
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error("Failed to load " + src));
-        })
-    )
-  )
+  return Promise.all(FRAME_NAMES.map((n) => loadFirst(urlCandidates(n))))
     .then((imgs) => {
-      // Basic dimension check
-      const w = imgs[0].naturalWidth;
-      const h = imgs[0].naturalHeight;
-      const dimsOk = imgs.every(
-        (im) => im.naturalWidth === w && im.naturalHeight === h
-      );
-      if (!dimsOk) throw new Error("Sprite frames are not the same size");
+      // Dimension check
+      const w = imgs[0].naturalWidth,
+        h = imgs[0].naturalHeight;
+      if (
+        !imgs.every((im) => im.naturalWidth === w && im.naturalHeight === h)
+      ) {
+        throw new Error("Sprite frames have mismatched dimensions");
+      }
       images = imgs;
       framesReady = true;
     })

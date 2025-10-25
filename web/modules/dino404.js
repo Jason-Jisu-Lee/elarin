@@ -16,10 +16,10 @@ const SPEED_BASE = 6;
 
 // Sprite config
 const FRAME_URLS = [
-  "/assets/cat_run_0.png",
-  "/assets/cat_run_1.png",
-  "/assets/cat_run_2.png",
-  "/assets/cat_run_3.png",
+  "/assets/1.png",
+  "/assets/2.png",
+  "/assets/3.png",
+  "/assets/4.png",
 ];
 const SPRITE_FPS = 10; // frames per second while running
 const SCALE = 2; // integer pixel scale for crispness

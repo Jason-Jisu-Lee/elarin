@@ -15,29 +15,32 @@ const JUMP_V = -12.5;
 const SPEED_BASE = 6;
 
 // Sprite config
-const FRAME_URLS = [
-  "/assets/1.png",
-  "/assets/2.png",
-  "/assets/3.png",
-  "/assets/4.png",
-];
+const FRAME_NAMES = ["1.png", "2.png", "3.png", "4.png"];
+// Resolve relative to this module so it works under any base path.
+// Place PNGs in /assets/ inside your deployed root (e.g., web/assets in repo).
+const FRAME_URLS = FRAME_NAMES.map(
+  (n) => new URL(`../assets/${n}`, import.meta.url).href
+);
+
 const SPRITE_FPS = 10; // frames per second while running
 const SCALE = 2; // integer pixel scale for crispness
 
 let images = [];
 let framesReady = false;
+let spriteError = false;
 let animFrameIndex = 0;
 
 function preloadFrames() {
-  if (framesReady && images.length === FRAME_URLS.length)
-    return Promise.resolve();
   images = [];
   framesReady = false;
+  spriteError = false;
+
   return Promise.all(
     FRAME_URLS.map(
       (src) =>
         new Promise((resolve, reject) => {
           const img = new Image();
+          img.decoding = "async";
           img.src = src;
           img.onload = () => resolve(img);
           img.onerror = () => reject(new Error("Failed to load " + src));
@@ -45,11 +48,20 @@ function preloadFrames() {
     )
   )
     .then((imgs) => {
+      // Basic dimension check
+      const w = imgs[0].naturalWidth;
+      const h = imgs[0].naturalHeight;
+      const dimsOk = imgs.every(
+        (im) => im.naturalWidth === w && im.naturalHeight === h
+      );
+      if (!dimsOk) throw new Error("Sprite frames are not the same size");
       images = imgs;
       framesReady = true;
     })
-    .catch(() => {
+    .catch((err) => {
+      console.error("[dino404] sprite preload error:", err);
       framesReady = false;
+      spriteError = true;
     });
 }
 
@@ -160,7 +172,7 @@ function drawDino() {
     ctx.drawImage(img, dx, dy, dino.w, dino.h);
     return;
   }
-  // fallback rectangle if images not yet loaded
+  // fallback rectangle if images not loaded
   ctx.fillStyle = "#111827";
   ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
 }
@@ -190,7 +202,8 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGround();
   if (state === "idle") {
-    if (!framesReady) drawText("Loading sprite…", 70);
+    if (!framesReady && !spriteError) drawText("Loading sprite…", 70);
+    if (spriteError) drawText("Sprite load failed. Press Space to start", 70);
     drawText("Press Space to start", 90);
   }
   drawDino();
@@ -216,7 +229,6 @@ export function mount(targetCanvas) {
   window.addEventListener("keydown", onKey);
   state = "idle";
 
-  // preload frames then reset with correct sprite size
   preloadFrames().finally(() => {
     resetGame();
     draw();

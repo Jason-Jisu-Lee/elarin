@@ -30,7 +30,6 @@ function swapContent(tplId) {
   const slot = document.getElementById("page-slot");
   if (!tpl || !slot) return;
   slot.replaceWith(tpl.content.firstElementChild.cloneNode(true));
-  // ensure new slot keeps the same id for future swaps
   const newSlot = document.querySelector(".hero-copy.narrow:last-of-type");
   if (newSlot) newSlot.id = "page-slot";
 }
@@ -73,8 +72,9 @@ function unmountFloater() {
 
 // replace render() with this
 function render(path) {
-  // ensure dino is cleaned up when leaving 404
+  // Clean up dino if leaving 404
   if (typeof Dino404?.unmount === "function") Dino404.unmount();
+
   const p = normPath(path);
   setActiveNav(p);
   switch (p) {
@@ -90,13 +90,12 @@ function render(path) {
     case "/contact/":
       swapContent("tpl-contact");
       break;
-    case "/404/":
+    case "/404/": {
       swapContent("tpl-404");
-      {
-        const canvas = document.getElementById("dino-canvas");
-        if (canvas) Dino404.mount(canvas);
-      }
+      const canvas = document.getElementById("dino-canvas");
+      if (canvas) Dino404.mount(canvas);
       break;
+    }
     default:
       swapContent("tpl-home");
   }

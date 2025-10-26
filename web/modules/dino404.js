@@ -1,5 +1,5 @@
 // /modules/dino404.js
-// Runner with 4-frame pixel-art sprite loaded from PNGs.
+// Runner with 4-frame pixel-art sprite loaded from PNGs at /assets/*.
 // Controls: Space/ArrowUp = start + jump, R = restart.
 
 let canvas,
@@ -14,8 +14,12 @@ const GRAVITY = 0.7;
 const JUMP_V = -12.5;
 const SPEED_BASE = 6;
 
-// Frame names (identical WxH PNGs)
-const FRAME_NAMES = ["1.png", "2.png", "3.png", "4.png"];
+// Absolute root asset URLs with one-time cache buster
+const BUST = Date.now();
+const FRAME_URLS = [0, 1, 2, 3].map(
+  (i) => `/assets/cat_run_${i}.png?v=${BUST}`
+);
+
 const SPRITE_FPS = 10; // frames per second while running
 const SCALE = 2; // integer pixel scale
 
@@ -24,41 +28,27 @@ let framesReady = false;
 let spriteError = false;
 let animFrameIndex = 0;
 
-function urlCandidates(name) {
-  // Prefer root /assets, then module-local /modules/assets
-  const root = new URL(`/assets/${name}`, location.origin).href;
-  const local = new URL(`./assets/${name}`, import.meta.url).href; // resolves to /modules/assets/...
-  return [root, local];
-}
-
-function loadFirst(candidates) {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    const tryNext = () => {
-      if (i >= candidates.length) {
-        reject(new Error("All candidates failed: " + candidates.join(", ")));
-        return;
-      }
-      const src = candidates[i++];
-      const img = new Image();
-      img.decoding = "async";
-      img.onload = () => resolve(img);
-      img.onerror = tryNext;
-      img.src = src + (src.includes("?") ? "&" : "?") + "bust=" + Date.now();
-    };
-    tryNext();
-  });
-}
-
 function preloadFrames() {
   images = [];
   framesReady = false;
   spriteError = false;
-  return Promise.all(FRAME_NAMES.map((n) => loadFirst(urlCandidates(n))))
+
+  return Promise.all(
+    FRAME_URLS.map(
+      (src) =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.decoding = "async";
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("Failed to load " + src));
+          img.src = src;
+        })
+    )
+  )
     .then((imgs) => {
-      // Dimension check
-      const w = imgs[0].naturalWidth,
-        h = imgs[0].naturalHeight;
+      const w = imgs[0].naturalWidth;
+      const h = imgs[0].naturalHeight;
+      if (!w || !h) throw new Error("Empty dimensions");
       if (
         !imgs.every((im) => im.naturalWidth === w && im.naturalHeight === h)
       ) {
@@ -178,6 +168,7 @@ function drawDino() {
     const img = images[animFrameIndex] || images[0];
     const dx = Math.round(dino.x);
     const dy = Math.round(dino.y);
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, dx, dy, dino.w, dino.h);
     return;
   }

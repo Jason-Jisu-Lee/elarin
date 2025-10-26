@@ -1,6 +1,6 @@
 // /modules/dino404.js
-// Runner with a code-drawn pixel cat. No external images.
-// Controls: Space/ArrowUp = start + jump, R = restart.
+// Runner with a code-drawn pixel cat (facing right). No external images.
+// Controls: Space/ArrowUp = start + jump, Space on death = restart.
 
 let canvas,
   ctx,
@@ -12,11 +12,10 @@ let spawnTimer = 0;
 
 // Physics and pace
 const GRAVITY = 0.7;
-const JUMP_V = -12.5;
-// Slower base speed and gentler scaling
-const SPEED_BASE = 4;
-const SPEED_CAP = 4; // additive cap
-const SPEED_SCALE = 300; // higher = slower growth
+const JUMP_V = -14.375; // ~15% longer airtime vs 12.5 at same gravity
+const SPEED_BASE = 5; // slightly faster than before
+const SPEED_CAP = 5; // additive cap
+const SPEED_SCALE = 300;
 
 // Cat sprite grid
 const GRID_W = 16;
@@ -25,18 +24,18 @@ const SCALE = 3; // 16*3 => 48px
 
 // Animation
 const SPRITE_FRAMES = 3; // 0..2
-const SPRITE_FPS = 8;
+const SPRITE_FPS = 9;
 let spriteFrame = 0;
 
 // Colors
 const C_BODY = "#3b3b3b";
 const C_OUT = "#1f2937";
 const C_WHISK = "#9ca3af";
-const C_EYE = "#111111";
+const C_EYE = "#0b0b0b";
 const C_NOSE = "#f59e9e";
 const C_BELLY = "#6b7280";
 
-// Utilities
+// Utils
 function randInt(a, b) {
   return a + Math.floor(Math.random() * (b - a + 1));
 }
@@ -45,7 +44,7 @@ function resetGame() {
   frame = 0;
   score = 0;
   obstacles = [];
-  spawnTimer = 30;
+  spawnTimer = 40;
   const w = GRID_W * SCALE;
   const h = GRID_H * SCALE;
   dino = { x: 50, y: 0, w, h, vy: 0 };
@@ -71,9 +70,7 @@ function onKey(e) {
     if (state === "idle") start();
     else if (state === "running") {
       if (onGround()) dino.vy = JUMP_V;
-    } else if (state === "dead") start();
-  } else if (code === "KeyR") {
-    if (state !== "running") start();
+    } else if (state === "dead") start(); // Space to restart
   }
 }
 
@@ -82,29 +79,28 @@ function onGround() {
 }
 
 function spawnObstacle() {
-  const h = 25 + Math.floor(Math.random() * 40); // 25..64
-  const w = 12 + Math.floor(Math.random() * 18); // 12..29
+  const h = 24 + Math.floor(Math.random() * 36); // 24..59
+  const w = 12 + Math.floor(Math.random() * 16); // 12..27
   obstacles.push({ x: canvas.width + 10, y: groundY - h, w, h });
 }
 
-// Enforce fair spacing using dynamic minimum gap based on speed and jump arc
+// Fair spacing: enforce gap based on speed and jump arc
 function trySpawnObstacle(speed) {
-  const minGapPx = Math.max(180, Math.floor(speed * 35)); // ~one safe jump
+  const minGapPx = Math.max(220, Math.floor(speed * 42)); // wider than before
   const last = obstacles[obstacles.length - 1];
   if (last) {
     const gapPx = canvas.width + 10 - (last.x + last.w);
     if (gapPx < minGapPx) {
-      // delay until gap is safe
       spawnTimer = Math.max(
-        8,
+        10,
         Math.ceil((minGapPx - gapPx) / Math.max(1, speed))
       );
       return;
     }
   }
   spawnObstacle();
-  // next spawn after at least another safe gap plus small randomness
-  spawnTimer = Math.round(minGapPx / Math.max(1, speed)) + randInt(10, 25);
+  // Next spawn after at least another safe gap plus randomness
+  spawnTimer = Math.round(minGapPx / Math.max(1, speed)) + randInt(20, 35);
 }
 
 function collide(a, b) {
@@ -182,7 +178,7 @@ function drawScoreHUD() {
   ctx.fillText(s, canvas.width - 70, 24);
 }
 
-// ---------- Pixel-art CAT (code-drawn) ----------
+// ---------- Pixel-art CAT (code-drawn, facing right) ----------
 function px(x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(
@@ -194,81 +190,81 @@ function px(x, y, w, h, color) {
 }
 
 function outlineRect(x, y, w, h) {
-  // top and bottom
   px(x, y, w, 1, C_OUT);
   px(x, y + h - 1, w, 1, C_OUT);
-  // left and right
   px(x, y, 1, h, C_OUT);
   px(x + w - 1, y, 1, h, C_OUT);
 }
 
 /** 16x16 cute cat, facing right. frameIdx: 0..2 */
 function drawCat(frameIdx) {
-  // Body core and back
-  px(5, 8, 8, 4, C_BODY);
-  outlineRect(5, 8, 8, 4);
-  px(10, 7, 3, 2, C_BODY);
-  outlineRect(10, 7, 3, 2);
+  // Back hump (left/back)
+  px(2, 7, 3, 2, C_BODY);
+  outlineRect(2, 7, 3, 2);
 
-  // Chest
-  px(4, 9, 2, 3, C_BODY);
-  outlineRect(4, 9, 2, 3);
+  // Torso
+  px(3, 8, 8, 4, C_BODY);
+  outlineRect(3, 8, 8, 4);
 
-  // Head
-  px(2, 7, 4, 4, C_BODY);
-  outlineRect(2, 7, 4, 4);
+  // Chest near head
+  px(10, 9, 2, 3, C_BODY);
+  outlineRect(10, 9, 2, 3);
+
+  // Head (right/front)
+  px(12, 7, 4, 4, C_BODY);
+  outlineRect(12, 7, 4, 4);
 
   // Ears
-  px(2, 6, 1, 1, C_BODY);
-  px(4, 6, 1, 1, C_BODY);
+  px(12, 6, 1, 1, C_BODY);
+  px(14, 6, 1, 1, C_BODY);
 
-  // Eye, nose, whiskers
-  px(4, 8, 1, 1, C_EYE);
-  px(3, 10, 1, 1, C_NOSE);
-  px(1, 10, 2, 1, C_WHISK);
-  px(3, 11, 2, 1, C_WHISK);
+  // Face
+  px(14, 8, 1, 1, C_EYE); // eye
+  px(15, 10, 1, 1, C_NOSE); // nose
+  px(15, 9, 1, 1, C_WHISK); // whiskers
+  px(15, 11, 1, 1, C_WHISK);
 
   // Belly highlight
   px(7, 10, 3, 1, C_BELLY);
 
-  // Tail animate
+  // Tail animate on left/back
   if (frameIdx === 0) {
-    px(13, 8, 1, 3, C_BODY);
-    px(14, 7, 1, 2, C_BODY);
+    px(2, 8, 1, 3, C_BODY);
+    px(1, 7, 1, 2, C_BODY); // up
   } else if (frameIdx === 1) {
-    px(13, 9, 1, 3, C_BODY);
-    px(14, 10, 1, 1, C_BODY);
+    px(2, 9, 1, 3, C_BODY);
+    px(1, 10, 1, 1, C_BODY); // mid
   } else {
-    px(13, 10, 1, 2, C_BODY);
-    px(14, 11, 1, 1, C_BODY);
+    px(2, 10, 1, 2, C_BODY);
+    px(1, 11, 1, 1, C_BODY); // down
   }
 
-  // Legs animate
+  // Legs animate (front near x=10..11, back near x=5..6)
   if (frameIdx === 0) {
     // FL forward, BL back
-    px(5, 12, 1, 3, C_BODY);
-    px(6, 12, 1, 2, C_BODY);
-    px(10, 12, 1, 2, C_BODY);
-    px(11, 12, 1, 3, C_BODY);
+    px(10, 12, 1, 3, C_BODY);
+    px(11, 12, 1, 2, C_BODY); // front
+    px(5, 12, 1, 2, C_BODY);
+    px(6, 12, 1, 3, C_BODY); // back
   } else if (frameIdx === 1) {
     // neutral
-    px(5, 12, 1, 2, C_BODY);
-    px(6, 12, 1, 2, C_BODY);
     px(10, 12, 1, 2, C_BODY);
     px(11, 12, 1, 2, C_BODY);
+    px(5, 12, 1, 2, C_BODY);
+    px(6, 12, 1, 2, C_BODY);
   } else {
     // FL back, BL forward
+    px(10, 12, 1, 2, C_BODY);
+    px(11, 12, 1, 3, C_BODY);
     px(5, 12, 1, 3, C_BODY);
     px(6, 12, 1, 2, C_BODY);
-    px(10, 12, 1, 3, C_BODY);
-    px(11, 12, 1, 2, C_BODY);
   }
 
   // Paw definition
-  px(5, 15, 1, 1, C_OUT);
-  px(6, 14, 1, 1, C_OUT);
-  px(10, 14, 1, 1, C_OUT);
-  px(11, 15, 1, 1, C_OUT);
+  px(10, 15, 1, 1, C_OUT);
+  px(11, 14, 1, 1, C_OUT);
+  px(5, 14, 1, 1, C_OUT);
+  px(6, 15, 1, 1, C_OUT);
 }
 
 function drawDino() {
@@ -278,14 +274,14 @@ function drawDino() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGround();
-  if (state === "idle") drawText("Press Space to start", 90);
+  if (state === "idle") drawText("Press Space to start", 85);
   drawDino();
   drawObstacles();
   drawScoreHUD();
   if (state === "dead") {
-    drawText("Game Over — press Space or R", 120);
+    drawText("Game Over — press Space", 90);
     const disp = Math.floor(score / 5);
-    drawText(`Your score: ${disp}`, 140);
+    drawText(`Your score: ${disp}`, 110); // higher placement
   }
 }
 

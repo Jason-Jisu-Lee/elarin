@@ -23,53 +23,79 @@ const FRAME_URLS = [0, 1, 2, 3].map(
 const SPRITE_FPS = 10; // frames per second while running
 const SCALE = 2; // integer pixel scale
 
-let images = [];
+let frames = []; // normalized canvases
 let framesReady = false;
 let spriteError = false;
 let animFrameIndex = 0;
 
-function preloadFrames() {
-  images = [];
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Failed to load " + src));
+    img.src = src;
+  });
+}
+
+async function preloadFrames() {
+  frames = [];
   framesReady = false;
   spriteError = false;
 
-  return Promise.all(
-    FRAME_URLS.map(
-      (src) =>
-        new Promise((resolve, reject) => {
-          const img = new Image();
-          img.decoding = "async";
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error("Failed to load " + src));
-          img.src = src;
-        })
-    )
-  )
-    .then((imgs) => {
-      const w = imgs[0].naturalWidth;
-      const h = imgs[0].naturalHeight;
-      if (!w || !h) throw new Error("Empty dimensions");
-      if (
-        !imgs.every((im) => im.naturalWidth === w && im.naturalHeight === h)
-      ) {
-        throw new Error("Sprite frames have mismatched dimensions");
-      }
-      images = imgs;
-      framesReady = true;
-    })
-    .catch((err) => {
-      console.error("[dino404] sprite preload error:", err);
-      framesReady = false;
-      spriteError = true;
-    });
+  const results = await Promise.allSettled(FRAME_URLS.map(loadImage));
+  const imgs = results
+    .map((r) => (r.status === "fulfilled" ? r.value : null))
+    .filter(Boolean);
+
+  if (imgs.length === 0) {
+    console.error("[dino404] no sprite frames loaded");
+    spriteError = true;
+    return;
+  }
+
+  // Compute target canvas size as max(W,H) across frames
+  const maxW = Math.max(...imgs.map((im) => im.naturalWidth || im.width || 0));
+  const maxH = Math.max(
+    ...imgs.map((im) => im.naturalHeight || im.height || 0)
+  );
+
+  if (!maxW || !maxH) {
+    console.error("[dino404] invalid sprite dimensions");
+    spriteError = true;
+    return;
+  }
+
+  // Warn if mismatched sizes (we will normalize below)
+  const mismatch = imgs.some(
+    (im) => im.naturalWidth !== maxW || im.naturalHeight !== maxH
+  );
+  if (mismatch)
+    console.warn("[dino404] sprite frames had differing sizes; normalized");
+
+  // Normalize: draw each frame onto an offscreen canvas of maxW x maxH.
+  // Align at the bottom-left so "feet" stay on the ground across frames.
+  frames = imgs.map((im) => {
+    const off = document.createElement("canvas");
+    off.width = maxW;
+    off.height = maxH;
+    const c = off.getContext("2d");
+    c.imageSmoothingEnabled = false;
+    const dx = 0;
+    const dy = maxH - (im.naturalHeight || im.height);
+    c.drawImage(im, dx, dy);
+    return off;
+  });
+
+  framesReady = true;
 }
 
 function resetGame() {
   frame = 0;
   score = 0;
   obstacles = [];
-  const baseW = framesReady ? images[0].naturalWidth * SCALE : 44;
-  const baseH = framesReady ? images[0].naturalHeight * SCALE : 48;
+  const baseW = framesReady ? frames[0].width * SCALE : 44;
+  const baseH = framesReady ? frames[0].height * SCALE : 48;
   dino = { x: 50, y: 0, w: baseW, h: baseH, vy: 0 };
   dino.y = groundY - dino.h;
   animFrameIndex = 0;
@@ -121,9 +147,9 @@ function update() {
   score += 1;
 
   // animate sprite when running
-  if (state === "running" && framesReady && images.length > 1) {
+  if (state === "running" && framesReady && frames.length > 1) {
     if (frame % Math.max(1, Math.floor(60 / SPRITE_FPS)) === 0) {
-      animFrameIndex = (animFrameIndex + 1) % images.length;
+      animFrameIndex = (animFrameIndex + 1) % frames.length;
     }
   }
 
@@ -165,14 +191,14 @@ function drawGround() {
 
 function drawDino() {
   if (framesReady) {
-    const img = images[animFrameIndex] || images[0];
+    const img = frames[animFrameIndex] || frames[0];
     const dx = Math.round(dino.x);
     const dy = Math.round(dino.y);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, dx, dy, dino.w, dino.h);
     return;
   }
-  // fallback rectangle if images not loaded
+  // fallback rectangle if frames not loaded
   ctx.fillStyle = "#111827";
   ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
 }

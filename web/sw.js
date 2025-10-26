@@ -1,5 +1,5 @@
-// SW v9 (SPA + static)
-const CACHE = "elarin-static-v9";
+// SW v10 (SPA + static)
+const CACHE = "elarin-static-v10";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -42,6 +42,15 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Always bypass SW for sprites and images
+  if (
+    url.pathname.startsWith("/assets/") ||
+    e.request.destination === "image"
+  ) {
+    e.respondWith(fetch(new Request(e.request, { cache: "no-store" })));
+    return;
+  }
 
   // Never cache API
   if (url.pathname.startsWith("/api/")) {

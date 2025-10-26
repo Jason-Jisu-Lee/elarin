@@ -73,10 +73,7 @@
           height="200"
           style="max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px"
         ></canvas>
-        <p id="dino-hint">
-          Press <strong>Space</strong> to start and jump. Press
-          <strong>R</strong> to restart.
-        </p>
+        <p id="dino-hint">Press <strong>Space</strong> to start and jump.</p>
       </div>
     </template>
 
@@ -84,7 +81,7 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/sw.js?v=9");
+          navigator.serviceWorker.register("/sw.js?v=12");
           navigator.serviceWorker
             .getRegistration()
             .then((r) => r && r.update());

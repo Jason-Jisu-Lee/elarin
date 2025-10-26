@@ -1,6 +1,6 @@
 // /modules/dino404.js
-// Runner with 4-frame pixel-art sprite loaded from PNGs at /assets/*.
-// Controls: Space/ArrowUp = start + jump, R = restart.
+// Runner with a code-drawn minimal, cute cat facing right. No images.
+// Controls: Space/ArrowUp = start + jump. Space on death = restart.
 
 let canvas,
   ctx,
@@ -8,97 +8,69 @@ let canvas,
 let state = "idle"; // idle | running | dead
 let groundY, frame, score;
 let dino, obstacles;
+let spawnTimer = 0;
 
-// Physics
+// Physics and pace
 const GRAVITY = 0.7;
-const JUMP_V = -12.5;
-const SPEED_BASE = 6;
+const JUMP_V = -14.375; // ~15% longer airtime than -12.5
+const SPEED_BASE = 5; // slightly faster
+const SPEED_CAP = 5;
+const SPEED_SCALE = 300; // slower growth
 
-// Absolute root asset URLs with one-time cache buster
-const BUST = Date.now();
-const FRAME_URLS = [0, 1, 2, 3].map(
-  (i) => `/assets/cat_run_${i}.png?v=${BUST}`
-);
+// Spawn variance
+const MIN_GAP_BASE_PX = 200; // base safe gap in pixels
+const MIN_GAP_PER_SPEED = 34; // extra gap per unit speed
 
-const SPRITE_FPS = 10; // frames per second while running
-const SCALE = 2; // integer pixel scale
+// Cat sprite grid
+const GRID_W = 16;
+const GRID_H = 16;
+const SCALE = 3; // 16*3 => 48px
 
-let frames = []; // normalized canvases
-let framesReady = false;
-let spriteError = false;
-let animFrameIndex = 0;
+// Animation
+const SPRITE_FRAMES = 3; // 0..2
+const SPRITE_FPS = 9;
+let spriteFrame = 0;
 
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Failed to load " + src));
-    img.src = src;
-  });
+// Colors
+const C_BODY = "#2f2f2f";
+const C_BELLY = "#7b7f87";
+const C_EYE = "#0b0b0b";
+const C_NOSE = "#f6a8a8";
+const C_EARIN = "#c2c4c7";
+
+// Utils
+function randInt(a, b) {
+  return a + Math.floor(Math.random() * (b - a + 1));
+}
+function randExp(mean) {
+  return -mean * Math.log(1 - Math.random());
 }
 
-async function preloadFrames() {
-  frames = [];
-  framesReady = false;
-  spriteError = false;
-
-  const results = await Promise.allSettled(FRAME_URLS.map(loadImage));
-  const imgs = results
-    .map((r) => (r.status === "fulfilled" ? r.value : null))
-    .filter(Boolean);
-
-  if (imgs.length === 0) {
-    console.error("[dino404] no sprite frames loaded");
-    spriteError = true;
-    return;
-  }
-
-  // Compute target canvas size as max(W,H) across frames
-  const maxW = Math.max(...imgs.map((im) => im.naturalWidth || im.width || 0));
-  const maxH = Math.max(
-    ...imgs.map((im) => im.naturalHeight || im.height || 0)
+function minGapPx(speed) {
+  return Math.max(
+    180,
+    Math.floor(MIN_GAP_BASE_PX + MIN_GAP_PER_SPEED * (speed - SPEED_BASE + 1))
   );
+}
 
-  if (!maxW || !maxH) {
-    console.error("[dino404] invalid sprite dimensions");
-    spriteError = true;
-    return;
-  }
-
-  // Warn if mismatched sizes (we will normalize below)
-  const mismatch = imgs.some(
-    (im) => im.naturalWidth !== maxW || im.naturalHeight !== maxH
-  );
-  if (mismatch)
-    console.warn("[dino404] sprite frames had differing sizes; normalized");
-
-  // Normalize: draw each frame onto an offscreen canvas of maxW x maxH.
-  // Align at the bottom-left so "feet" stay on the ground across frames.
-  frames = imgs.map((im) => {
-    const off = document.createElement("canvas");
-    off.width = maxW;
-    off.height = maxH;
-    const c = off.getContext("2d");
-    c.imageSmoothingEnabled = false;
-    const dx = 0;
-    const dy = maxH - (im.naturalHeight || im.height);
-    c.drawImage(im, dx, dy);
-    return off;
-  });
-
-  framesReady = true;
+function scheduleNextSpawn(speed) {
+  const minPx = minGapPx(speed);
+  const minFrames = Math.ceil(minPx / Math.max(1, speed));
+  const extra = Math.floor(randExp(minFrames * 0.9)); // exponential tail
+  const jitter = randInt(10, 30);
+  return minFrames + extra + jitter;
 }
 
 function resetGame() {
   frame = 0;
   score = 0;
   obstacles = [];
-  const baseW = framesReady ? frames[0].width * SCALE : 44;
-  const baseH = framesReady ? frames[0].height * SCALE : 48;
-  dino = { x: 50, y: 0, w: baseW, h: baseH, vy: 0 };
+  spawnTimer = 40;
+  const w = GRID_W * SCALE;
+  const h = GRID_H * SCALE;
+  dino = { x: 50, y: 0, w, h, vy: 0 };
   dino.y = groundY - dino.h;
-  animFrameIndex = 0;
+  spriteFrame = 0;
 }
 
 function start() {
@@ -119,9 +91,7 @@ function onKey(e) {
     if (state === "idle") start();
     else if (state === "running") {
       if (onGround()) dino.vy = JUMP_V;
-    } else if (state === "dead") start();
-  } else if (code === "KeyR") {
-    if (state !== "running") start();
+    } else if (state === "dead") start(); // Space to restart
   }
 }
 
@@ -130,9 +100,26 @@ function onGround() {
 }
 
 function spawnObstacle() {
-  const h = 25 + Math.floor(Math.random() * 40); // 25..64
-  const w = 10 + Math.floor(Math.random() * 20); // 10..29
+  const h = 24 + Math.floor(Math.random() * 36); // 24..59
+  const w = 12 + Math.floor(Math.random() * 16); // 12..27
   obstacles.push({ x: canvas.width + 10, y: groundY - h, w, h });
+}
+
+function trySpawnObstacle(speed) {
+  const last = obstacles[obstacles.length - 1];
+  const needPx = minGapPx(speed);
+  if (last) {
+    const gapPx = canvas.width + 10 - (last.x + last.w);
+    if (gapPx < needPx) {
+      spawnTimer = Math.max(
+        10,
+        Math.ceil((needPx - gapPx) / Math.max(1, speed))
+      );
+      return;
+    }
+  }
+  spawnObstacle();
+  spawnTimer = scheduleNextSpawn(speed);
 }
 
 function collide(a, b) {
@@ -142,22 +129,22 @@ function collide(a, b) {
 }
 
 function update() {
-  const speed = SPEED_BASE + Math.min(10, score / 200);
+  const speed = SPEED_BASE + Math.min(SPEED_CAP, score / SPEED_SCALE);
   frame++;
   score += 1;
 
   // animate sprite when running
-  if (state === "running" && framesReady && frames.length > 1) {
+  if (state === "running" && SPRITE_FRAMES > 1) {
     if (frame % Math.max(1, Math.floor(60 / SPRITE_FPS)) === 0) {
-      animFrameIndex = (animFrameIndex + 1) % frames.length;
+      spriteFrame = (spriteFrame + 1) % SPRITE_FRAMES;
     }
   }
 
-  // obstacle spawn
-  const spawnEvery = Math.max(45, 90 - Math.floor(score / 20));
-  if (frame % spawnEvery === 0) spawnObstacle();
+  // spawn logic with fairness and variance
+  spawnTimer -= 1;
+  if (spawnTimer <= 0) trySpawnObstacle(speed);
 
-  // gravity and movement
+  // gravity
   dino.vy += GRAVITY;
   dino.y += dino.vy;
   if (onGround()) {
@@ -189,20 +176,6 @@ function drawGround() {
   ctx.stroke();
 }
 
-function drawDino() {
-  if (framesReady) {
-    const img = frames[animFrameIndex] || frames[0];
-    const dx = Math.round(dino.x);
-    const dy = Math.round(dino.y);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, dx, dy, dino.w, dino.h);
-    return;
-  }
-  // fallback rectangle if frames not loaded
-  ctx.fillStyle = "#111827";
-  ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
-}
-
 function drawObstacles() {
   ctx.fillStyle = "#374151";
   for (const o of obstacles) ctx.fillRect(o.x, o.y, o.w, o.h);
@@ -213,10 +186,10 @@ function drawText(text, y) {
     "16px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
   ctx.fillStyle = "#374151";
   const m = ctx.measureText(text);
-  ctx.fillText(text, (canvas.width - m.width) / 2, y);
+  ctx.fillText(text, Math.round((canvas.width - m.width) / 2), y);
 }
 
-function drawScore() {
+function drawScoreHUD() {
   ctx.font =
     "14px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
   ctx.fillStyle = "#4B5563";
@@ -224,18 +197,91 @@ function drawScore() {
   ctx.fillText(s, canvas.width - 70, 24);
 }
 
+// ---------- Minimal cute pixel cat (facing right) ----------
+function px(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(
+    Math.round(dino.x + x * SCALE),
+    Math.round(dino.y + y * SCALE),
+    Math.round(w * SCALE),
+    Math.round(h * SCALE)
+  );
+}
+
+/** 16x16 chibi cat, rounded silhouette, simple tail. frameIdx: 0..2 */
+function drawCat(frameIdx) {
+  // Body (rounded rectangle impression)
+  px(4, 9, 7, 4, C_BODY); // torso
+  px(5, 8, 5, 1, C_BODY); // back curve
+  px(10, 10, 1, 2, C_BODY); // chest bulge
+
+  // Belly highlight
+  px(6, 11, 3, 1, C_BELLY);
+
+  // Head, larger than body for cute look
+  px(11, 7, 4, 4, C_BODY); // head block
+  // Ears
+  px(11, 6, 1, 1, C_BODY);
+  px(13, 6, 1, 1, C_BODY);
+  // Inner ear hints
+  px(11, 6, 1, 1, C_EARIN);
+  px(13, 6, 1, 1, C_EARIN);
+
+  // Face
+  px(14, 8, 1, 1, C_EYE); // eye
+  px(14, 9, 1, 1, C_NOSE); // nose
+
+  // Tail, smooth and consistent on the back-left
+  // Anchor near x=3..4. Animate up-mid-down gently.
+  if (frameIdx === 0) {
+    px(3, 8, 1, 3, C_BODY); // up
+    px(2, 7, 1, 1, C_BODY);
+  } else if (frameIdx === 1) {
+    px(3, 9, 1, 3, C_BODY); // mid
+    px(2, 10, 1, 1, C_BODY);
+  } else {
+    px(3, 10, 1, 2, C_BODY); // down
+    px(2, 11, 1, 1, C_BODY);
+  }
+
+  // Legs animate, compact and symmetric
+  if (frameIdx === 0) {
+    // front forward, back back
+    px(10, 12, 1, 3, C_BODY);
+    px(9, 12, 1, 2, C_BODY); // front
+    px(5, 12, 1, 2, C_BODY);
+    px(4, 12, 1, 3, C_BODY); // back
+  } else if (frameIdx === 1) {
+    // neutral
+    px(10, 12, 1, 2, C_BODY);
+    px(9, 12, 1, 2, C_BODY);
+    px(5, 12, 1, 2, C_BODY);
+    px(4, 12, 1, 2, C_BODY);
+  } else {
+    // front back, back forward
+    px(10, 12, 1, 2, C_BODY);
+    px(9, 12, 1, 3, C_BODY);
+    px(5, 12, 1, 3, C_BODY);
+    px(4, 12, 1, 2, C_BODY);
+  }
+}
+
+function drawDino() {
+  drawCat(spriteFrame);
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGround();
-  if (state === "idle") {
-    if (!framesReady && !spriteError) drawText("Loading sprite…", 70);
-    if (spriteError) drawText("Sprite load failed. Press Space to start", 70);
-    drawText("Press Space to start", 90);
-  }
+  if (state === "idle") drawText("Press Space to start", 85);
   drawDino();
   drawObstacles();
-  drawScore();
-  if (state === "dead") drawText("Game Over — press Space or R", 120);
+  drawScoreHUD();
+  if (state === "dead") {
+    const disp = Math.floor(score / 5);
+    drawText(`Your score: ${disp}`, 80); // higher placement
+    drawText("Game Over — press Space", 100);
+  }
 }
 
 function loop() {
@@ -251,14 +297,10 @@ export function mount(targetCanvas) {
   ctx = canvas.getContext("2d");
   groundY = canvas.height - 20;
   ctx.imageSmoothingEnabled = false;
-
   window.addEventListener("keydown", onKey);
   state = "idle";
-
-  preloadFrames().finally(() => {
-    resetGame();
-    draw();
-  });
+  resetGame();
+  draw();
 }
 
 export function unmount() {

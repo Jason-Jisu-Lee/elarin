@@ -3,9 +3,11 @@ import { loadResources } from "/modules/settings.js";
 import { startLoop, stopLoop, sentences } from "/modules/textRotation.js";
 import { enableOverlayFeatures } from "/modules/overlay.js";
 import * as Dino404 from "/modules/dino404.js";
+import * as Auth from "/modules/auth.js";
 
 const routes = ["/", "/about/", "/login/", "/contact/", "/404/"];
 let atlasLoaded = false;
+let session = { authenticated: false, subscribed: false, user: null };
 
 function normPath(pathname) {
   if (pathname === "/") return "/";
@@ -70,22 +72,113 @@ function unmountFloater() {
   }
 }
 
+async function refreshSession() {
+  try {
+    session = await Auth.getSession();
+  } catch {
+    session = { authenticated: false };
+  }
+}
+
+function wireCTA() {
+  const btn = document.getElementById("get-elarin");
+  if (!btn) return;
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!session.authenticated) {
+      sessionStorage.setItem(
+        "loginBanner",
+        "To utilize Elarin, please log in first."
+      );
+      navTo("/login/");
+      return;
+    }
+    // subscribed? go next step (Stripe in later phase)
+    if (!session.subscribed) {
+      // placeholder for next phases
+      alert("Checkout coming soon.");
+    } else {
+      alert("Open preferences coming soon.");
+    }
+  });
+}
+
+function wireLoginForms() {
+  const banner = document.getElementById("login-banner");
+  const msg = sessionStorage.getItem("loginBanner");
+  if (banner && msg) {
+    banner.textContent = msg;
+    banner.hidden = false;
+    sessionStorage.removeItem("loginBanner");
+  }
+
+  const showSignup = document.getElementById("show-signup");
+  const showLogin = document.getElementById("show-login");
+  const loginForm = document.getElementById("login-form");
+  const signupForm = document.getElementById("signup-form");
+
+  if (showSignup && showLogin && loginForm && signupForm) {
+    showSignup.addEventListener("click", (e) => {
+      e.preventDefault();
+      loginForm.hidden = true;
+      signupForm.hidden = false;
+    });
+    showLogin.addEventListener("click", (e) => {
+      e.preventDefault();
+      signupForm.hidden = true;
+      loginForm.hidden = false;
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(loginForm);
+      const res = await Auth.login(fd.get("email"), fd.get("password"));
+      if (res?.ok) {
+        session = await Auth.getSession();
+        navTo("/");
+      } else {
+        showBanner(banner, res?.error || "Login failed.");
+      }
+    });
+
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(signupForm);
+      const res = await Auth.signup(fd.get("email"), fd.get("password"));
+      if (res?.ok) {
+        session = await Auth.getSession();
+        navTo("/");
+      } else {
+        showBanner(banner, res?.error || "Signup failed.");
+      }
+    });
+  }
+}
+
+function showBanner(node, text) {
+  if (!node) return;
+  node.textContent = text;
+  node.hidden = false;
+}
+
 // replace render() with this
-function render(path) {
-  // Clean up dino if leaving 404
+async function render(path) {
   if (typeof Dino404?.unmount === "function") Dino404.unmount();
+  await refreshSession();
 
   const p = normPath(path);
   setActiveNav(p);
   switch (p) {
     case "/":
       swapContent("tpl-home");
+      wireCTA();
       break;
     case "/about/":
       swapContent("tpl-about");
       break;
     case "/login/":
       swapContent("tpl-login");
+      wireLoginForms();
       break;
     case "/contact/":
       swapContent("tpl-contact");
@@ -98,8 +191,8 @@ function render(path) {
     }
     default:
       swapContent("tpl-home");
+      wireCTA();
   }
-  // floater on every page
   mountFloater();
 }
 
@@ -111,6 +204,11 @@ function onLinkClick(e) {
   const path = normPath(url.pathname);
   if (!routes.includes(path)) return;
   e.preventDefault();
+  if (path !== normPath(location.pathname)) history.pushState({}, "", path);
+  render(path);
+}
+
+function navTo(path) {
   if (path !== normPath(location.pathname)) history.pushState({}, "", path);
   render(path);
 }

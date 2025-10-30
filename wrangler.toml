@@ -1,2 +1,8 @@
-# optional but recommended for Functions
+# optional but fine
 compatibility_date = "2025-10-10"
+
+[[d1_databases]]
+binding = "elarin_db"
+database_name = "elarin_db"
+database_id = "9896bd96-a1c9-420b-ac6c-f82f7488bf60"
+migrations_dir = "migrations"

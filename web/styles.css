@@ -187,3 +187,11 @@ a:focus-visible {
   background: #fff;
   color: #111;
 }
+/* CTA variant */
+.btn-cta {
+  background: #0d9488;
+  color: var(--bg);
+}
+.btn-cta:hover {
+  filter: brightness(0.95);
+}

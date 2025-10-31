@@ -5,7 +5,7 @@ import { enableOverlayFeatures } from "/modules/overlay.js";
 import * as Dino404 from "/modules/dino404.js";
 import * as Auth from "/modules/auth.js";
 
-const routes = ["/", "/about/", "/login/", "/contact/", "/404/"];
+const routes = ["/", "/about/", "/login/", "/signup/", "/contact/", "/404/"];
 let atlasLoaded = false;
 let session = { authenticated: false, subscribed: false, user: null };
 
@@ -93,9 +93,7 @@ function wireCTA() {
       navTo("/login/");
       return;
     }
-    // subscribed? go next step (Stripe in later phase)
     if (!session.subscribed) {
-      // placeholder for next phases
       alert("Checkout coming soon.");
     } else {
       alert("Open preferences coming soon.");
@@ -103,7 +101,11 @@ function wireCTA() {
   });
 }
 
-function wireLoginForms() {
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function wireLoginForm() {
   const banner = document.getElementById("login-banner");
   const msg = sessionStorage.getItem("loginBanner");
   if (banner && msg) {
@@ -111,48 +113,48 @@ function wireLoginForms() {
     banner.hidden = false;
     sessionStorage.removeItem("loginBanner");
   }
+  const form = document.getElementById("login-form");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const email = fd.get("email");
+    const password = fd.get("password");
+    if (!isEmail(email))
+      return showBanner(banner, "Enter a valid email address.");
+    if (!password || String(password).length < 8)
+      return showBanner(banner, "Password must be at least 8 characters.");
+    const res = await Auth.login(email, password);
+    if (res?.ok) {
+      session = await Auth.getSession();
+      navTo("/");
+    } else {
+      showBanner(banner, res?.error || "Login failed.");
+    }
+  });
+}
 
-  const showSignup = document.getElementById("show-signup");
-  const showLogin = document.getElementById("show-login");
-  const loginForm = document.getElementById("login-form");
-  const signupForm = document.getElementById("signup-form");
-
-  if (showSignup && showLogin && loginForm && signupForm) {
-    showSignup.addEventListener("click", (e) => {
-      e.preventDefault();
-      loginForm.hidden = true;
-      signupForm.hidden = false;
-    });
-    showLogin.addEventListener("click", (e) => {
-      e.preventDefault();
-      signupForm.hidden = true;
-      loginForm.hidden = false;
-    });
-
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(loginForm);
-      const res = await Auth.login(fd.get("email"), fd.get("password"));
-      if (res?.ok) {
-        session = await Auth.getSession();
-        navTo("/");
-      } else {
-        showBanner(banner, res?.error || "Login failed.");
-      }
-    });
-
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(signupForm);
-      const res = await Auth.signup(fd.get("email"), fd.get("password"));
-      if (res?.ok) {
-        session = await Auth.getSession();
-        navTo("/");
-      } else {
-        showBanner(banner, res?.error || "Signup failed.");
-      }
-    });
-  }
+function wireSignupForm() {
+  const banner = document.getElementById("signup-banner");
+  const form = document.getElementById("signup-form");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const email = fd.get("email");
+    const password = fd.get("password");
+    if (!isEmail(email))
+      return showBanner(banner, "Enter a valid email address.");
+    if (!password || String(password).length < 8)
+      return showBanner(banner, "Password must be at least 8 characters.");
+    const res = await Auth.signup(email, password);
+    if (res?.ok) {
+      session = await Auth.getSession();
+      navTo("/");
+    } else {
+      showBanner(banner, res?.error || "Signup failed.");
+    }
+  });
 }
 
 function showBanner(node, text) {
@@ -178,7 +180,11 @@ async function render(path) {
       break;
     case "/login/":
       swapContent("tpl-login");
-      wireLoginForms();
+      wireLoginForm();
+      break;
+    case "/signup/":
+      swapContent("tpl-signup");
+      wireSignupForm();
       break;
     case "/contact/":
       swapContent("tpl-contact");

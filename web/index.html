@@ -42,7 +42,9 @@
         <p>You are overwhelmed with information.</p>
         <p>Passively get non-intrusive, filtered, essential information.</p>
         <p style="margin-top: 16px">
-          <button id="get-elarin" class="btn-primary">Get Elarin</button>
+          <button id="get-elarin" class="btn-primary btn-cta">
+            Get Elarin
+          </button>
         </p>
       </div>
     </template>
@@ -60,49 +62,53 @@
         <h2>Log In</h2>
         <form id="login-form" class="auth-form">
           <label
-            >Email<br /><input
-              type="email"
-              name="email"
-              required
-              autocomplete="email"
-          /></label>
+            >Email<br />
+            <input type="email" name="email" required autocomplete="email" />
+          </label>
           <label
-            >Password<br /><input
+            >Password<br />
+            <input
               type="password"
               name="password"
               required
               autocomplete="current-password"
-          /></label>
+            />
+          </label>
           <button type="submit" class="btn-primary" style="margin-top: 12px">
             Log In
           </button>
         </form>
         <p style="margin-top: 16px">
-          New here? <a href="#" id="show-signup">Create an account</a>
+          New here? <a href="/signup/" data-route>Create an account</a>
         </p>
+      </div>
+    </template>
 
-        <form id="signup-form" class="auth-form" hidden>
+    <template id="tpl-signup">
+      <div class="hero-copy narrow">
+        <div id="signup-banner" class="banner" hidden></div>
+        <h2>Create your account</h2>
+        <form id="signup-form" class="auth-form">
           <label
-            >Email<br /><input
-              type="email"
-              name="email"
-              required
-              autocomplete="email"
-          /></label>
+            >Email<br />
+            <input type="email" name="email" required autocomplete="email" />
+          </label>
           <label
-            >Password<br /><input
+            >Password<br />
+            <input
               type="password"
               name="password"
               required
               autocomplete="new-password"
-          /></label>
+            />
+          </label>
           <button type="submit" class="btn-primary" style="margin-top: 12px">
             Sign Up
           </button>
-          <p style="margin-top: 12px">
-            <a href="#" id="show-login">Back to login</a>
-          </p>
         </form>
+        <p style="margin-top: 16px">
+          <a href="/login/" data-route>Back to login</a>
+        </p>
       </div>
     </template>
 

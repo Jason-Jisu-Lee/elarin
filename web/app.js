@@ -3,9 +3,11 @@ import { loadResources } from "/modules/settings.js";
 import { startLoop, stopLoop, sentences } from "/modules/textRotation.js";
 import { enableOverlayFeatures } from "/modules/overlay.js";
 import * as Dino404 from "/modules/dino404.js";
+import * as Auth from "/modules/auth.js";
 
-const routes = ["/", "/about/", "/login/", "/contact/", "/404/"];
+const routes = ["/", "/about/", "/login/", "/signup/", "/contact/", "/404/"];
 let atlasLoaded = false;
+let session = { authenticated: false, subscribed: false, user: null };
 
 function normPath(pathname) {
   if (pathname === "/") return "/";
@@ -70,22 +72,153 @@ function unmountFloater() {
   }
 }
 
+async function refreshSession() {
+  try {
+    session = await Auth.getSession();
+  } catch {
+    session = { authenticated: false };
+  }
+}
+
+function wireCTA() {
+  const btn = document.getElementById("get-elarin");
+  if (!btn) return;
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!session.authenticated) {
+      sessionStorage.setItem(
+        "loginBanner",
+        "To utilize Elarin, please log in first."
+      );
+      sessionStorage.setItem("loginBannerType", "info");
+      navTo("/login/");
+      return;
+    }
+    if (!session.subscribed) {
+      alert("Checkout coming soon.");
+    } else {
+      alert("Open preferences coming soon.");
+    }
+  });
+}
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function wireLoginForm() {
+  const banner = document.getElementById("login-banner");
+  const msg = sessionStorage.getItem("loginBanner");
+  const type = sessionStorage.getItem("loginBannerType");
+  if (banner && msg) {
+    banner.textContent = msg;
+    if (type === "success") banner.classList.add("success");
+    banner.hidden = false;
+    sessionStorage.removeItem("loginBanner");
+    sessionStorage.removeItem("loginBannerType");
+  }
+
+  const form = document.getElementById("login-form");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const email = fd.get("email");
+    const password = fd.get("password");
+    if (!isEmail(email))
+      return showBanner(banner, "Enter a valid email address.");
+    if (!password || String(password).length < 8)
+      return showBanner(banner, "Password must be at least 8 characters.");
+    const res = await Auth.login(email, password);
+    if (res?.ok) {
+      session = await Auth.getSession();
+      navTo("/");
+    } else {
+      showBanner(banner, res?.error || "Login failed.");
+    }
+  });
+}
+
+function wireSignupForm() {
+  const banner = document.getElementById("signup-banner");
+  const failsafe = document.getElementById("signup-failsafe");
+  const form = document.getElementById("signup-form");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const email = fd.get("email");
+    const password = fd.get("password");
+    const password2 = fd.get("password2");
+    if (banner) {
+      banner.hidden = true;
+      banner.textContent = "";
+    }
+    if (failsafe) failsafe.hidden = true;
+
+    if (!isEmail(email))
+      return showBanner(banner, "Enter a valid email address.");
+    if (!password || String(password).length < 8)
+      return showBanner(banner, "Password must be at least 8 characters.");
+    if (String(password) !== String(password2))
+      return showBanner(banner, "Please enter the same password.");
+
+    try {
+      const res = await Auth.signup(email, password);
+      if (res?.ok) {
+        await Auth.logout();
+        sessionStorage.setItem(
+          "loginBanner",
+          "Signed up successfully. Please log in"
+        );
+        sessionStorage.setItem("loginBannerType", "success");
+        navTo("/login/");
+      } else if (res?.error) {
+        // specific error from API (e.g., duplicate email)
+        showBanner(banner, res.error);
+        if (failsafe) failsafe.hidden = true; // keep failsafe hidden
+      } else {
+        // no specific error string; use generic and show failsafe
+        showBanner(banner, "Signup failed.");
+        if (failsafe) failsafe.hidden = false;
+      }
+    } catch {
+      // network/runtime issue only
+      showBanner(banner, "Server error. Please try again.");
+      if (failsafe) failsafe.hidden = false;
+    }
+  });
+}
+
+function showBanner(node, text) {
+  if (!node) return;
+  node.textContent = text;
+  node.hidden = false;
+}
+
 // replace render() with this
-function render(path) {
-  // Clean up dino if leaving 404
+async function render(path) {
   if (typeof Dino404?.unmount === "function") Dino404.unmount();
+  await refreshSession();
 
   const p = normPath(path);
   setActiveNav(p);
   switch (p) {
     case "/":
       swapContent("tpl-home");
+      wireCTA();
       break;
     case "/about/":
       swapContent("tpl-about");
       break;
     case "/login/":
       swapContent("tpl-login");
+      wireLoginForm();
+      break;
+    case "/signup/":
+      swapContent("tpl-signup");
+      wireSignupForm();
       break;
     case "/contact/":
       swapContent("tpl-contact");
@@ -98,8 +231,8 @@ function render(path) {
     }
     default:
       swapContent("tpl-home");
+      wireCTA();
   }
-  // floater on every page
   mountFloater();
 }
 
@@ -111,6 +244,11 @@ function onLinkClick(e) {
   const path = normPath(url.pathname);
   if (!routes.includes(path)) return;
   e.preventDefault();
+  if (path !== normPath(location.pathname)) history.pushState({}, "", path);
+  render(path);
+}
+
+function navTo(path) {
   if (path !== normPath(location.pathname)) history.pushState({}, "", path);
   render(path);
 }

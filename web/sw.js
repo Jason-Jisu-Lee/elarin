@@ -1,5 +1,5 @@
-// SW v10 (SPA + static)
-const CACHE = "elarin-static-v10";
+// SW v12 (SPA + static)
+const CACHE = "elarin-static-v12";
 const PRECACHE = [
   "/",
   "/index.html",

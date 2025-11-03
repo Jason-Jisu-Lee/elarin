@@ -148,3 +148,60 @@ a:focus-visible {
     animation: none !important;
   }
 }
+
+.btn-primary {
+  border: 0;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  font-weight: 700;
+  background: #111;
+  color: var(--bg);
+  cursor: pointer;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.banner {
+  background: #fff6d1;
+  color: #6a4d00;
+  border: 1px solid #ffe089;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.auth-form {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: left;
+}
+.auth-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #111;
+}
+/* CTA variant */
+.btn-cta {
+  background: #0d9488;
+  color: var(--bg);
+  padding: 14px 22px;
+  font-size: 18px;
+}
+.btn-cta:hover {
+  filter: brightness(0.95);
+}
+.banner.success {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+#signup-failsafe {
+  margin-top: 12px;
+}

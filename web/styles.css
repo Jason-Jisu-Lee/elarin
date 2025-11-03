@@ -203,9 +203,3 @@ a:focus-visible {
 #signup-failsafe {
   margin-top: 12px;
 }
-.btn-signup {
-  background: #16a34a;
-}
-.btn-signup:hover {
-  filter: brightness(0.95);
-}

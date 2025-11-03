@@ -1,4 +1,5 @@
 export const onRequestPost = async ({ request, env }) => {
+  const preview = /\.pages\.dev$/.test(new URL(request.url).hostname);
   try {
     const { email, password } = await request.json().catch(() => ({}));
     if (!isEmail(email) || !isGoodPass(password)) {
@@ -6,31 +7,36 @@ export const onRequestPost = async ({ request, env }) => {
     }
 
     const DB = env.elarin_db || env.ELARIN_DB;
-    const SESS = env.ELARIN_SESSIONS;
+    const SESS = env.ELARIN_SESSIONS || env.elarin_sessions;
     if (!DB) return jerr(500, "DB binding missing.");
     if (!SESS) return jerr(500, "KV binding missing.");
 
-    const exists = await DB.prepare("SELECT id FROM users WHERE email = ?").get(
-      email
-    );
+    const exists = await DB.prepare("SELECT id FROM users WHERE email = ?")
+      .bind(email)
+      .first();
     if (exists) return jerr(409, "Email already registered.");
 
     const { hash, salt, i } = await hashPassword(password); // reduced cost
     const id = crypto.randomUUID();
     const nowIso = new Date().toISOString();
 
-    await DB.batch([
-      DB.prepare(
-        "INSERT INTO users (id,email,password_hash,created_at,updated_at) VALUES (?,?,?,?,?)"
-      ).bind(id, email, `pbkdf2$sha256$${i}$${salt}$${hash}`, nowIso, nowIso),
-      DB.prepare("INSERT INTO profiles (user_id,onboarded) VALUES (?,0)").bind(
-        id
-      ),
-      DB.prepare(
-        "INSERT INTO subscriptions (user_id,status) VALUES (?,?)"
-      ).bind(id, "incomplete"),
-      DB.prepare("INSERT INTO preferences (user_id) VALUES (?)").bind(id),
-    ]);
+    await DB.prepare(
+      "INSERT INTO users (id,email,password_hash,created_at,updated_at) VALUES (?,?,?,?,?)"
+    )
+      .bind(id, email, `pbkdf2$sha256$${i}$${salt}$${hash}`, nowIso, nowIso)
+      .run();
+
+    await DB.prepare("INSERT INTO profiles (user_id,onboarded) VALUES (?,0)")
+      .bind(id)
+      .run();
+
+    await DB.prepare("INSERT INTO subscriptions (user_id,status) VALUES (?,?)")
+      .bind(id, "incomplete")
+      .run();
+
+    await DB.prepare("INSERT INTO preferences (user_id) VALUES (?)")
+      .bind(id)
+      .run();
 
     const sid = genSessionId();
     await SESS.put(sid, JSON.stringify({ user_id: id }), {
@@ -46,7 +52,11 @@ export const onRequestPost = async ({ request, env }) => {
       },
     });
   } catch (err) {
-    return jerr(500, "Server error.");
+    // expose message on preview to speed debugging
+    return jerr(
+      500,
+      preview ? `Server error: ${err?.message || err}` : "Server error."
+    );
   }
 };
 
@@ -81,7 +91,7 @@ function b64(bytes) {
   return btoa(String.fromCharCode(...bytes));
 }
 async function hashPassword(password) {
-  const i = 10000; // lowered for Workers Free CPU
+  const i = 10000; // Workers Free CPU-friendly
   const saltBytes = crypto.getRandomValues(new Uint8Array(16));
   const key = await crypto.subtle.importKey(
     "raw",

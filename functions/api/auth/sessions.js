@@ -1,26 +1,33 @@
 export const onRequest = async ({ request, env }) => {
-  const sid = getCookie(request.headers.get("Cookie"), "elarin_sess");
-  if (!sid) return json({ authenticated: false });
+  try {
+    const sid = getCookie(request.headers.get("Cookie"), "elarin_sess");
+    if (!sid) return json({ authenticated: false });
 
-  const raw = await env.ELARIN_SESSIONS.get(sid);
-  if (!raw) return json({ authenticated: false });
+    const raw = await (env.ELARIN_SESSIONS || env.elarin_sessions).get(sid);
+    if (!raw) return json({ authenticated: false });
 
-  const sess = safeJSON(raw);
-  if (!sess?.user_id) return json({ authenticated: false });
+    const sess = safeJSON(raw);
+    if (!sess?.user_id) return json({ authenticated: false });
 
-  const DB = env.elarin_db || env.ELARIN_DB;
-  const user = await DB.prepare("SELECT id, email FROM users WHERE id = ?").get(
-    sess.user_id
-  );
+    const DB = env.elarin_db || env.ELARIN_DB;
+    if (!DB) return json({ authenticated: false });
 
-  if (!user) return json({ authenticated: false });
+    const user = await DB.prepare("SELECT id, email FROM users WHERE id = ?")
+      .bind(sess.user_id)
+      .first();
+    if (!user) return json({ authenticated: false });
 
-  const sub = await DB.prepare(
-    "SELECT status FROM subscriptions WHERE user_id = ?"
-  ).get(user.id);
+    const sub = await DB.prepare(
+      "SELECT status FROM subscriptions WHERE user_id = ?"
+    )
+      .bind(user.id)
+      .first();
 
-  const subscribed = sub?.status === "active";
-  return json({ authenticated: true, subscribed, user });
+    const subscribed = sub?.status === "active";
+    return json({ authenticated: true, subscribed, user });
+  } catch {
+    return json({ authenticated: false });
+  }
 };
 
 function json(obj, status = 200) {

@@ -1,19 +1,24 @@
 export const onRequestPost = async ({ request, env }) => {
+  const preview = /\.pages\.dev$/.test(new URL(request.url).hostname);
   try {
     const { email, password } = await request.json().catch(() => ({}));
     if (!email || !password) return jerr(400, "Missing credentials.");
 
     const DB = env.elarin_db || env.ELARIN_DB;
-    const SESS = env.ELARIN_SESSIONS;
+    const SESS = env.ELARIN_SESSIONS || env.elarin_sessions;
     if (!DB) return jerr(500, "DB binding missing.");
     if (!SESS) return jerr(500, "KV binding missing.");
 
     const row = await DB.prepare(
       "SELECT id, password_hash FROM users WHERE email = ?"
-    ).get(email);
+    )
+      .bind(email)
+      .first();
+
+    // If user not found or hash missing/invalid, return 401 (do not throw)
     if (!row?.password_hash) return jerr(401, "Invalid email or password.");
 
-    const ok = await verifyPassword(password, row.password_hash);
+    const ok = await safeVerifyPassword(password, row.password_hash);
     if (!ok) return jerr(401, "Invalid email or password.");
 
     const sid = genSessionId();
@@ -32,7 +37,10 @@ export const onRequestPost = async ({ request, env }) => {
       }
     );
   } catch (err) {
-    return jerr(500, "Server error.");
+    return jerr(
+      500,
+      preview ? `Server error: ${err?.message || err}` : "Server error."
+    );
   }
 };
 
@@ -54,27 +62,34 @@ function enc(s) {
   return new TextEncoder().encode(s);
 }
 
-async function verifyPassword(password, stored) {
-  // format: pbkdf2$sha256$ITER$SALT$HASH
-  const parts = String(stored).split("$");
-  if (parts.length !== 5) return false;
-  const iter = parseInt(parts[2], 10);
-  const saltB = Uint8Array.from(atob(parts[3]), (c) => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc(password),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"]
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: saltB, iterations: iter },
-    key,
-    256
-  );
-  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
-  return hash === parts[4];
+/** Never throw. Treat any malformed stored hash as a mismatch. */
+async function safeVerifyPassword(password, stored) {
+  try {
+    // expected: pbkdf2$sha256$ITER$SALT$HASH
+    const parts = String(stored).split("$");
+    if (parts.length !== 5) return false;
+    const iter = parseInt(parts[2], 10);
+    if (!Number.isFinite(iter) || iter < 1000 || iter > 200000) return false;
+    const saltB = Uint8Array.from(atob(parts[3]), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"]
+    );
+    const bits = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", hash: "SHA-256", salt: saltB, iterations: iter },
+      key,
+      256
+    );
+    const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
+    return hash === parts[4];
+  } catch {
+    return false;
+  }
 }
+
 function genSessionId() {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   return btoa(String.fromCharCode(...bytes)).replace(/[^A-Za-z0-9]/g, "");

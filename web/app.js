@@ -151,6 +151,11 @@ function wireSignupForm() {
     const email = fd.get("email");
     const password = fd.get("password");
     const password2 = fd.get("password2");
+    if (banner) {
+      banner.hidden = true;
+      banner.textContent = "";
+    }
+    if (failsafe) failsafe.hidden = true;
 
     if (!isEmail(email))
       return showBanner(banner, "Enter a valid email address.");
@@ -162,7 +167,6 @@ function wireSignupForm() {
     try {
       const res = await Auth.signup(email, password);
       if (res?.ok) {
-        // Force fresh login per requirement
         await Auth.logout();
         sessionStorage.setItem(
           "loginBanner",
@@ -170,11 +174,17 @@ function wireSignupForm() {
         );
         sessionStorage.setItem("loginBannerType", "success");
         navTo("/login/");
+      } else if (res?.error) {
+        // specific error from API (e.g., duplicate email)
+        showBanner(banner, res.error);
+        if (failsafe) failsafe.hidden = true; // keep failsafe hidden
       } else {
-        showBanner(banner, res?.error || "Signup failed.");
+        // no specific error string; use generic and show failsafe
+        showBanner(banner, "Signup failed.");
         if (failsafe) failsafe.hidden = false;
       }
     } catch {
+      // network/runtime issue only
       showBanner(banner, "Server error. Please try again.");
       if (failsafe) failsafe.hidden = false;
     }

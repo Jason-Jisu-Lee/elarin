@@ -195,9 +195,17 @@ a:focus-visible {
 .btn-cta:hover {
   filter: brightness(0.95);
 }
-/* success banner variant */
 .banner.success {
   background: #d1fae5;
   color: #065f46;
   border-color: #a7f3d0;
+}
+#signup-failsafe {
+  margin-top: 12px;
+}
+.btn-signup {
+  background: #4f46e5;
+}
+.btn-signup:hover {
+  filter: brightness(0.95);
 }

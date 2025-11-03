@@ -32,7 +32,6 @@
           <p>Passively get non-intrusive, filtered, essential information.</p>
         </div>
       </section>
-      <!-- Floater created/removed by JS per route -->
     </main>
 
     <!-- Page templates -->
@@ -102,10 +101,22 @@
               autocomplete="new-password"
             />
           </label>
+          <label
+            >Confirm password<br />
+            <input
+              type="password"
+              name="password2"
+              required
+              autocomplete="new-password"
+            />
+          </label>
           <button type="submit" class="btn-primary" style="margin-top: 12px">
             Sign Up
           </button>
         </form>
+        <div id="signup-failsafe" class="banner" hidden>
+          Server error. Please try again.
+        </div>
         <p style="margin-top: 16px">
           <a href="/login/" data-route>Back to login</a>
         </p>

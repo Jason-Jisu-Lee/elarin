@@ -90,6 +90,7 @@ function wireCTA() {
         "loginBanner",
         "To utilize Elarin, please log in first."
       );
+      sessionStorage.setItem("loginBannerType", "info");
       navTo("/login/");
       return;
     }
@@ -108,11 +109,15 @@ function isEmail(value) {
 function wireLoginForm() {
   const banner = document.getElementById("login-banner");
   const msg = sessionStorage.getItem("loginBanner");
+  const type = sessionStorage.getItem("loginBannerType");
   if (banner && msg) {
     banner.textContent = msg;
+    if (type === "success") banner.classList.add("success");
     banner.hidden = false;
     sessionStorage.removeItem("loginBanner");
+    sessionStorage.removeItem("loginBannerType");
   }
+
   const form = document.getElementById("login-form");
   if (!form) return;
   form.addEventListener("submit", async (e) => {
@@ -136,23 +141,42 @@ function wireLoginForm() {
 
 function wireSignupForm() {
   const banner = document.getElementById("signup-banner");
+  const failsafe = document.getElementById("signup-failsafe");
   const form = document.getElementById("signup-form");
   if (!form) return;
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
     const email = fd.get("email");
     const password = fd.get("password");
+    const password2 = fd.get("password2");
+
     if (!isEmail(email))
       return showBanner(banner, "Enter a valid email address.");
     if (!password || String(password).length < 8)
       return showBanner(banner, "Password must be at least 8 characters.");
-    const res = await Auth.signup(email, password);
-    if (res?.ok) {
-      session = await Auth.getSession();
-      navTo("/");
-    } else {
-      showBanner(banner, res?.error || "Signup failed.");
+    if (String(password) !== String(password2))
+      return showBanner(banner, "Please enter the same password.");
+
+    try {
+      const res = await Auth.signup(email, password);
+      if (res?.ok) {
+        // Force fresh login per requirement
+        await Auth.logout();
+        sessionStorage.setItem(
+          "loginBanner",
+          "Signed up successfully. Please log in"
+        );
+        sessionStorage.setItem("loginBannerType", "success");
+        navTo("/login/");
+      } else {
+        showBanner(banner, res?.error || "Signup failed.");
+        if (failsafe) failsafe.hidden = false;
+      }
+    } catch {
+      showBanner(banner, "Server error. Please try again.");
+      if (failsafe) failsafe.hidden = false;
     }
   });
 }

@@ -4,6 +4,7 @@ import { startLoop, stopLoop, sentences } from "/modules/textRotation.js";
 import { enableOverlayFeatures } from "/modules/overlay.js";
 import * as Dino404 from "/modules/dino404.js";
 import * as Auth from "/modules/auth.js";
+import * as Billing from "/modules/billing.js";
 
 const routes = ["/", "/about/", "/login/", "/signup/", "/contact/", "/404/"];
 let atlasLoaded = false;
@@ -36,9 +37,17 @@ function setAuthNavState() {
     a.href = "#";
     a.onclick = (e) => {
       e.preventDefault();
-      // Placeholder until Phase 6/7
-      if (!session.subscribed) alert("Checkout coming soon.");
-      else alert("Billing portal coming soon.");
+      if (!session.subscribed) {
+        Billing.createCheckoutSession().then(({ url, error }) => {
+          if (url) location.href = url;
+          else alert(error || "Unable to start checkout.");
+        });
+      } else {
+        Billing.createPortalSession().then(({ url, error }) => {
+          if (url) location.href = url;
+          else alert(error || "Unable to open billing portal.");
+        });
+      }
     };
   } else {
     a.textContent = "Log In";
@@ -115,9 +124,14 @@ function wireCTA() {
       navTo("/login/");
       return;
     }
+
     if (!session.subscribed) {
-      alert("Checkout coming soon.");
+      Billing.createCheckoutSession().then(({ url, error }) => {
+        if (url) location.href = url;
+        else alert(error || "Unable to start checkout.");
+      });
     } else {
+      // Preferences to come in Phase 8
       alert("Open preferences coming soon.");
     }
   });

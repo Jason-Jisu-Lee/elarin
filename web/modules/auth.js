@@ -7,7 +7,7 @@ async function read(r) {
 }
 
 export async function getSession() {
-  const r = await fetch("/api/auth/session", {
+  const r = await fetch("/api/auth/sessions", {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });

@@ -27,6 +27,27 @@ function setActiveNav(path) {
   });
 }
 
+function setAuthNavState() {
+  const a = document.getElementById("nav-auth");
+  if (!a) return;
+  if (session.authenticated) {
+    a.textContent = "Manage subscription";
+    a.removeAttribute("data-route"); // not an SPA route
+    a.href = "#";
+    a.onclick = (e) => {
+      e.preventDefault();
+      // Placeholder until Phase 6/7
+      if (!session.subscribed) alert("Checkout coming soon.");
+      else alert("Billing portal coming soon.");
+    };
+  } else {
+    a.textContent = "Log In";
+    a.setAttribute("data-route", "");
+    a.href = "/login/";
+    a.onclick = null;
+  }
+}
+
 function swapContent(tplId) {
   const tpl = document.getElementById(tplId);
   const slot = document.getElementById("page-slot");
@@ -204,6 +225,7 @@ async function render(path) {
 
   const p = normPath(path);
   setActiveNav(p);
+  setAuthNavState();
   switch (p) {
     case "/":
       swapContent("tpl-home");

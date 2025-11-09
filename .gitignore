@@ -26,7 +26,7 @@ dist-ssr
 .env
 .env.local
 src/secrets/token.js
-.dev.varsw
 web/app.bundle.js
 web/*.bundle*.js
 src/secrets/
+.dev.vars

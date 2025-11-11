@@ -26,7 +26,6 @@
       <section class="hero">
         <h1 class="hero-title">ELARIN</h1>
         <div id="page-slot" class="hero-copy narrow">
-          <!-- Non-JS default (Home) -->
           <h2>Web and Atlas connection successful</h2>
           <p>You are overwhelmed with information.</p>
           <p>Passively get non-intrusive, filtered, essential information.</p>
@@ -46,7 +45,6 @@
           </button>
         </p>
 
-        <!-- Feed block -->
         <div id="today-block" style="margin-top: 20px">
           <h3 id="today-title" style="margin: 0 0 8px 0">Today’s Elarin</h3>
           <div
@@ -54,9 +52,7 @@
             role="feed"
             aria-busy="true"
             style="display: grid; gap: 8px"
-          >
-            <!-- populated by app.js -->
-          </div>
+          ></div>
           <p id="today-actions" style="margin-top: 8px; display: none">
             <button id="btn-refresh-feed" class="btn-secondary">Refresh</button>
           </p>
@@ -217,7 +213,7 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/sw.js?v=12");
+          navigator.serviceWorker.register("/sw.js?v=13");
           navigator.serviceWorker
             .getRegistration()
             .then((r) => r && r.update());

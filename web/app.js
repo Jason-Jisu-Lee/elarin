@@ -7,7 +7,15 @@ import * as Auth from "/modules/auth.js";
 import * as Billing from "/modules/billing.js";
 import * as News from "/modules/news.js";
 
-const routes = ["/", "/about/", "/login/", "/signup/", "/contact/", "/404/"];
+const routes = [
+  "/",
+  "/about/",
+  "/login/",
+  "/account/",
+  "/signup/",
+  "/contact/",
+  "/404/",
+];
 let atlasLoaded = false;
 let session = { authenticated: false, subscribed: false, user: null };
 
@@ -88,7 +96,7 @@ function setAuthNavState() {
   if (session.authenticated) {
     a.textContent = "Account";
     a.setAttribute("data-route", "");
-    a.href = "/login/";
+    a.href = "/login/"; // keep using /login/ as account entry in nav
     a.onclick = null;
   } else {
     a.textContent = "Log In";
@@ -118,7 +126,7 @@ function wireCTA() {
         else alert(error || "Unable to start checkout.");
       });
     } else {
-      navTo("/login/"); // open Account for now
+      navTo("/login/"); // open Account
     }
   });
 }
@@ -322,7 +330,6 @@ async function renderHomeFeed() {
     return;
   }
 
-  // subscribed
   title.textContent = "Today’s Elarin";
   feed.setAttribute("aria-busy", "true");
   feed.innerHTML = `<div>Loading…</div>`;
@@ -388,14 +395,8 @@ async function renderHomeFeed() {
           const top = document.querySelector("main");
           if (top) top.scrollIntoView({ behavior: "smooth", block: "start" });
           const items = Array.isArray(j.items) ? j.items : [];
-          const limited = items.slice(0, 20);
-          const list = { ok: true, items: limited };
-          // reuse painter
-          feed.setAttribute("aria-busy", "false");
-          // call paint
-          const { items: arr } = list;
           const frag = document.createDocumentFragment();
-          for (const it of arr) {
+          for (const it of items) {
             const a = document.createElement("a");
             a.href = it.url;
             a.target = "_blank";
@@ -483,6 +484,19 @@ async function render(path) {
         swapContent("tpl-login");
         wireLoginForm();
       }
+      break;
+    case "/account/":
+      if (!session.authenticated) {
+        sessionStorage.setItem(
+          "loginBanner",
+          "Please log in to access Account."
+        );
+        sessionStorage.setItem("loginBannerType", "info");
+        navTo("/login/");
+        return;
+      }
+      swapContent("tpl-account");
+      await wireAccountForm();
       break;
     case "/signup/":
       swapContent("tpl-signup");

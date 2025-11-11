@@ -41,6 +41,7 @@ export const onRequestPost = async ({ request, env }) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
+    params.set("metadata[app_user_id]", user.id);
     // Optional UX fields
     params.set("billing_address_collection", "auto"); // or "required"
     params.set("phone_number_collection[enabled]", "true");

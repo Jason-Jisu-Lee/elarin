@@ -41,6 +41,11 @@ export const onRequestPost = async ({ request, env }) => {
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
+    // Optional UX fields
+    params.set("billing_address_collection", "auto"); // or "required"
+    params.set("phone_number_collection[enabled]", "true");
+    params.set("allow_promotion_codes", "true");
+    params.set("automatic_tax[enabled]", "false"); // set "true" if you configure tax
 
     const resp = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",

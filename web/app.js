@@ -96,7 +96,7 @@ function setAuthNavState() {
   if (session.authenticated) {
     a.textContent = "Account";
     a.setAttribute("data-route", "");
-    a.href = "/login/"; // keep using /login/ as account entry in nav
+    a.href = "/login/"; // account entry
     a.onclick = null;
   } else {
     a.textContent = "Log In";
@@ -154,11 +154,13 @@ function wireLoginForm() {
     const fd = new FormData(form);
     const email = fd.get("email");
     const password = fd.get("password");
+    const token = fd.get("cf-turnstile-response");
     if (!isEmail(email))
       return showBanner(banner, "Enter a valid email address.");
     if (!password || String(password).length < 8)
       return showBanner(banner, "Password must be at least 8 characters.");
-    const res = await Auth.login(email, password);
+    if (!token) return showBanner(banner, "Complete the verification.");
+    const res = await Auth.login(email, password, token);
     if (res?.ok) {
       session = await Auth.getSession();
       navTo("/");
@@ -180,6 +182,7 @@ function wireSignupForm() {
     const email = fd.get("email");
     const password = fd.get("password");
     const password2 = fd.get("password2");
+    const token = fd.get("cf-turnstile-response");
     if (banner) {
       banner.hidden = true;
       banner.textContent = "";
@@ -192,9 +195,10 @@ function wireSignupForm() {
       return showBanner(banner, "Password must be at least 8 characters.");
     if (String(password) !== String(password2))
       return showBanner(banner, "Please enter the same password.");
+    if (!token) return showBanner(banner, "Complete the verification.");
 
     try {
-      const res = await Auth.signup(email, password);
+      const res = await Auth.signup(email, password, token);
       if (res?.ok) {
         await Auth.logout();
         sessionStorage.setItem(
@@ -452,7 +456,6 @@ async function render(path) {
   if (typeof Dino404?.unmount === "function") Dino404.unmount();
   await refreshSession();
 
-  // If returning from Stripe success URL, try one-time sync
   const urlNow = new URL(location.href);
   if (
     urlNow.searchParams.get("status") === "success" &&

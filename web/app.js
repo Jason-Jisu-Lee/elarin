@@ -28,35 +28,6 @@ function setActiveNav(path) {
   });
 }
 
-function setAuthNavState() {
-  const a = document.getElementById("nav-auth");
-  if (!a) return;
-  if (session.authenticated) {
-    a.textContent = "Manage subscription";
-    a.removeAttribute("data-route"); // not an SPA route
-    a.href = "#";
-    a.onclick = (e) => {
-      e.preventDefault();
-      if (!session.subscribed) {
-        Billing.createCheckoutSession().then(({ url, error }) => {
-          if (url) location.href = url;
-          else alert(error || "Unable to start checkout.");
-        });
-      } else {
-        Billing.createPortalSession().then(({ url, error }) => {
-          if (url) location.href = url;
-          else alert(error || "Unable to open billing portal.");
-        });
-      }
-    };
-  } else {
-    a.textContent = "Log In";
-    a.setAttribute("data-route", "");
-    a.href = "/login/";
-    a.onclick = null;
-  }
-}
-
 function swapContent(tplId) {
   const tpl = document.getElementById(tplId);
   const slot = document.getElementById("page-slot");
@@ -106,7 +77,24 @@ async function refreshSession() {
   try {
     session = await Auth.getSession();
   } catch {
-    session = { authenticated: false };
+    session = { authenticated: false, subscribed: false, user: null };
+  }
+}
+
+function setAuthNavState() {
+  const a = document.getElementById("nav-auth");
+  if (!a) return;
+  if (session.authenticated) {
+    // Show "Account" and route to /login/ (account screen) per plan
+    a.textContent = "Account";
+    a.setAttribute("data-route", "");
+    a.href = "/login/";
+    a.onclick = null;
+  } else {
+    a.textContent = "Log In";
+    a.setAttribute("data-route", "");
+    a.href = "/login/";
+    a.onclick = null;
   }
 }
 
@@ -124,15 +112,14 @@ function wireCTA() {
       navTo("/login/");
       return;
     }
-
     if (!session.subscribed) {
       Billing.createCheckoutSession().then(({ url, error }) => {
         if (url) location.href = url;
         else alert(error || "Unable to start checkout.");
       });
     } else {
-      // Preferences to come in Phase 8
-      alert("Open preferences coming soon.");
+      // Preferences open here later; for now, route to Account
+      navTo("/login/");
     }
   });
 }
@@ -210,26 +197,104 @@ function wireSignupForm() {
         sessionStorage.setItem("loginBannerType", "success");
         navTo("/login/");
       } else if (res?.error) {
-        // specific error from API (e.g., duplicate email)
         showBanner(banner, res.error);
-        if (failsafe) failsafe.hidden = true; // keep failsafe hidden
+        if (failsafe) failsafe.hidden = true;
       } else {
-        // no specific error string; use generic and show failsafe
         showBanner(banner, "Signup failed.");
         if (failsafe) failsafe.hidden = false;
       }
     } catch {
-      // network/runtime issue only
       showBanner(banner, "Server error. Please try again.");
       if (failsafe) failsafe.hidden = false;
     }
   });
 }
 
-function showBanner(node, text) {
+function showBanner(node, text, isSuccess = false) {
   if (!node) return;
   node.textContent = text;
   node.hidden = false;
+  if (isSuccess) node.classList.add("success");
+  else node.classList.remove("success");
+}
+
+/* ---------- Account wiring (preferences) ---------- */
+async function wireAccountForm() {
+  const banner = document.getElementById("account-banner");
+  const form = document.getElementById("prefs-form");
+  const btnManage = document.getElementById("btn-manage");
+  if (!form) return;
+
+  // Load current prefs
+  try {
+    const r = await fetch("/api/preferences", {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const j = await r.json();
+    const prefs = j?.preferences || { topics: [], intensity: 3 };
+    setFormFromPrefs(form, prefs);
+  } catch {
+    // ignore; form will retain defaults
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = getPrefsFromForm(form);
+    try {
+      const r = await fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (j?.ok) {
+        showBanner(banner, "Preferences saved.", true);
+      } else {
+        showBanner(banner, j?.error || "Save failed.");
+      }
+    } catch {
+      showBanner(banner, "Server error. Try again.");
+    }
+  });
+
+  if (btnManage) {
+    btnManage.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!session.subscribed) {
+        Billing.createCheckoutSession().then(({ url, error }) => {
+          if (url) location.href = url;
+          else alert(error || "Unable to start checkout.");
+        });
+      } else {
+        Billing.createPortalSession().then(({ url, error }) => {
+          if (url) location.href = url;
+          else alert(error || "Unable to open billing portal.");
+        });
+      }
+    });
+  }
+}
+
+function setFormFromPrefs(form, prefs) {
+  const setChecked = (name, values) => {
+    const set = new Set(values || []);
+    form.querySelectorAll(`input[name="${name}"]`).forEach((el) => {
+      el.checked = set.has(el.value);
+    });
+  };
+  setChecked("topics", prefs.topics || []);
+  const sel = form.querySelector('select[name="intensity"]');
+  if (sel) sel.value = String(prefs.intensity || 3);
+}
+function getPrefsFromForm(form) {
+  const topics = [];
+  form.querySelectorAll('input[name="topics"]:checked').forEach((el) => {
+    topics.push(el.value);
+  });
+  const sel = form.querySelector('select[name="intensity"]');
+  const intensity = sel ? Number(sel.value) : 3;
+  return { topics, intensity };
 }
 
 // replace render() with this
@@ -240,6 +305,7 @@ async function render(path) {
   const p = normPath(path);
   setActiveNav(p);
   setAuthNavState();
+
   switch (p) {
     case "/":
       swapContent("tpl-home");
@@ -249,8 +315,13 @@ async function render(path) {
       swapContent("tpl-about");
       break;
     case "/login/":
-      swapContent("tpl-login");
-      wireLoginForm();
+      if (session.authenticated) {
+        swapContent("tpl-account");
+        await wireAccountForm();
+      } else {
+        swapContent("tpl-login");
+        wireLoginForm();
+      }
       break;
     case "/signup/":
       swapContent("tpl-signup");

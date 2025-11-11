@@ -123,6 +123,61 @@
       </div>
     </template>
 
+    <template id="tpl-account">
+      <div class="hero-copy narrow">
+        <div id="account-banner" class="banner" hidden></div>
+        <h2>Account</h2>
+
+        <form id="prefs-form" class="auth-form">
+          <fieldset style="margin: 0; padding: 0; border: 0">
+            <legend style="font-weight: 600; margin-bottom: 8px">Topics</legend>
+            <label
+              ><input type="checkbox" name="topics" value="us-politics" /> US
+              politics</label
+            >
+            <label
+              ><input type="checkbox" name="topics" value="us-economy" /> US
+              economy</label
+            >
+            <label
+              ><input type="checkbox" name="topics" value="world" />
+              World</label
+            >
+            <label
+              ><input type="checkbox" name="topics" value="science" />
+              Science</label
+            >
+          </fieldset>
+
+          <label style="margin-top: 12px"
+            >Daily volume
+            <select name="intensity">
+              <option value="1">1 — minimal</option>
+              <option value="2">2</option>
+              <option value="3">3 — default</option>
+              <option value="4">4</option>
+              <option value="5">5 — max</option>
+            </select>
+          </label>
+
+          <button
+            id="prefs-save"
+            type="submit"
+            class="btn-primary"
+            style="margin-top: 12px"
+          >
+            Save preferences
+          </button>
+        </form>
+
+        <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap">
+          <button id="btn-manage" class="btn-secondary">
+            Manage subscription
+          </button>
+        </div>
+      </div>
+    </template>
+
     <template id="tpl-contact">
       <div class="hero-copy narrow">
         <h2>Contact Placeholder</h2>

@@ -5,6 +5,7 @@ import { enableOverlayFeatures } from "/modules/overlay.js";
 import * as Dino404 from "/modules/dino404.js";
 import * as Auth from "/modules/auth.js";
 import * as Billing from "/modules/billing.js";
+import * as News from "/modules/news.js";
 
 const routes = ["/", "/about/", "/login/", "/signup/", "/contact/", "/404/"];
 let atlasLoaded = false;
@@ -117,8 +118,7 @@ function wireCTA() {
         else alert(error || "Unable to start checkout.");
       });
     } else {
-      // Preferences open here later; for now, route to Account
-      navTo("/login/");
+      navTo("/login/"); // open Account for now
     }
   });
 }
@@ -217,14 +217,13 @@ function showBanner(node, text, isSuccess = false) {
   else node.classList.remove("success");
 }
 
-/* ---------- Preferences (Account) ---------- */
+/* ---------- Account (preferences) ---------- */
 async function wireAccountForm() {
   const banner = document.getElementById("account-banner");
   const form = document.getElementById("prefs-form");
   const btnManage = document.getElementById("btn-manage");
   if (!form) return;
 
-  // Load current prefs
   try {
     const r = await fetch("/api/preferences", {
       headers: { Accept: "application/json" },
@@ -233,9 +232,7 @@ async function wireAccountForm() {
     const j = await r.json();
     const prefs = j?.preferences || { topics: [], intensity: 3 };
     setFormFromPrefs(form, prefs);
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -247,11 +244,8 @@ async function wireAccountForm() {
         body: JSON.stringify(payload),
       });
       const j = await r.json();
-      if (j?.ok) {
-        showBanner(banner, "Preferences saved.", true);
-      } else {
-        showBanner(banner, j?.error || "Save failed.");
-      }
+      if (j?.ok) showBanner(banner, "Preferences saved.", true);
+      else showBanner(banner, j?.error || "Save failed.");
     } catch {
       showBanner(banner, "Server error. Try again.");
     }
@@ -306,6 +300,152 @@ async function syncSubscription() {
   }
 }
 
+/* ---------- Home feed ---------- */
+async function renderHomeFeed() {
+  const feed = document.getElementById("today-feed");
+  const title = document.getElementById("today-title");
+  const actions = document.getElementById("today-actions");
+  if (!feed || !title) return;
+
+  if (!session.authenticated) {
+    title.textContent = "Today’s Elarin";
+    feed.setAttribute("aria-busy", "false");
+    feed.innerHTML = `<div class="banner" style="display:block">Log in to see your tailored feed.</div>`;
+    actions.style.display = "none";
+    return;
+  }
+  if (!session.subscribed) {
+    title.textContent = "Today’s Elarin";
+    feed.setAttribute("aria-busy", "false");
+    feed.innerHTML = `<div class="banner" style="display:block">Subscribe to unlock the feed. You will see topic-aligned headlines here.</div>`;
+    actions.style.display = "none";
+    return;
+  }
+
+  // subscribed
+  title.textContent = "Today’s Elarin";
+  feed.setAttribute("aria-busy", "true");
+  feed.innerHTML = `<div>Loading…</div>`;
+  actions.style.display = "none";
+
+  const paint = (items) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      feed.innerHTML = `<div>No items right now. Try refresh.</div>`;
+      actions.style.display = "block";
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const it of items) {
+      const a = document.createElement("a");
+      a.href = it.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = it.title || "(untitled)";
+      a.style.textDecoration = "none";
+
+      const meta = document.createElement("div");
+      meta.style.fontSize = "12px";
+      meta.style.color = "#6b7280";
+      const src = it.source || "";
+      const when = timeAgo(it.published_at);
+      meta.textContent = [src, when].filter(Boolean).join(" · ");
+
+      const item = document.createElement("div");
+      item.style.padding = "8px 10px";
+      item.style.border = "1px solid #e5e7eb";
+      item.style.borderRadius = "8px";
+      item.appendChild(a);
+      item.appendChild(meta);
+      frag.appendChild(item);
+    }
+    feed.innerHTML = "";
+    feed.appendChild(frag);
+    actions.style.display = "block";
+  };
+
+  try {
+    const j = await News.getFeed();
+    if (j?.ok) paint(j.items);
+    else {
+      feed.innerHTML = `<div class="banner">Failed to load feed.</div>`;
+      actions.style.display = "block";
+    }
+  } catch {
+    feed.innerHTML = `<div class="banner">Network error.</div>`;
+    actions.style.display = "block";
+  } finally {
+    feed.setAttribute("aria-busy", "false");
+  }
+
+  const btn = document.getElementById("btn-refresh-feed");
+  if (btn) {
+    btn.onclick = async () => {
+      feed.setAttribute("aria-busy", "true");
+      feed.innerHTML = `<div>Refreshing…</div>`;
+      try {
+        const j = await News.getFeed({ refresh: true });
+        if (j?.ok) {
+          const top = document.querySelector("main");
+          if (top) top.scrollIntoView({ behavior: "smooth", block: "start" });
+          const items = Array.isArray(j.items) ? j.items : [];
+          const limited = items.slice(0, 20);
+          const list = { ok: true, items: limited };
+          // reuse painter
+          feed.setAttribute("aria-busy", "false");
+          // call paint
+          const { items: arr } = list;
+          const frag = document.createDocumentFragment();
+          for (const it of arr) {
+            const a = document.createElement("a");
+            a.href = it.url;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            a.textContent = it.title || "(untitled)";
+            a.style.textDecoration = "none";
+
+            const meta = document.createElement("div");
+            meta.style.fontSize = "12px";
+            meta.style.color = "#6b7280";
+            const src = it.source || "";
+            const when = timeAgo(it.published_at);
+            meta.textContent = [src, when].filter(Boolean).join(" · ");
+
+            const item = document.createElement("div");
+            item.style.padding = "8px 10px";
+            item.style.border = "1px solid #e5e7eb";
+            item.style.borderRadius = "8px";
+            item.appendChild(a);
+            item.appendChild(meta);
+            frag.appendChild(item);
+          }
+          feed.innerHTML = "";
+          feed.appendChild(frag);
+        } else {
+          feed.innerHTML = `<div class="banner">Failed to refresh.</div>`;
+        }
+      } catch {
+        feed.innerHTML = `<div class="banner">Network error.</div>`;
+      } finally {
+        feed.setAttribute("aria-busy", "false");
+      }
+    };
+  }
+}
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
+  const m = Math.floor(s / 60),
+    h = Math.floor(m / 60),
+    d = Math.floor(h / 24);
+  if (d >= 1) return `${d}d ago`;
+  if (h >= 1) return `${h}h ago`;
+  if (m >= 1) return `${m}m ago`;
+  return `${s}s ago`;
+}
+
 // replace render() with this
 async function render(path) {
   if (typeof Dino404?.unmount === "function") Dino404.unmount();
@@ -319,7 +459,6 @@ async function render(path) {
   ) {
     await syncSubscription();
     await refreshSession();
-    // Clean the URL to remove the status parameter without a reload
     history.replaceState({}, "", normPath(location.pathname));
   }
 
@@ -331,6 +470,7 @@ async function render(path) {
     case "/":
       swapContent("tpl-home");
       wireCTA();
+      await renderHomeFeed();
       break;
     case "/about/":
       swapContent("tpl-about");
@@ -360,6 +500,7 @@ async function render(path) {
     default:
       swapContent("tpl-home");
       wireCTA();
+      await renderHomeFeed();
   }
   mountFloater();
 }

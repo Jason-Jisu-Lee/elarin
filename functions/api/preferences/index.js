@@ -87,7 +87,13 @@ function safeJSON(s) {
   }
 }
 
-const DEFAULT_TOPICS = ["us-politics", "us-economy", "world", "science"];
+const DEFAULT_TOPICS = [
+  "us-politics",
+  "us-economy",
+  "world",
+  "science",
+  "nature",
+];
 const DEFAULT_SOURCES = {}; // keep empty for now; we’ll grow this in Phase 9
 const DEFAULT_INTENSITY = 3;
 

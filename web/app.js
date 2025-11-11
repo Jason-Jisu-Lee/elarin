@@ -85,7 +85,6 @@ function setAuthNavState() {
   const a = document.getElementById("nav-auth");
   if (!a) return;
   if (session.authenticated) {
-    // Show "Account" and route to /login/ (account screen) per plan
     a.textContent = "Account";
     a.setAttribute("data-route", "");
     a.href = "/login/";
@@ -218,7 +217,7 @@ function showBanner(node, text, isSuccess = false) {
   else node.classList.remove("success");
 }
 
-/* ---------- Account wiring (preferences) ---------- */
+/* ---------- Preferences (Account) ---------- */
 async function wireAccountForm() {
   const banner = document.getElementById("account-banner");
   const form = document.getElementById("prefs-form");
@@ -235,7 +234,7 @@ async function wireAccountForm() {
     const prefs = j?.preferences || { topics: [], intensity: 3 };
     setFormFromPrefs(form, prefs);
   } catch {
-    // ignore; form will retain defaults
+    // ignore
   }
 
   form.addEventListener("submit", async (e) => {
@@ -297,10 +296,32 @@ function getPrefsFromForm(form) {
   return { topics, intensity };
 }
 
+/* ---------- Checkout success auto-sync ---------- */
+async function syncSubscription() {
+  try {
+    const r = await fetch("/api/billing/sync-subscription", { method: "POST" });
+    return await r.json();
+  } catch {
+    return { ok: false };
+  }
+}
+
 // replace render() with this
 async function render(path) {
   if (typeof Dino404?.unmount === "function") Dino404.unmount();
   await refreshSession();
+
+  // If returning from Stripe success URL, try one-time sync
+  const urlNow = new URL(location.href);
+  if (
+    urlNow.searchParams.get("status") === "success" &&
+    session.authenticated
+  ) {
+    await syncSubscription();
+    await refreshSession();
+    // Clean the URL to remove the status parameter without a reload
+    history.replaceState({}, "", normPath(location.pathname));
+  }
 
   const p = normPath(path);
   setActiveNav(p);

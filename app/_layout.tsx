@@ -97,10 +97,6 @@ export default function RootLayout() {
           name="template/create"
           options={{ title: "New Template", presentation: "modal" }}
         />
-        <Stack.Screen
-          name="template/schedule"
-          options={{ title: "Set Schedule" }}
-        />
       </Stack>
 
       {/* Battery Optimization Modal */}

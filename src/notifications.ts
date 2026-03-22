@@ -21,7 +21,6 @@ export async function setupNotifications(): Promise<boolean> {
       name: "Elarin Steps",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      sound: "default",
     });
   }
 

@@ -183,11 +183,22 @@ This is not a "read and skip" onboarding. It sets the entire emotional contract 
 
 ### Phase 1 — MVP Launch (Current)
 
-- Complete background notification handling (app-closed state)
-- AlarmManager integration for reliable scheduling
-- Battery optimization whitelist prompt
-- Physical device testing
-- Play Store listing and submission
+- [x] Complete background notification handling (app-closed state)
+- [x] AlarmManager integration for reliable scheduling
+- [x] Battery optimization whitelist prompt
+- [x] APK builds successfully (debug)
+- [ ] **Install debug APK on phone** — USB debugging, verify app launches
+- [ ] **Test core features on device** — Notifications fire at scheduled times, DO IT / MAKE EASIER / SNOOZE work, XP/momentum tracking
+- [ ] **Fix bugs found during testing** — Iterate on real-hardware issues
+- [ ] **Polish UI/UX** — Finalize spacing, animations, loading/error/empty states
+- [ ] **Build signed release AAB** — Generate keystore, build production Android App Bundle
+- [ ] **Create Google Play Developer account** — $25 one-time fee at play.google.com/console
+- [ ] **Prepare store listing** — Name, description, screenshots, feature graphic, app category
+- [ ] **Create privacy policy** — Host a page explaining data practices (all local, no data leaves device)
+- [ ] **Upload AAB to Play Console** — Content rating questionnaire, pricing (free), upload signed bundle
+- [ ] **Run closed testing** — 20+ testers for 14 days (Google requirement before production)
+- [ ] **Submit for production release** — Google review (1-3 days for new apps)
+- [ ] **Post-launch monitoring** — Add crash reporting (Sentry), gather user feedback
 
 ### Phase 2 — Polish & Monetization
 

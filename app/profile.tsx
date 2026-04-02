@@ -43,7 +43,7 @@ export default function Profile() {
     <View style={styles.container}>
       {/* Back */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={styles.backText}>← Back</Text>
+        <Text style={styles.backText}>←</Text>
       </TouchableOpacity>
 
       {/* Profile icon + name */}
@@ -86,7 +86,6 @@ export default function Profile() {
               setEditingName(true);
             }}
           >
-            <Text style={styles.menuIcon}>👤</Text>
             <Text style={styles.menuText}>Edit Name</Text>
           </TouchableOpacity>
         )}
@@ -96,7 +95,6 @@ export default function Profile() {
           style={styles.menuItem}
           onPress={handleReplayTutorial}
         >
-          <Text style={styles.menuIcon}>🔄</Text>
           <Text style={styles.menuText}>Replay Tutorial</Text>
         </TouchableOpacity>
 
@@ -105,7 +103,6 @@ export default function Profile() {
           style={styles.menuItem}
           onPress={() => Alert.alert("Elarin", "Version 0.2.0")}
         >
-          <Text style={styles.menuIcon}>ℹ️</Text>
           <Text style={styles.menuText}>About</Text>
         </TouchableOpacity>
       </View>

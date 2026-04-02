@@ -4,7 +4,7 @@
 export interface Goal {
   id: string;
   name: string;
-  emoji: string; // e.g. "🚶", "💪", "📖"
+  emoji: string;
   tiers: {
     primary: string; // "15 min walk outside"
     easier: string; // "1 min walk outside"

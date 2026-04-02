@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import {
   setupNotifications,
@@ -76,7 +77,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -109,7 +110,6 @@ export default function RootLayout() {
       >
         <View style={batteryStyles.overlay}>
           <View style={batteryStyles.card}>
-            <Text style={batteryStyles.emoji}>🔋</Text>
             <Text style={batteryStyles.title}>Keep Elarin Alive</Text>
             <Text style={batteryStyles.body}>
               Some Android phones aggressively kill background apps. To make
@@ -140,7 +140,7 @@ export default function RootLayout() {
           </View>
         </View>
       </Modal>
-    </>
+    </GestureHandlerRootView>
   );
 }
 

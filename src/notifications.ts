@@ -90,7 +90,7 @@ function buildNotificationContent(
   goal: Goal,
 ): Notifications.NotificationContentInput {
   return {
-    title: `${goal.emoji} ${goal.name}`,
+    title: goal.name,
     body: goal.tiers.primary,
     data: {
       goalId: goal.id,
@@ -123,17 +123,17 @@ export async function registerNotificationCategories(): Promise<void> {
   await Notifications.setNotificationCategoryAsync("elarin-goal", [
     {
       identifier: "DO_IT",
-      buttonTitle: "✅ Done",
+      buttonTitle: "Done",
       options: { opensAppToForeground: false },
     },
     {
       identifier: "STEP_DOWN",
-      buttonTitle: "⬇️ Step down",
+      buttonTitle: "Step down",
       options: { opensAppToForeground: false },
     },
     {
       identifier: "SNOOZE",
-      buttonTitle: `💤 Snooze ${SNOOZE_DURATION_MINUTES}m`,
+      buttonTitle: `Snooze ${SNOOZE_DURATION_MINUTES}m`,
       options: { opensAppToForeground: false },
     },
   ]);

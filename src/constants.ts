@@ -63,41 +63,39 @@ export const MICROCOPY = {
 export const PRE_BUILT_GOALS: Omit<Goal, "id" | "createdAt">[] = [
   {
     name: "Daily Walk",
-    emoji: "🚶",
+    emoji: "",
     tiers: {
       primary: "15 min walk outside",
       easier: "1 min walk outside",
       easiest: "1 min walk in your room",
     },
     reminder: {
-      type: "window",
+      type: "exact",
       startTime: "17:00",
-      endTime: "20:00",
-      remindersPerDay: 2,
+      remindersPerDay: 1,
       activeDays: [],
       frequency: "daily",
     },
   },
   {
     name: "Air Squats",
-    emoji: "💪",
+    emoji: "",
     tiers: {
       primary: "20 air squats",
       easier: "10 air squats",
       easiest: "5 air squats",
     },
     reminder: {
-      type: "window",
+      type: "exact",
       startTime: "08:00",
-      endTime: "20:00",
-      remindersPerDay: 2,
+      remindersPerDay: 1,
       activeDays: [],
       frequency: "daily",
     },
   },
   {
     name: "Read a Book",
-    emoji: "📖",
+    emoji: "",
     tiers: {
       primary: "Read for 30 minutes",
       easier: "Read for 10 minutes",

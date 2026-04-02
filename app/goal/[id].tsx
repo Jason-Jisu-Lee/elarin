@@ -30,12 +30,11 @@ export default function GoalDetail() {
 
   // Edit state
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("");
   const [primary, setPrimary] = useState("");
   const [easier, setEasier] = useState("");
   const [easiest, setEasiest] = useState("");
   const [reminderType, setReminderType] = useState<"window" | "exact">(
-    "window",
+    "exact",
   );
   const [startTime, setStartTime] = useState("17:00");
   const [endTime, setEndTime] = useState("20:00");
@@ -56,7 +55,6 @@ export default function GoalDetail() {
 
   const populateEdit = (g: Goal) => {
     setName(g.name);
-    setEmoji(g.emoji);
     setPrimary(g.tiers.primary);
     setEasier(g.tiers.easier);
     setEasiest(g.tiers.easiest);
@@ -105,16 +103,15 @@ export default function GoalDetail() {
     const updated: Goal = {
       ...goal,
       name: name.trim(),
-      emoji,
+      emoji: "",
       tiers: {
         primary: primary.trim(),
         easier: easier.trim(),
         easiest: easiest.trim(),
       },
       reminder: {
-        type: reminderType,
+        type: "exact",
         startTime,
-        endTime: reminderType === "window" ? endTime : undefined,
         remindersPerDay,
         activeDays: goal.reminder.activeDays,
         frequency: goal.reminder.frequency,
@@ -173,15 +170,6 @@ export default function GoalDetail() {
             maxLength={50}
           />
 
-          <Text style={styles.editLabel}>Emoji</Text>
-          <TextInput
-            style={[styles.input, styles.emojiInput]}
-            value={emoji}
-            onChangeText={(t) => setEmoji(t.slice(-2))}
-            maxLength={2}
-          />
-
-          <Text style={styles.editLabel}>Your Goal</Text>
           <TextInput
             style={styles.input}
             value={primary}
@@ -189,7 +177,6 @@ export default function GoalDetail() {
             maxLength={100}
           />
 
-          <Text style={styles.editLabel}>Easier Version</Text>
           <TextInput
             style={styles.input}
             value={easier}
@@ -197,7 +184,6 @@ export default function GoalDetail() {
             maxLength={100}
           />
 
-          <Text style={styles.editLabel}>Easiest Version</Text>
           <TextInput
             style={styles.input}
             value={easiest}
@@ -205,42 +191,7 @@ export default function GoalDetail() {
             maxLength={100}
           />
 
-          <Text style={styles.editLabel}>Reminder Type</Text>
-          <View style={styles.typeRow}>
-            <TouchableOpacity
-              style={[
-                styles.typeChip,
-                reminderType === "window" && styles.typeChipActive,
-              ]}
-              onPress={() => setReminderType("window")}
-            >
-              <Text
-                style={[
-                  styles.typeChipText,
-                  reminderType === "window" && styles.typeChipTextActive,
-                ]}
-              >
-                Window
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.typeChip,
-                reminderType === "exact" && styles.typeChipActive,
-              ]}
-              onPress={() => setReminderType("exact")}
-            >
-              <Text
-                style={[
-                  styles.typeChipText,
-                  reminderType === "exact" && styles.typeChipTextActive,
-                ]}
-              >
-                Exact
-              </Text>
-            </TouchableOpacity>
-          </View>
-
+          <Text style={styles.editLabel}>Reminder</Text>
           <TouchableOpacity
             style={styles.timeBtn}
             onPress={() => {
@@ -248,29 +199,14 @@ export default function GoalDetail() {
               setPickerVisible(true);
             }}
           >
-            <Text style={styles.timeBtnLabel}>
-              {reminderType === "window" ? "From" : "At"}
-            </Text>
+            <Text style={styles.timeBtnLabel}>At</Text>
             <Text style={styles.timeBtnValue}>{formatTime(startTime)}</Text>
           </TouchableOpacity>
-
-          {reminderType === "window" && (
-            <TouchableOpacity
-              style={styles.timeBtn}
-              onPress={() => {
-                setEditingField("end");
-                setPickerVisible(true);
-              }}
-            >
-              <Text style={styles.timeBtnLabel}>To</Text>
-              <Text style={styles.timeBtnValue}>{formatTime(endTime)}</Text>
-            </TouchableOpacity>
-          )}
 
           {pickerVisible && (
             <DateTimePicker
               mode="time"
-              value={timeToDate(editingField === "start" ? startTime : endTime)}
+              value={timeToDate(startTime)}
               onChange={onTimePickerChange}
               is24Hour={false}
               display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -314,12 +250,11 @@ export default function GoalDetail() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {/* Back button */}
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>← Back</Text>
+          <Text style={styles.backBtn}>←</Text>
         </TouchableOpacity>
 
         {/* Goal header */}
         <View style={styles.header}>
-          <Text style={styles.headerEmoji}>{goal.emoji}</Text>
           <Text style={styles.headerName}>{goal.name}</Text>
         </View>
 
@@ -329,29 +264,26 @@ export default function GoalDetail() {
           onPress={() => setEditing(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.tierLabel}>Your Goal</Text>
           <Text style={styles.tierText}>{goal.tiers.primary}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.arrow}>↓ easier</Text>
+        <Text style={styles.arrow}>↓</Text>
 
         <TouchableOpacity
           style={styles.tierCard}
           onPress={() => setEditing(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.tierLabel}>Easier</Text>
           <Text style={styles.tierText}>{goal.tiers.easier}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.arrow}>↓ easiest</Text>
+        <Text style={styles.arrow}>↓</Text>
 
         <TouchableOpacity
           style={styles.tierCard}
           onPress={() => setEditing(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.tierLabel}>Easiest</Text>
           <Text style={styles.tierText}>{goal.tiers.easiest}</Text>
         </TouchableOpacity>
 
@@ -369,7 +301,7 @@ export default function GoalDetail() {
 
         {/* Delete */}
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteBtnText}>Delete Goal</Text>
+          <Text style={styles.deleteBtnText}>Delete</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

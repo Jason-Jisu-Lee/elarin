@@ -114,7 +114,6 @@ export default function Home() {
       style={styles.snoozeAction}
       onPress={() => handleSnooze(goalId)}
     >
-      <Text style={styles.actionText}>💤</Text>
       <Text style={styles.actionLabel}>Snooze</Text>
     </TouchableOpacity>
   );
@@ -125,14 +124,12 @@ export default function Home() {
         style={styles.doItAction}
         onPress={() => handleDoIt(goalId)}
       >
-        <Text style={styles.actionText}>✅</Text>
         <Text style={styles.actionLabel}>Done</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.stepDownAction}
         onPress={() => handleStepDown(goalId)}
       >
-        <Text style={styles.actionText}>⬇️</Text>
         <Text style={styles.actionLabel}>Step Down</Text>
       </TouchableOpacity>
     </View>
@@ -167,7 +164,6 @@ export default function Home() {
       >
         {goals.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🎯</Text>
             <Text style={styles.emptyTitle}>No goals yet</Text>
             <Text style={styles.emptyBody}>
               Tap + to create your first goal
@@ -214,7 +210,6 @@ export default function Home() {
                     activeOpacity={0.7}
                   >
                     <View style={styles.goalHeader}>
-                      <Text style={styles.goalEmoji}>{goal.emoji}</Text>
                       <View style={styles.goalInfo}>
                         <Text
                           style={[styles.goalName, done && styles.goalNameDone]}

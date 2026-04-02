@@ -29,12 +29,11 @@ export default function CreateGoal() {
     prebuilt !== undefined ? PRE_BUILT_GOALS[Number(prebuilt)] : null;
 
   const [name, setName] = useState(prebuiltGoal?.name ?? "");
-  const [emoji, setEmoji] = useState(prebuiltGoal?.emoji ?? "⭐");
   const [primary, setPrimary] = useState(prebuiltGoal?.tiers.primary ?? "");
   const [easier, setEasier] = useState(prebuiltGoal?.tiers.easier ?? "");
   const [easiest, setEasiest] = useState(prebuiltGoal?.tiers.easiest ?? "");
   const [reminderType, setReminderType] = useState<"window" | "exact">(
-    prebuiltGoal?.reminder.type ?? "window",
+    "exact",
   );
   const [startTime, setStartTime] = useState(
     prebuiltGoal?.reminder.startTime ?? "17:00",
@@ -96,17 +95,16 @@ export default function CreateGoal() {
     const goal: Goal = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: name.trim() || "My Goal",
-      emoji,
+      emoji: "",
       tiers: {
         primary: primary.trim(),
         easier: easier.trim(),
         easiest: easiest.trim(),
       },
       reminder: {
-        type: reminderType,
+        type: "exact",
         startTime,
-        endTime: reminderType === "window" ? endTime : undefined,
-        remindersPerDay: 2,
+        remindersPerDay: 1,
         activeDays: [],
         frequency: "daily",
       },
@@ -219,67 +217,18 @@ export default function CreateGoal() {
           <View style={styles.stepContainer}>
             <Text style={styles.question}>When should we remind you?</Text>
 
-            <View style={styles.typeRow}>
-              <TouchableOpacity
-                style={[
-                  styles.typeChip,
-                  reminderType === "window" && styles.typeChipActive,
-                ]}
-                onPress={() => setReminderType("window")}
-              >
-                <Text
-                  style={[
-                    styles.typeChipText,
-                    reminderType === "window" && styles.typeChipTextActive,
-                  ]}
-                >
-                  Time Window
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.typeChip,
-                  reminderType === "exact" && styles.typeChipActive,
-                ]}
-                onPress={() => setReminderType("exact")}
-              >
-                <Text
-                  style={[
-                    styles.typeChipText,
-                    reminderType === "exact" && styles.typeChipTextActive,
-                  ]}
-                >
-                  Exact Time
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             <TouchableOpacity
               style={styles.timeBtn}
               onPress={() => openTimePicker("start")}
             >
-              <Text style={styles.timeBtnLabel}>
-                {reminderType === "window" ? "From" : "At"}
-              </Text>
+              <Text style={styles.timeBtnLabel}>At</Text>
               <Text style={styles.timeBtnValue}>{formatTime(startTime)}</Text>
             </TouchableOpacity>
-
-            {reminderType === "window" && (
-              <TouchableOpacity
-                style={styles.timeBtn}
-                onPress={() => openTimePicker("end")}
-              >
-                <Text style={styles.timeBtnLabel}>To</Text>
-                <Text style={styles.timeBtnValue}>{formatTime(endTime)}</Text>
-              </TouchableOpacity>
-            )}
 
             {pickerVisible && (
               <DateTimePicker
                 mode="time"
-                value={timeToDate(
-                  editingField === "start" ? startTime : endTime,
-                )}
+                value={timeToDate(startTime)}
                 onChange={onTimePickerChange}
                 is24Hour={false}
                 display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -300,7 +249,7 @@ export default function CreateGoal() {
           <View style={styles.stepContainer}>
             <Text style={styles.question}>One more thing</Text>
             <Text style={styles.permissionText}>
-              We'll send reminders in your window. Once you've done it, we stop
+              We'll send you a reminder at your chosen time. Once you've done it, we stop
               for the day.
             </Text>
             <TouchableOpacity style={styles.nextBtn} onPress={handlePermission}>
@@ -312,7 +261,6 @@ export default function CreateGoal() {
         {/* Step 6: Done */}
         {step === "done" && (
           <View style={styles.stepContainer}>
-            <Text style={styles.emoji}>{emoji}</Text>
             <Text style={styles.doneTitle}>{name}</Text>
             <View style={styles.summary}>
               <Text style={styles.summaryTier}>{primary}</Text>

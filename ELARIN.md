@@ -1,8 +1,11 @@
 # Elarin — Product & Business Document
 
-> **Last Updated:** March 27, 2026
-> **Version:** 0.2.0
-> **Status:** Design Phase Complete — Ready for Frontend Rebuild
+> **Last Updated:** April 1, 2026
+> **Version:** 0.1.0
+> **Status:** Core V1 Built — Needs polish, testing, and Play Store prep
+>
+> For architecture, data model, and technical debt, see **ARCHITECTURE.md**.
+> For UX/UI design specs, see **DESIGN.md**.
 
 ---
 
@@ -23,16 +26,14 @@ There are no failures in Elarin. Step down, keep going.
 Users create **goals** — each with the goal itself + 2 easier versions:
 
 > **20 air squats**
-> _or easier:_ 10 air squats
-> _or easiest:_ 5 air squats
+> ↓ 10 air squats
+> ↓ 5 air squats
 
-**Reminder window:** Time range for random reminders (NOT activity duration). Can be a window ("5–8 PM") or exact time ("10 PM"). Random timing within the window — no predictable schedule.
-
-**Reminders per day:** Default twice. Configurable.
+**Reminder:** Exact time. User picks a time, gets reminded at that time. Configurable 1-3x/day.
 
 **Once done = done.** No more reminders that day.
 
-**Goal frequency:** Daily by default. Changeable (weekly, every 3 days, etc).
+**Goal frequency:** Daily (V1 only supports daily).
 
 **Key design rules:**
 
@@ -43,8 +44,8 @@ Users create **goals** — each with the goal itself + 2 easier versions:
 
 **Notification actions:**
 
-- **Do It** → log completion, stop reminders, "Promise kept."
-- **Step Down** → show easier version, log, stop reminders, "Stepped down. Still in."
+- **Done** → log completion, stop reminders, "Promise kept."
+- **Step Down** → log step-down, stop reminders, "Stepped down. Still in."
 - **Snooze** → remind again in 15 min, "Coming back soon."
 
 ---
@@ -52,8 +53,6 @@ Users create **goals** — each with the goal itself + 2 easier versions:
 ## Progression System
 
 **No daily streak counter.** Milestone celebrations only: 5, 10, 20, 30, 50, 100 days.
-
-**Self-Trust Meter:** Fills based on consistency. Displayed on home screen.
 
 **Trust Levels (permanent — never goes down):**
 
@@ -70,19 +69,19 @@ Users create **goals** — each with the goal itself + 2 easier versions:
 | 9     | Unshakable      |
 | 10    | Self-Made       |
 
+**Self-Trust Meter:** Computed (% of last 30 days active) but not displayed in V1. Add later if warranted.
+
 ---
 
-## Onboarding Philosophy
+## Onboarding
 
 Animated storytelling flow (~60 seconds). Not a "read and skip" tutorial. Sets the entire emotional contract of the app.
 
 1. **Name input** — "What is your name?"
-2. **The Goal** — Goals flash by, getting harder, subtly redder
-3. **The Reframe** — "But first — you need to become someone who follows through."
-4. **Descending ladder** — 1 hr reading → 1 sentence (red ↓ arrows)
-5. **Ascending ladder** — 1 sentence → 1 hr (green ↑ arrows)
-6. **The Line** — "That's how you rebuild trust in yourself."
-7. **Name close** — "I'm [name]. And I'm ready." → Template selection
+2. **Sage lines** — Two philosophical lines with typewriter effect and deliberate pauses
+3. **Background transition** — egg white shifts to light blue
+4. **Ladder demo** — "1 hour a day" → animated build of easier options → crossout of top → scribble annotations in handwritten font with pencil scratch sound
+5. **Template selection** — 3 pre-built goals + Create Your Own
 
 The onboarding teaches the step-down ladder mechanic through storytelling, not instructions.
 
@@ -103,53 +102,64 @@ Accounts come later only when needed (cloud sync, cross-device, social features)
 | Framework        | React Native + Expo (bare workflow)   |
 | SDK              | Expo SDK 55                           |
 | Language         | TypeScript (strict)                   |
-| Routing          | expo-router                           |
+| Routing          | expo-router (file-based)              |
 | Storage          | AsyncStorage (local only)             |
 | Notifications    | expo-notifications                    |
 | Background Tasks | expo-task-manager                     |
-| Scheduling       | AlarmManager (setAlarmClock priority) |
+| Scheduling       | expo-notifications (daily triggers)   |
+| Gestures         | react-native-gesture-handler          |
+| Animations       | Animated API + LayoutAnimation        |
+| Font             | Caveat (handwritten, for onboarding)  |
+| Sound            | expo-av (pencil scratch in onboarding)|
 | Target           | Android SDK 34+                       |
 
 **Critical technical requirement:** The step-down notification mechanic must work when the app is **fully closed**. Uses Expo bare workflow (not managed) and expo-task-manager for background notification action handling.
 
 ---
 
-## Current State (v0.2.0)
+## Current State (v0.1.0)
 
-### What's Done
+### What's Built and Working
 
 - [x] Project scaffold with Expo bare workflow
 - [x] Native Android project generated (`android/` directory)
 - [x] Data model (goals with 3-tier ladder, schedule, progress tracking)
 - [x] Local storage layer (AsyncStorage — goals, progress, onboarding state)
 - [x] Notification system (scheduling, categories, action handlers)
-- [x] Step-down notification flow (Do It / Step Down / Snooze buttons)
-- [x] Background notification handler (expo-task-manager) — works when app is closed
-- [x] AlarmManager with setAlarmClock for time-critical scheduling
+- [x] Step-down notification flow (Done / Step Down / Snooze buttons)
+- [x] Background notification handler (expo-task-manager)
+- [x] Native AlarmManager pipeline (wired but NOT called from JS — see ARCHITECTURE.md gap #1)
 - [x] Native Android receivers (ElarinAlarmReceiver, ElarinActionReceiver)
-- [x] Pending actions bridge (native → JS) for app-killed state recovery
 - [x] Battery optimization whitelist prompt on first launch
-- [x] Progression system (trust levels, self-trust meter, milestone streaks)
+- [x] Progression system (trust levels, milestones, self-trust meter — computed but not displayed)
 - [x] Expo config plugin for native AlarmManager injection
-- [x] Debug APK built (182 MB) and installed on Samsung phone
-- [x] App running on device — JS bundle loads, no errors
-- [x] GitHub repo set up (github.com/Jason-Jisu-Lee/elarin.git)
-- [x] **DESIGN.md complete** — all UX/UI decisions locked in
-  - Storytelling onboarding (~60 sec animated flow)
-  - Template selection (4 cards — 3 pre-built + create your own)
-  - Home screen (todo list + swipe-to-act + first-time tutorial)
-  - Create goal flow (guided first time, form for returning users)
-  - Notifications (random within window, Do It / Step Down / Snooze)
-  - Progression (trust levels, milestone-only streaks, self-trust meter)
+- [x] **Onboarding** — animated 8-phase storytelling flow with typewriter text, Caveat font, pencil scratch sound
+- [x] **Template Selection** — 3 pre-built goals + Create Your Own
+- [x] **Create Goal** — 6-step guided wizard with fade transitions
+- [x] **Home Screen** — goal cards with swipe-to-act (Swipeable), FAB menu, pull-to-refresh, first-time swipe tutorial
+- [x] **Goal Detail/Edit** — view 3-tier ladder, tap to edit inline, delete with confirmation
+- [x] **Profile** — edit name, replay tutorial, about
+- [x] Light theme (egg white + light blue) applied everywhere
+- [x] No emojis anywhere in UI
+- [x] Exact-time-only reminders
+- [x] Debug APK built and installed on Samsung phone
+- [x] GitHub repo (github.com/Jason-Jisu-Lee/elarin.git)
 
-### What Needs Work
+### What Needs Work (Before Play Store)
 
-- [ ] **Visual theme** — colors, fonts, spacing (doing in Stitch)
-- [ ] **Frontend rebuild** — rewrite all 7 screens to match DESIGN.md
-- [ ] Physical device testing for notification reliability
-- [ ] Random notification timing within windows
-- [ ] Signed release build (AAB)
-- [ ] Play Store listing and submission
+- [ ] Fix `app.json` — dark theme/splash mismatch (should be light)
+- [ ] Remove dead `template/create.tsx` screen
+- [ ] Decide: integrate AlarmManager or remove it
+- [ ] Remove native emoji strings from alarm plugin
+- [ ] Add error boundary (React crash = white screen currently)
+- [ ] Add loading/error/empty states to screens
+- [ ] Surface progression system (trust levels, milestones) somewhere
+- [ ] Test on low-end Android device
+- [ ] Privacy policy page
+- [ ] Signed release AAB build
+- [ ] Google Play Developer account ($25)
+- [ ] Store listing, screenshots, data safety form
+- [ ] Closed testing (20+ testers, 14 days)
 
 ---
 
@@ -160,24 +170,16 @@ Accounts come later only when needed (cloud sync, cross-device, social features)
 **Phase 1: Free Tier (Launch)**
 
 - Full step-down notification mechanic
-- Single or limited templates
-- Basic progression (XP + Momentum)
+- Unlimited goals (no gate at launch — get users first)
+- Basic progression
 - Core onboarding experience
 
 **Phase 2: Paid Tier (Subscription)**
 
-- Unlimited templates
-- Advanced scheduling (random windows, custom gaps)
-- Enhanced analytics and streaks
-- Priority notification reliability features
+- Advanced analytics dashboard
 - Theme customization
 - Template import/export
-
-### Revenue Model
-
-- Monthly and annual subscription options
-- Free tier hooks users with the core mechanic
-- Paid tier unlocks power-user features and unlimited usage
+- Priority notification features
 - Pricing TBD — competitive analysis needed
 
 ### Distribution
@@ -191,98 +193,64 @@ Accounts come later only when needed (cloud sync, cross-device, social features)
 
 ### Phase 1 — Launch to Play Store (Current)
 
-- [x] Background notification handling (app-closed state)
-- [x] AlarmManager integration for reliable scheduling
-- [x] Battery optimization whitelist prompt
-- [x] Debug APK built and installed on phone
-- [x] App running on device (JS bundle loads, no errors)
-- [x] UX/UI design locked in (DESIGN.md)
-- [ ] **Visual theme** — finalize in Stitch
-- [ ] **Frontend rebuild** — rewrite all 7 screens per DESIGN.md:
-  1. Onboarding (animated storytelling flow)
-  2. Template Selection (4 cards)
-  3. Guided Goal Creation (first-time walkthrough)
-  4. Home (todo list + swipe-to-act + self-trust meter)
-  5. Goal Detail (view ladder, history, edit)
-  6. Create Goal (form for returning users)
-  7. Settings
-- [ ] **Test on device** — notifications, swipe actions, onboarding flow
-- [ ] **Polish** — animations, loading/error/empty states
-- [ ] **Build signed release AAB** — generate keystore, production build
-- [ ] **Google Play Developer account** — $25 one-time fee
-- [ ] **Store listing** — name, description, screenshots, feature graphic
-- [ ] **Privacy policy** — host a page (all local, no data leaves device)
-- [ ] **Upload to Play Console** — content rating, pricing (free), upload AAB
-- [ ] **Closed testing** — 20+ testers for 14 days (Google requirement)
-- [ ] **Submit for production** — Google review (1-3 days for new apps)
-- [ ] **Post-launch monitoring** — crash reporting (Sentry), user feedback
+- [x] Background notification handling
+- [x] All 7 screens built
+- [x] Onboarding with animations
+- [x] Debug APK running on device
+- [ ] Fix technical debt (see ARCHITECTURE.md Known Gaps)
+- [ ] Polish — loading states, error handling, empty states
+- [ ] Fix `app.json` theme mismatch
+- [ ] Build signed release AAB
+- [ ] Google Play Developer account + listing
+- [ ] Privacy policy
+- [ ] Closed testing track
+- [ ] Submit for production
 
 ### Phase 2 — Polish & Monetization
 
 - Subscription infrastructure (Google Play Billing)
 - Free/paid tier gating
-- Time picker UI improvements
 - Visual polish and animations
-- Crashlytics / error monitoring
+- Crashlytics / error monitoring (Sentry)
 
 ### Phase 3 — Growth Features
 
-- Community template library (share/discover templates)
-- Analytics dashboard (trends, completion rates)
-- iOS support (Apple App Store)
-- Social features (optional accountability partners)
+- Personal analytics dashboard
+- Community template library
+- iOS support
+- Social accountability features
 
 ### Phase 4 — Scale
 
 - Backend infrastructure (user accounts, sync)
-- Web dashboard
+- Cross-device sync
 - Wearable integration
 - Localization / i18n
-
----
-
-## Future Features (NOT in V1)
-
-These are explicitly out of scope for launch:
-
-- Community goal library
-- Personal analytics dashboard
-- Pro tier / subscription monetization
-- iOS support
-- Backend / user accounts / cloud sync
-- Social features / accountability partners
-- Theme customization (beyond default)
-
-See FEATURES.md for the full backlog with details.
 
 ---
 
 ## Design Principles
 
 1. **No failure states** — every interaction is positive. Step down, never quit.
-2. **Gray, never red** — missed days are neutral, never punishing
-3. **Lowest barrier wins** — the app succeeds when the user does the minimum
-4. **Zero friction** — no accounts, no signup, no paywalls at launch
-5. **Teach by story, not instructions** — onboarding is a 60-second narrative
-6. **Milestone, not daily** — celebrate 5, 10, 20 day marks. No daily streak pressure.
-7. **Start embarrassingly small** — the app's core philosophy is also its UX philosophy
-
----
-
-## Original Prompt
-
-The founding prompt that defines Elarin's product vision, technical requirements, and development philosophy is preserved in repository memory for continuity across development sessions.
+2. **No emojis** — clean, text-only UI
+3. **Gray, never red** — missed days are neutral, never punishing
+4. **Lowest barrier wins** — the app succeeds when the user does the minimum
+5. **Zero friction** — no accounts, no signup, no paywalls at launch
+6. **Teach by story, not instructions** — onboarding is a 60-second narrative
+7. **Milestone, not daily** — celebrate 5, 10, 20 day marks. No daily streak pressure.
+8. **Minimal labels** — if it's obvious from context, don't label it
+9. **Start embarrassingly small** — the app's core philosophy is also its UX philosophy
 
 ---
 
 ## Package / App Identity
 
-| Field         | Value                     |
-| ------------- | ------------------------- |
-| App Name      | Elarin                    |
-| Package       | com.elarin.app            |
-| Slug          | elarin                    |
-| Orientation   | Portrait                  |
-| Theme         | Dark (#0D0D0D background) |
-| Accent Color  | #7C5CFC                   |
-| Success Color | #34D399                   |
+| Field         | Value              |
+| ------------- | ------------------ |
+| App Name      | Elarin             |
+| Package       | com.elarin.app     |
+| Slug          | elarin             |
+| Orientation   | Portrait           |
+| Theme         | Light (#FAF8F5 bg) |
+| Accent Color  | #5BA4CF            |
+| Success Color | #4CAF82            |

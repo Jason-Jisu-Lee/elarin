@@ -34,7 +34,6 @@ export default function TemplateSelection() {
             activeOpacity={0.7}
           >
             <View style={styles.cardHeader}>
-              <Text style={styles.emoji}>{goal.emoji}</Text>
               <Text style={styles.goalName}>{goal.name}</Text>
             </View>
             <Text style={styles.primaryTier}>{goal.tiers.primary}</Text>
@@ -54,7 +53,6 @@ export default function TemplateSelection() {
           onPress={handleCreateOwn}
           activeOpacity={0.7}
         >
-          <Text style={styles.createEmoji}>✨</Text>
           <Text style={styles.createText}>Create Your Own</Text>
         </TouchableOpacity>
       </ScrollView>

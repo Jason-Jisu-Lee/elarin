@@ -3,17 +3,37 @@
 > Living document for planned features. Ordered by priority within each tier.
 > Features move from **Planned → In Progress → Shipped** as they're built.
 >
-> **Updated:** March 27, 2026
+> **Updated:** April 1, 2026
+>
+> For technical debt and known gaps, see **ARCHITECTURE.md**.
 
 ---
 
 ## Shipped in V1 (Core)
 
-### Random Reminder Windows
+### Exact Time Reminders
 
 **Status:** Shipped (V1 core)
 
-User sets a time window (e.g., 5–8 PM). Elarin picks a random time within that window to fire the notification. No predictable schedule. Configurable reminders per day (default: 2).
+User picks an exact time for their reminder. Configurable 1-3 reminders per day. Daily frequency. Notification actions: Done / Step Down / Snooze 15m.
+
+### 3-Tier Goal Ladder
+
+**Status:** Shipped (V1 core)
+
+Every goal has primary + easier + easiest versions. Step down on bad days instead of quitting.
+
+### Animated Onboarding
+
+**Status:** Shipped (V1 core)
+
+8-phase storytelling flow: name input, sage quotes with typewriter effect, background transition, interactive ladder demo with crossout and handwritten scribble annotations (Caveat font, pencil scratch sound).
+
+### Swipe-to-Act Home Screen
+
+**Status:** Shipped (V1 core)
+
+Goal cards with swipe gestures — swipe right for Done/Step Down, swipe left for Snooze. First-time animated tutorial. Pull-to-refresh.
 
 ---
 
@@ -162,7 +182,10 @@ Port to Apple App Store. Most of the codebase is cross-platform already. Main wo
 
 | Priority | Feature                      | Tier      | Dependencies       |
 | -------- | ---------------------------- | --------- | ------------------ |
-| ✅       | Random Reminder Windows      | Core      | — (shipped in V1)  |
+| shipped  | Exact Time Reminders         | Core      | — (shipped in V1)  |
+| shipped  | 3-Tier Goal Ladder           | Core      | — (shipped in V1)  |
+| shipped  | Animated Onboarding          | Core      | — (shipped in V1)  |
+| shipped  | Swipe-to-Act Home Screen     | Core      | — (shipped in V1)  |
 | 1        | Personal Analytics Dashboard | Paid      | None               |
 | 2        | Unlimited Goals (gate)       | Paid      | Subscription infra |
 | 3        | Theme Customization          | Paid      | None               |

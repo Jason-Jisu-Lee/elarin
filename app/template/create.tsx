@@ -31,12 +31,11 @@ export default function EditGoal() {
   const isEditing = !!id;
 
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("⭐");
   const [primary, setPrimary] = useState("");
   const [easier, setEasier] = useState("");
   const [easiest, setEasiest] = useState("");
   const [reminderType, setReminderType] = useState<"window" | "exact">(
-    "window",
+    "exact",
   );
   const [startTime, setStartTime] = useState("17:00");
   const [endTime, setEndTime] = useState("20:00");
@@ -51,7 +50,6 @@ export default function EditGoal() {
         const g = goals.find((g) => g.id === id);
         if (g) {
           setName(g.name);
-          setEmoji(g.emoji);
           setPrimary(g.tiers.primary);
           setEasier(g.tiers.easier);
           setEasiest(g.tiers.easiest);
@@ -109,17 +107,16 @@ export default function EditGoal() {
     const goal: Goal = {
       id: id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: name.trim(),
-      emoji,
+      emoji: "",
       tiers: {
         primary: primary.trim(),
         easier: easier.trim(),
         easiest: easiest.trim(),
       },
       reminder: {
-        type: reminderType,
+        type: "exact",
         startTime,
-        endTime: reminderType === "window" ? endTime : undefined,
-        remindersPerDay,
+        remindersPerDay: 1,
         activeDays: [],
         frequency: "daily",
       },
@@ -173,17 +170,7 @@ export default function EditGoal() {
           maxLength={50}
         />
 
-        {/* Emoji */}
-        <Text style={styles.label}>Emoji</Text>
-        <TextInput
-          style={[styles.input, styles.emojiInput]}
-          value={emoji}
-          onChangeText={(t) => setEmoji(t.slice(-2))}
-          maxLength={2}
-        />
-
         {/* 3-Tier Ladder */}
-        <Text style={styles.label}>Your Goal</Text>
         <Text style={styles.hint}>What do you want to do?</Text>
         <TextInput
           style={styles.input}
@@ -194,7 +181,6 @@ export default function EditGoal() {
           maxLength={100}
         />
 
-        <Text style={styles.label}>Easier Version</Text>
         <Text style={styles.hint}>What's an easier version?</Text>
         <TextInput
           style={styles.input}
@@ -205,7 +191,6 @@ export default function EditGoal() {
           maxLength={100}
         />
 
-        <Text style={styles.label}>Easiest Version</Text>
         <Text style={styles.hint}>
           Something you'd do even on your worst day.
         </Text>
@@ -220,94 +205,24 @@ export default function EditGoal() {
 
         {/* Reminder Config */}
         <Text style={styles.label}>When should we remind you?</Text>
-        <View style={styles.typeRow}>
-          <TouchableOpacity
-            style={[
-              styles.typeChip,
-              reminderType === "window" && styles.typeChipActive,
-            ]}
-            onPress={() => setReminderType("window")}
-          >
-            <Text
-              style={[
-                styles.typeChipText,
-                reminderType === "window" && styles.typeChipTextActive,
-              ]}
-            >
-              Time Window
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.typeChip,
-              reminderType === "exact" && styles.typeChipActive,
-            ]}
-            onPress={() => setReminderType("exact")}
-          >
-            <Text
-              style={[
-                styles.typeChipText,
-                reminderType === "exact" && styles.typeChipTextActive,
-              ]}
-            >
-              Exact Time
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         <TouchableOpacity
           style={styles.timeBtn}
           onPress={() => openTimePicker("start")}
         >
-          <Text style={styles.timeBtnLabel}>
-            {reminderType === "window" ? "From" : "At"}
-          </Text>
+          <Text style={styles.timeBtnLabel}>At</Text>
           <Text style={styles.timeBtnValue}>{formatTime(startTime)}</Text>
         </TouchableOpacity>
-
-        {reminderType === "window" && (
-          <TouchableOpacity
-            style={styles.timeBtn}
-            onPress={() => openTimePicker("end")}
-          >
-            <Text style={styles.timeBtnLabel}>To</Text>
-            <Text style={styles.timeBtnValue}>{formatTime(endTime)}</Text>
-          </TouchableOpacity>
-        )}
 
         {pickerVisible && (
           <DateTimePicker
             mode="time"
-            value={timeToDate(editingField === "start" ? startTime : endTime)}
+            value={timeToDate(startTime)}
             onChange={onTimePickerChange}
             is24Hour={false}
             display={Platform.OS === "ios" ? "spinner" : "default"}
           />
         )}
-
-        {/* Reminders per day */}
-        <Text style={styles.label}>Reminders per day</Text>
-        <View style={styles.typeRow}>
-          {[1, 2, 3].map((n) => (
-            <TouchableOpacity
-              key={n}
-              style={[
-                styles.typeChip,
-                remindersPerDay === n && styles.typeChipActive,
-              ]}
-              onPress={() => setRemindersPerDay(n)}
-            >
-              <Text
-                style={[
-                  styles.typeChipText,
-                  remindersPerDay === n && styles.typeChipTextActive,
-                ]}
-              >
-                {n}x
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         {/* Save */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
@@ -318,7 +233,7 @@ export default function EditGoal() {
 
         {isEditing && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-            <Text style={styles.deleteBtnText}>Delete Goal</Text>
+            <Text style={styles.deleteBtnText}>Delete</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

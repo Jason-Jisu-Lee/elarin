@@ -11,7 +11,7 @@ function buildNotificationContent(
   goal: Goal,
 ): Notifications.NotificationContentInput {
   return {
-    title: `${goal.emoji} ${goal.name}`,
+    title: goal.name,
     body: goal.tiers.primary,
     data: {
       goalId: goal.id,

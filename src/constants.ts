@@ -1,115 +1,117 @@
-import { GoalCategory, LevelInfo } from "./types";
+import { TrustLevelInfo, Goal } from "./types";
 
 // ─── Colors ───
 export const colors = {
-  bg: "#0D0D0D",
-  surface: "#1A1A2E",
-  surfaceLight: "#252540",
-  accent: "#7C5CFC",
-  accentLight: "#A78BFA",
-  success: "#34D399",
-  text: "#F0F0F0",
-  textMuted: "#8888AA",
-  neutral: "#3A3A4A", // missed days — gray, never red
-  momentumGlow: "#7C5CFC",
+  bg: "#FAF8F5", // egg white — main background
+  surface: "#FFFFFF", // white — card background
+  surfaceLight: "#F0F4F8", // light blue tint — subtle sections
+  accent: "#5BA4CF", // light blue — primary accent
+  accentLight: "#A3CFEA", // softer blue — secondary accent
+  muted: "#E8E6E1", // warm gray — borders, dividers
+  text: "#1A1A1A", // near-black — primary text
+  textMuted: "#8C8C8C", // gray — secondary text
+  textLight: "#B0B0B0", // lighter gray — hints, timestamps
   white: "#FFFFFF",
   black: "#000000",
+  // Goal card borders
+  pendingBorder: "#F5C542", // warm yellow — needs to be done today
+  doneBorder: "#4CAF82", // green — completed
+  // Swipe action colors
+  doItGreen: "#4CAF82",
+  stepDownYellow: "#F5C542",
+  snoozeGray: "#B0B0B0",
+  // Onboarding
+  onboardingBg: "#FAF8F5", // same egg white
+  onboardingText: "#1A1A1A",
 };
 
-// ─── XP Values ───
-export const XP = {
-  SNOOZE: 5,
-  STEP_BASE: 10, // XP per step completion, scaled by position
-  FULL_ACTION: 25,
-  NOTIFICATION_OPEN: 3,
-} as const;
-
-/** XP multiplier based on ladder position: top of ladder = highest multiplier */
-export function xpForStep(stepIndex: number, totalSteps: number): number {
-  if (totalSteps <= 1) return XP.FULL_ACTION;
-  if (stepIndex === 0) return XP.FULL_ACTION;
-  // linear interpolation: easiest step gets STEP_BASE, hardest gets FULL_ACTION
-  const ratio = 1 - stepIndex / (totalSteps - 1);
-  return Math.round(XP.STEP_BASE + ratio * (XP.FULL_ACTION - XP.STEP_BASE));
-}
-
-// ─── Momentum ───
-export const MOMENTUM = {
-  GAIN_PER_ACTION: 15,
-  DECAY_RATE_PER_HOUR: 0.5, // loses 0.5 points per hour of inactivity
-  MAX: 100,
-  MIN: 0,
-} as const;
-
-// ─── Levels ───
-export const LEVELS: LevelInfo[] = [
-  { level: 1, name: "Spark", minXp: 0 },
-  { level: 2, name: "Kindling", minXp: 50 },
-  { level: 3, name: "Flame", minXp: 150 },
-  { level: 4, name: "Ember", minXp: 350 },
-  { level: 5, name: "Blaze", minXp: 700 },
-  { level: 6, name: "Torch", minXp: 1200 },
-  { level: 7, name: "Beacon", minXp: 2000 },
-  { level: 8, name: "Inferno", minXp: 3500 },
-  { level: 9, name: "Radiance", minXp: 5500 },
-  { level: 10, name: "Supernova", minXp: 8000 },
+// ─── Trust Levels ───
+export const TRUST_LEVELS: TrustLevelInfo[] = [
+  { level: 1, name: "Starting Out" },
+  { level: 2, name: "Showing Up" },
+  { level: 3, name: "Building Ground" },
+  { level: 4, name: "Steady" },
+  { level: 5, name: "Consistent" },
+  { level: 6, name: "Reliable" },
+  { level: 7, name: "Committed" },
+  { level: 8, name: "Resilient" },
+  { level: 9, name: "Unshakable" },
+  { level: 10, name: "Self-Made" },
 ];
 
-export function getLevelForXp(xp: number): LevelInfo {
-  for (let i = LEVELS.length - 1; i >= 0; i--) {
-    if (xp >= LEVELS[i].minXp) return LEVELS[i];
-  }
-  return LEVELS[0];
-}
+// ─── Milestones ───
+export const MILESTONES = [5, 10, 20, 30, 50, 100] as const;
 
-export function getXpToNextLevel(
-  xp: number,
-): { current: number; needed: number } | null {
-  const level = getLevelForXp(xp);
-  const nextIdx = LEVELS.findIndex((l) => l.level === level.level + 1);
-  if (nextIdx === -1) return null; // max level
-  return {
-    current: xp - level.minXp,
-    needed: LEVELS[nextIdx].minXp - level.minXp,
-  };
-}
-
-// ─── Categories ───
-export const CATEGORY_LABELS: Record<GoalCategory, string> = {
-  fitness: "💪 Fitness",
-  mindfulness: "🧘 Mindfulness",
-  creativity: "🎨 Creativity",
-  learning: "📚 Learning",
-  health: "❤️ Health",
-  custom: "⭐ Custom",
+export const MILESTONE_MESSAGES: Record<number, string> = {
+  5: "5 days. 5 promises kept.",
+  10: "10 days straight.",
+  20: "20 days. This is who you are now.",
+  30: "30 days. A month of following through.",
+  50: "50 days. Unstoppable.",
+  100: "100 days. Self-made.",
 };
 
-export const CATEGORY_LIST: GoalCategory[] = [
-  "fitness",
-  "mindfulness",
-  "creativity",
-  "learning",
-  "health",
-  "custom",
+// ─── Microcopy ───
+export const MICROCOPY = {
+  DO_IT: "Promise kept.",
+  STEP_DOWN: "Stepped down. Still in.",
+  SNOOZE: "Coming back soon.",
+  FIRST_DAY: "Day 1. You said you would. And you did.",
+} as const;
+
+// ─── Pre-Built Goals ───
+export const PRE_BUILT_GOALS: Omit<Goal, "id" | "createdAt">[] = [
+  {
+    name: "Daily Walk",
+    emoji: "🚶",
+    tiers: {
+      primary: "15 min walk outside",
+      easier: "1 min walk outside",
+      easiest: "1 min walk in your room",
+    },
+    reminder: {
+      type: "window",
+      startTime: "17:00",
+      endTime: "20:00",
+      remindersPerDay: 2,
+      activeDays: [],
+      frequency: "daily",
+    },
+  },
+  {
+    name: "Air Squats",
+    emoji: "💪",
+    tiers: {
+      primary: "20 air squats",
+      easier: "10 air squats",
+      easiest: "5 air squats",
+    },
+    reminder: {
+      type: "window",
+      startTime: "08:00",
+      endTime: "20:00",
+      remindersPerDay: 2,
+      activeDays: [],
+      frequency: "daily",
+    },
+  },
+  {
+    name: "Read a Book",
+    emoji: "📖",
+    tiers: {
+      primary: "Read for 30 minutes",
+      easier: "Read for 10 minutes",
+      easiest: "Read 1 page",
+    },
+    reminder: {
+      type: "exact",
+      startTime: "21:00",
+      remindersPerDay: 1,
+      activeDays: [],
+      frequency: "daily",
+    },
+  },
 ];
-
-// ─── Default Ladders ───
-export const EXAMPLE_LADDERS: Record<string, string[]> = {
-  Pushups: ["10 pushups", "5 pushups", "1 pushup", "Stand up from your chair"],
-  Meditation: [
-    "10 min meditation",
-    "5 min meditation",
-    "1 min deep breathing",
-    "Take 3 deep breaths",
-  ],
-  Writing: [
-    "Write 500 words",
-    "Write 200 words",
-    "Write 1 sentence",
-    "Open your notebook",
-  ],
-  Reading: ["Read 20 pages", "Read 5 pages", "Read 1 page", "Open the book"],
-};
 
 // ─── Notifications ───
 export const NOTIFICATION_CHANNEL_ID = "elarin-steps";

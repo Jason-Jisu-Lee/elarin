@@ -1,203 +1,404 @@
-# Elarin — Design & UX Bible
+# Elarin — Design Doc
 
-> Living document. Updated as decisions are made.
-
----
-
-## 0. Core Philosophy
-
-### The Problem We're Actually Solving
-
-The surface-level pitch: "Build better habits with a step-down ladder."
-
-The **real** problem: **Broken self-trust.**
-
-Every time a person says "I'll start going to the gym" and doesn't — their nervous system registers a broken promise. Not to anyone else. To _themselves_. Repeat this hundreds of times across years — quit smoking attempts, abandoned diets, gym memberships, morning routines — and the nervous system develops a deep, unconscious belief:
-
-> "I can't trust myself to follow through."
-
-This is the root of low confidence and low self-esteem. Not a lack of motivation. Not laziness. The nervous system has _learned_, through repeated experience, that this person doesn't do what they say they'll do. And so it stops believing them. That inner voice saying "why bother, you'll just quit again" isn't sabotage — it's the nervous system protecting itself from another broken promise.
-
-### What Elarin Actually Does
-
-Elarin doesn't fix habits. It **rebuilds the self-trust contract.**
-
-The step-down ladder guarantees that the user ALWAYS does _something_. Even on their worst day. Even if they step down to the easiest possible action. The point isn't the action itself — it's that **they did what they said they'd do.**
-
-Every "Do It" tap is a micro-deposit into a self-trust bank account that's been overdrawn for years. The neural pathway being formed isn't "exercise" or "no social media" — it's **"I follow through."**
-
-Over time:
-
-- The nervous system starts believing the person again
-- Confidence rises — not from affirmations, but from _evidence_
-- Self-esteem rebuilds on a foundation of actual behavior, not wishful thinking
-- The person naturally gravitates toward harder steps because they trust themselves to handle it
-
-### Why the Step-Down Ladder Is the Mechanism
-
-Cold turkey fails because it's all-or-nothing. Miss one day and the nervous system says "See? Told you." The entire streak — and the fragile self-trust it was building — collapses.
-
-The step-down ladder removes "failure" from the equation. Bad day? Step down. Sick? Step down. Overwhelmed? Step down. As long as you do _something_, the contract holds. The streak doesn't break. The self-trust account keeps growing.
-
-**The ladder isn't a compromise. It's the whole point.**
+> Living doc. Updated as we go.
 
 ---
 
-## 1. First Open Experience
+## Philosophy
 
-### The Communication Challenge
+**The real problem:** Broken self-trust.
 
-We need users to understand this philosophy — at least intuitively — because it changes HOW they use the app. Without it, they'll treat it like another habit tracker and abandon it when they miss a day. WITH it, they'll step down instead of quitting.
+Every abandoned gym plan, failed diet, dropped routine — your brain learns "I don't follow through." That kills confidence at the root. Not laziness. Learned distrust.
 
-**But:** We can't lecture them. Walls of text = instant uninstall. Self-help language = eye rolls. Feeling "diagnosed" = defensive walls go up.
+**What Elarin does:** Makes sure you ALWAYS do _something_. Step down on bad days instead of quitting. Every follow-through is a deposit into a self-trust account that's been empty for years.
 
-### Brainstorm: Communication Approaches
-
-#### Approach A: "Show, Don't Tell" — The Felt Experience
-
-No explanation at all. The first thing the user does is experience a simulated step-down moment:
-
-> Screen 1: "Imagine it's 7 AM. Your alarm says: Run 5 miles."  
-> [Show a fake notification card]  
-> "You didn't sleep well. You're not feeling it."  
-> [Three buttons appear: Do It / Make Easier / Skip]  
-> (User naturally taps "Make Easier")
->
-> Screen 2: "Okay. Run 3 miles."  
-> "Still too much?"  
-> [Make Easier]
->
-> Screen 3: "Walk around the block. 5 minutes."  
-> [Do It]
->
-> Screen 4: "You just did something. That's the whole point."  
-> "Not the miles. Not the time. The fact that you followed through."  
-> [One line, no lecture. Let it land.]
-
-**Pros:** Visceral, fast, no reading. They _feel_ the mechanic before understanding it.  
-**Cons:** They might still not get the deeper "why." Could feel gimmicky.
-
-#### Approach B: "The Question" — Trigger Self-Recognition
-
-Open with a question that makes them realize the problem themselves:
-
-> Screen 1: "How many times have you told yourself you'd start something... and didn't?"  
-> [No input needed. Just a pause. Then a subtle "Next" appears.]
->
-> Screen 2: "Every time that happens, a small part of you stops believing you."  
-> "Not because you're lazy. Because your brain learns from experience."
->
-> Screen 3: "Elarin makes sure you always follow through — even on bad days."  
-> "Here's how." → [Brief ladder demo]
-
-**Pros:** Emotionally resonant. Creates an "aha" moment. Short.  
-**Cons:** Some users might feel called out / defensive. Risky tone.
-
-#### Approach C: "The Reframe" — Change the Frame, Skip the Explanation
-
-Don't explain the psychology. Just reframe what "success" means:
-
-> Screen 1: "Forget streaks. Forget perfection."  
-> Screen 2: "The only rule: always do _something_."  
-> Screen 3: [Ladder demo — tap through the steps getting easier]  
-> Screen 4: "Bad days aren't failures. They're step-down days."  
-> → Create your first ladder
-
-**Pros:** No psychology lecture. Feels liberating, not clinical. Fast.  
-**Cons:** Misses the deeper self-trust insight. Could feel like "just another app."
-
-#### Approach D: "The Hybrid" — Feel It, Then Name It (One Line)
-
-Combine A and C. Lead with the felt experience, then land ONE sentence of philosophy:
-
-> Screen 1: Interactive ladder demo (A-style, tap through stepping down)  
-> Screen 2: "You just did something. Even when you could've skipped."  
-> "That's how you rebuild trust in yourself."  
-> [One line. No elaboration. Let the demo + the line work together.]  
-> Screen 3: → Create your first ladder
-
-**Pros:** Fast (3 screens max). Felt + understood. Doesn't lecture. The single line is powerful BECAUSE it's alone.  
-**Cons:** The one line has to be _perfect_.
-
-#### Approach E: "Zero Onboarding" — Philosophy Lives in the Product
-
-No onboarding at all. The philosophy is embedded in the app's copy, micro-interactions, and notification tone:
-
-- After stepping down: "Stepped down. Still going. 💪"
-- After a Do It: "Promise kept."
-- Level names are trust-themed: "Foundation", "Steady", "Reliable", "Unshakable"
-- The momentum meter is labeled "Self-Trust" instead of "Momentum"
-
-Users absorb the philosophy through use, not instruction.
-
-**Pros:** Zero friction. Discovery-based. Feels organic.  
-**Cons:** Some users will never "get it" and treat it as a habit tracker. Might be okay for MVP?
-
-### Evaluation Matrix
-
-| Approach           | Friction | Comprehension   | Emotional Impact | Risk                    |
-| ------------------ | -------- | --------------- | ---------------- | ----------------------- |
-| A: Felt Experience | Low      | Medium          | High             | Medium (gimmicky?)      |
-| B: The Question    | Low      | High            | Very High        | High (defensive)        |
-| C: The Reframe     | Very Low | Low             | Medium           | Low                     |
-| D: The Hybrid      | Low      | High            | High             | Low                     |
-| E: Zero Onboarding | None     | Low (initially) | Builds over time | Medium (miss the point) |
-
-### Decision
-
-**[PENDING — awaiting discussion]**
+**Why it works:** Consistency over intensity. Days and weeks, not hours. The action itself is almost irrelevant — "5 push-ups" sounds like nothing, but doing it every day for 60 days rewires the nervous system to believe "I follow through." Cold turkey fails because one miss kills the streak. The ladder removes failure. Step down, keep going.
 
 ---
 
-## 2. Pre-Built Templates
+## Core Mechanic
 
-### Purpose
+Each goal = the goal + 2 easier versions. No special label — users just see the goal and fallbacks:
 
-Templates aren't just convenience — they're **proof that the mechanic works for real things.** Each template should feel like something the user has personally failed at before. Recognition = engagement.
+> **20 air squats**
+> _or easier:_ 10 air squats
+> _or easiest:_ 5 air squats
 
-### Requirements
+**Reminder window:** Time range for random reminders (NOT activity duration). Can be a window ("5–8 PM") or exact time ("10 PM").
 
-- Minimum 3 for prototype
-- Each must have at least 4 steps (one hard, two medium, one "anyone can do this")
-- The easiest step must be almost laughably easy — that's the point
-- Schedule should match when the behavior naturally happens
+**Reminders per day:** Default twice. Configurable.
 
-### Templates
+**Once done = done.** No more reminders that day.
 
-**[PENDING — will define after philosophy is settled]**
-
----
-
-## 3. Home Screen Design
-
-**[PENDING]**
+**Goal frequency:** Daily by default. Changeable (weekly, every 3 days, etc).
 
 ---
 
-## 4. Create Template Experience
+## Accounts
 
-**[PENDING]**
+**No accounts for V1.** No signup, no login, no email. Everything stored locally on device. Zero friction.
 
----
-
-## 5. Notification Design & Tone
-
-**[PENDING]**
+Accounts come later only when needed (cloud sync, cross-device, social features).
 
 ---
 
-## 6. Visual Language & Theme
+## 1. First Open Experience — Onboarding
 
-**[PENDING — awaiting Stitch design]**
+### Onboarding (animated, progress bar on top, no skip)
+
+**Progress bar:** Thin 3px line at the top, fills as user advances. No skip button.
+
+**Step 1 — Name (egg white bg):**
+"What is your name?" → text input → Continue
+
+**Step 2 — Sage line 1 (egg white, auto-advance 2.5s):**
+"You already know where you want to be."
+Fades in alone, sits, fades out.
+
+**Step 3 — Sage line 2 (egg white, auto-advance 3.5s):**
+"The path there is not a leap, or even a step — it's a nudge."
+Fades in alone, sits, fades out.
+
+**Step 4 — BG transition:**
+Background smoothly shifts from egg white to light blue (#E8F1F8). Signals: "we're getting started."
+
+**Step 5 — Ladder intro (light blue bg):**
+"Let's say your goal is to read"
+"1 hour a day."
+After 2s, "Let's say..." fades out, "1 hour a day" stays.
+
+**Step 6 — Ladder build (auto-animated):**
+Lines appear below, pushing the column up (always centered):
+
+- "How about 30 minutes a day?" → prefix/suffix fade → "30 minutes a day"
+- "10 minutes?" → suffix fades → "10 minutes"
+- "How about one page?" → prefix/suffix fade → "one page"
+
+**Step 7 — Crossout:**
+"1 hour a day" gets a red strikethrough line drawn across it.
+Then it fades/removes, leaving only 3 options which re-center smoothly.
+
+**Step 8 — Scribble annotations (typewriter style):**
+Fast typewriter text appears above each remaining line, like handwritten notes:
+
+- "You will try this first" (above 30 minutes a day)
+- "If that's too much, try this" (above 10 minutes)
+- "And if that's too much" (above one page)
+
+Scribbles fade out. Then everything fades out smoothly.
+
+→ Template selection
+
+### Template Selection (immediately after onboarding)
+
+No header, no question. Just 4 cards. One tap → guided creation starts.
+
+```
+🚶  Daily Walk
+    15 min walk outside
+    ↓ 1 min outside
+    ↓ 1 min in your room
+
+💪  Air Squats
+    20 air squats
+    ↓ 10 air squats
+    ↓ 5 air squats
+
+📖  Read a Book
+    Read for 30 minutes
+    ↓ Read for 10 minutes
+    ↓ Read 1 page
+
+✨  Create Your Own
+```
+
+Cards show the easier versions with ↓ arrows — reinforces the ladder mechanic they just learned. One tap → guided creation with that goal pre-filled.
+
+### Microcopy (always active, everywhere)
+
+- **After Do It:** "Promise kept."
+- **After Step Down:** "Stepped down. Still in."
+- **After Snooze:** "Coming back soon."
+- **First completed day:** "Day 1. You said you would. And you did."
+- **Milestones only:** "5 days. 5 promises kept." / "10 days straight." (No daily counter.)
 
 ---
 
-## 7. Screens Inventory (V1)
+## 2. Pre-Built Goals
 
-**[PENDING]**
+**Goal 1: Daily Walk**
+
+- Goal: 15 minute walk outside
+- Easier: 1 minute walk outside
+- Easiest: 1 minute walk in your room
+- Window: 5–8 PM | 2x/day | Daily
+
+**Goal 2: Air Squats**
+
+- Goal: 20 air squats
+- Easier: 10 air squats
+- Easiest: 5 air squats
+- Window: All day | 2x/day | Daily
+
+**Goal 3: Study a Book**
+
+- Goal: Stuy for 30 minutes
+- Easier: Study for 10 minutes
+- Easiest: Study 1 page
+- Window: 5+ PM exact | 1x | Daily
+
+**Card 4: Create Your Own**
+
+---
+
+## 3. Create Goal Flow
+
+First time = guided walkthrough:
+
+1. "What do you want to do?" → goal input
+2. "What's an easier version?" → easier input
+3. "What's the easiest version? Something you'd do even on your worst day." → easiest input
+4. "When should we remind you?" → time picker (window or exact)
+5. Notification permission: "We'll send reminders in your window. Once you've done it, we stop for the day."
+6. Done → home
+
+Returning users: just a form.
+
+---
+
+## 4. Notifications
+
+- **Title:** Goal name
+- **Body:** Current version (e.g., "Time to: 15 min walk outside")
+- **Actions:** Do It / Step Down / Snooze
+
+Random timing within window. No predictable schedule.
+
+- Do It → log, stop reminders, "Promise kept."
+- Step Down → show easier version, log, stop reminders
+- Snooze → remind again in 15 min
+
+---
+
+## 5. Progression
+
+No daily streak counter. Milestone celebrations only: 5, 10, 20, 30, 50, 100 days.
+
+**Trust levels:**
+Starting Out → Showing Up → Building Ground → Steady → Consistent → Reliable → Committed → Resilient → Unshakable → Self-Made
+
+**Self-Trust meter:** Cut from V1. MVP ships without it. Add later if needed.
+
+---
+
+## 6. Home Screen
+
+**The main screen. Goal cards = the entire screen. Minimal UI. Zero friction.**
+
+Design principle: The ONLY thing the user sees is their goals. Everything else is tucked away.
+
+```
+┌──────────────────────────┐
+│                      👤  │  ← profile icon (gender-neutral silhouette, top-right)
+│                          │
+│   ┌──────────────────┐   │
+│   │ 🚶 Daily Walk    │   │  ← goal card (big, tappable)
+│   │   15 min walk    │   │     tap → Goal Detail (3 tiers + delete)
+│   │                  │   │     swipe → do it / step down / snooze
+│   └──────────────────┘   │
+│                          │
+│   ┌──────────────────┐   │
+│   │ 💪 Air Squats    │   │  ← more goals stack vertically
+│   │   20 squats      │   │
+│   └──────────────────┘   │
+│                          │
+│                     [+]  │  ← FAB → shows "Template" or "Create"
+└──────────────────────────┘
+```
+
+**Only 2 icons on the whole screen:** profile (top-right) and + (bottom-right FAB).
+
+**Profile icon (👤):** Gender-neutral silhouette. Tap → Profile screen (see section 11).
+
+**FAB (+):** Tap → shows 2 options:
+
+- **"Create"** → go straight to goal creation form
+- **"Template"** → go to template page (3 pre-built goals, more added later)
+
+**Swipe actions (hidden, revealed on swipe):**
+
+- Swipe left → **Do It** (green) / **Step Down** (yellow)
+- Swipe right → **Snooze** (gray)
+
+**First-time swipe tutorial:** On first home screen visit, the top goal card auto-animates a partial swipe left (~30% of the way), revealing the Do It / Step Down buttons underneath, then bounces back. A small tooltip: "Swipe to act." Happens once, never again. Replay lives in Profile > Settings.
+
+**Goal card states:**
+
+- **Pending:** Yellow border. Shows emoji + goal name + reminder time.
+- **Done:** Green border. Shows ✓ + "Promise kept." (muted text)
+- **Stepped down:** Green border. Shows ✓ + "Stepped down. Still in." (muted text)
+
+**No top bar.** No name, no trust level, no meter. Just goals.
+
+**Tap a goal card → Goal Detail screen** (see section 9).
+
+---
+
+## 7. Visual Theme
+
+**Egg white + light blue. Clean, warm, minimal.**
+
+- **Background:** Egg white (#FAF8F5) — warm, not sterile
+- **Cards:** White (#FFFFFF) — clean against the egg white bg
+- **Primary accent:** Light blue (#5BA4CF) — buttons, links, FAB
+- **Supporting:** Warm gray (#E8E6E1) — borders, dividers, subtle lines
+- **Text:** Near-black (#1A1A1A) primary, gray (#8C8C8C) secondary
+
+**Goal card borders:**
+
+- **Pending (needs action today):** Yellow border (#F5C542)
+- **Done / Stepped down:** Green border (#4CAF82)
+
+**Swipe colors:** Green (do it), Yellow (step down), Gray (snooze)
+
+**Overall feel:** Light, airy, no dark mode V1. Feels like paper. Non-intrusive.
+
+---
+
+## 8. V1 Screens
+
+```
+FIRST OPEN:
+  Onboarding (animated story) → Template Selection → Guided Goal Creation → Home
+
+DAILY USE:
+  Home → Goal Detail (view/edit)
+       → Create New Goal
+
+PROFILE:
+  Profile (user info, default notifications, replay tutorial, about)
+```
+
+7 unique screens total:
+
+| #   | Screen                                         | Design Status |
+| --- | ---------------------------------------------- | ------------- |
+| 1   | Onboarding (animated storytelling flow)        | ✅ Designed   |
+| 2   | Template Selection (4 cards)                   | ✅ Designed   |
+| 3   | Guided Goal Creation (first-time walkthrough)  | ✅ Designed   |
+| 4   | Home (goal cards + swipe-to-act, minimal UI)   | ✅ Designed   |
+| 5   | Goal Detail (tap a goal → view tiers + edit)   | ✅ Designed   |
+| 6   | Create Goal (Template or Create picker)        | ✅ Designed   |
+| 7   | Profile (name, notifications, tutorial, about) | ✅ Designed   |
+
+---
+
+## 9. Goal Detail Screen
+
+**✅ Designed**
+
+Opens when user taps a goal card on the home screen. Full screen push. Shows the 3-tier ladder + delete.
+
+```
+┌──────────────────────────┐
+│  ← Back                  │
+│                          │
+│  🚶 Daily Walk           │  ← emoji + goal name
+│                          │
+│  ┌────────────────────┐  │
+│  │ 15 min walk outside│  │  ← primary tier (tappable → edit)
+│  └────────────────────┘  │
+│          ↓ easier        │
+│  ┌────────────────────┐  │
+│  │ 1 min walk outside │  │  ← easier tier (tappable → edit)
+│  └────────────────────┘  │
+│          ↓ easiest       │
+│  ┌────────────────────┐  │
+│  │ 1 min walk in room │  │  ← easiest tier (tappable → edit)
+│  └────────────────────┘  │
+│                          │
+│  [Delete Goal]           │  ← delete button (red text, bottom)
+│                          │
+└──────────────────────────┘
+```
+
+**Interaction:**
+
+- **Tap any tier** → opens edit view for that goal:
+  - Edit the goal name + emoji
+  - Edit all 3 tier descriptions
+  - Edit notification settings (time, frequency, reminders per day)
+  - Save / cancel
+- **Delete Goal** → confirmation → removes goal
+- No history, no stats, no calendar — MVP
+- Full screen push (not modal)
+
+---
+
+## 10. Create Goal — Returning Users
+
+**✅ Designed**
+
+When user taps FAB (+) on home screen → shows 2 options:
+
+```
+┌──────────────────┐
+│   Template       │  → goes to template page (3 pre-built goals)
+│   Create         │  → goes straight to goal creation form
+└──────────────────┘
+```
+
+**"Create":** Opens the goal creation form immediately — same fields as guided walkthrough but without the step-by-step storytelling. All fields on one screen: goal name, emoji, 3 tiers, notification settings.
+
+**"Template":** Goes to template selection page showing the 3 pre-built goals (same as onboarding). More templates added later. Selecting one pre-fills the creation form.
+
+---
+
+## 11. Profile Screen
+
+**✅ Designed**
+
+Opens when user taps the profile icon (👤) on home screen. Full screen push.
+
+```
+┌──────────────────────────┐
+│  ← Back                  │
+│                          │
+│  👤                      │
+│  Jason                   │  ← user's name (from onboarding)
+│                          │
+│  ┌────────────────────┐  │
+│  │ 👤 Profile         │  │  ← basic user info (name, edit name)
+│  └────────────────────┘  │
+│                          │
+│  ┌────────────────────┐  │
+│  │ 🔔 Notifications   │  │  ← default notification settings
+│  └────────────────────┘  │
+│                          │
+│  ┌────────────────────┐  │
+│  │ 🔄 Replay Tutorial │  │  ← replay swipe tutorial
+│  └────────────────────┘  │
+│                          │
+│  ┌────────────────────┐  │
+│  │ ℹ️ About           │  │  ← version info
+│  └────────────────────┘  │
+│                          │
+└──────────────────────────┘
+```
+
+**Profile:** Edit name.
+**Notifications:** Default notification settings (applies as default to new goals).
+**Replay Tutorial:** Re-shows the swipe tutorial on home screen.
+**About:** Version number, that's it for MVP.
 
 ---
 
 ## Changelog
 
-- 2026-03-21: Created. Philosophy written. First-open approaches brainstormed (A–E).
+- 2026-03-28: Theme locked — egg white + light blue + warm gray. Goal cards: yellow border (pending), green border (done). Goal Detail redesigned — tap any tier to edit, delete at bottom. Home screen: profile icon replaces gear, FAB shows Template/Create picker. Profile screen designed. All 7 screens designed.
+- 2026-03-27: Home screen locked in — todo list with swipe-to-act + first-time swipe tutorial animation.
+- 2026-03-26: Switched onboarding to 2nd person. Added template selection screen (4 cards, no header, ↓ arrows show easier versions). Updated V1 screen count to 7.
+- 2026-03-24: No accounts for V1. Dropped all difficulty-level labels — users just see "easier" and "easiest." Simplified V1 screen map. Cleaned up doc.
+- 2026-03-23: Added Template 3 (Read a Book). Updated onboarding line. Defined V1 screens.
+- 2026-03-22: Locked in D+E hybrid, 3-tier goals, random notifications, milestone-only streaks.
+- 2026-03-21: Created. Philosophy. First-open approaches brainstormed.

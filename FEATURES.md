@@ -2,48 +2,49 @@
 
 > Living document for planned features. Ordered by priority within each tier.
 > Features move from **Planned → In Progress → Shipped** as they're built.
+>
+> **Updated:** March 27, 2026
+
+---
+
+## Shipped in V1 (Core)
+
+### Random Reminder Windows
+
+**Status:** Shipped (V1 core)
+
+User sets a time window (e.g., 5–8 PM). Elarin picks a random time within that window to fire the notification. No predictable schedule. Configurable reminders per day (default: 2).
 
 ---
 
 ## Paid Tier Features
-
-### Random Nudge Windows
-
-**Status:** Planned
-**Tier:** Paid
-
-User sets a time window (e.g., 6am–9am). Elarin picks a random time within that window to fire the step-down notification. Configurable minimum gap between pings if multiple templates overlap.
-
-Keeps the core interrupt mechanic intact while removing the rigidity of fixed times. Users who want flexibility pay for it.
-
----
 
 ### Personal Analytics Dashboard
 
 **Status:** Planned
 **Tier:** Paid
 
-Track user behavior patterns across all templates and surface meaningful insights. This isn't vanity metrics — it's self-awareness.
+Track user behavior patterns across all goals and surface meaningful insights. This isn't vanity metrics — it's self-awareness.
 
 **What we track:**
 
-- Completion rate per template (e.g., 8/10 days engaged)
-- Step distribution — how often users complete at each ladder level
-  - Example: "8/10 times you engaged with Pushups. 6 of those you completed the full action. 2 times you stepped down to '1 pushup'."
+- Completion rate per goal (e.g., 8/10 days engaged)
+- Step distribution — how often users complete at each tier
+  - Example: "8/10 times you engaged with Air Squats. 6 of those you did the full goal. 2 times you stepped down."
 - Time-of-day patterns — when the user is most likely to complete vs. snooze
-- Momentum trends over weeks/months (not just the live meter)
-- Snooze patterns — which templates get snoozed most, which times of day
-- Step-down depth — how far down the ladder users typically go per template
+- Self-trust meter trends over weeks/months
+- Snooze patterns — which goals get snoozed most, which times of day
+- Step-down depth — how often users fall back to easier/easiest
 
 **Visualizations:**
 
 - Weekly/monthly completion heatmap (gray for missed, gradient for engagement level — never red)
-- Per-template pie/ring chart: full action vs. stepped-down vs. snoozed
-- Trend lines for momentum over time
+- Per-goal chart: full goal vs. stepped-down vs. snoozed
+- Trend lines for self-trust meter over time
 - "Your tendencies" summary cards — plain language insights like:
-  - "You complete Morning Pushups 80% of the time, but tend to step down on Mondays"
+  - "You complete Daily Walk 80% of the time, but tend to step down on Mondays"
   - "You're most consistent between 7–8am"
-  - "Writing is your most-snoozed template — consider making the minimum step easier"
+  - "Reading is your most-snoozed goal — consider making the easiest version even easier"
 
 **Design rules:**
 
@@ -53,18 +54,18 @@ Track user behavior patterns across all templates and surface meaningful insight
 
 **Data storage:**
 
-- MVP analytics can be computed from existing `CompletionRecord` data in AsyncStorage
+- Can be computed from existing completion/progress data in AsyncStorage
 - No backend needed initially — all local computation
 - Future: backend sync for cross-device and historical depth
 
 ---
 
-### Unlimited Templates
+### Unlimited Goals
 
 **Status:** Planned
 **Tier:** Paid
 
-Free tier: 3 templates. Paid tier: unlimited. Simple, clean gate.
+Free tier: 3 goals. Paid tier: unlimited. Simple, clean gate.
 
 ---
 
@@ -77,27 +78,27 @@ Custom accent colors, alternative dark themes. Keep it simple — 5-6 preset the
 
 ---
 
-### Template Import / Export
+### Goal Import / Export
 
 **Status:** Planned
 **Tier:** Paid
 
-Export templates as shareable links or JSON. Import from link or file. Foundation for the community feature.
+Export goals as shareable links or JSON. Import from link or file. Foundation for the community feature.
 
 ---
 
 ## Growth Features
 
-### Community Template Library
+### Community Goal Library
 
 **Status:** Planned
 **Tier:** Free to browse, paid to publish
 
-A shared library where users can discover and use templates created by others. Think "template marketplace" but free to use.
+A shared library where users can discover and use goals created by others. Think "goal marketplace" but free to use.
 
 **Core concept:**
 
-- Users can publish their templates to the community library
+- Users can publish their goals to the community library
 - Browse by category (fitness, mindfulness, creativity, etc.)
 - One-tap import into your own app
 - Rating/popularity system (upvotes, most-used)
@@ -105,17 +106,17 @@ A shared library where users can discover and use templates created by others. T
 
 **Why this matters for business:**
 
-- Network effect — more users → more templates → more users
-- Retention — fresh templates keep the app interesting
-- Social proof — seeing others' templates validates the app's approach
-- Content moat — a rich template library is hard to replicate
+- Network effect — more users → more goals → more users
+- Retention — fresh goals keep the app interesting
+- Social proof — seeing others' goals validates the app's approach
+- Content moat — a rich goal library is hard to replicate
 
 **Requirements:**
 
-- Backend infrastructure (user accounts, template storage, API)
+- Backend infrastructure (user accounts, goal storage, API)
 - Moderation system (report/flag inappropriate content)
-- Attribution (template creator visible)
-- Privacy: no user behavior data shared — only template structure
+- Attribution (goal creator visible)
+- Privacy: no user behavior data shared — only goal structure
 
 ---
 
@@ -124,7 +125,7 @@ A shared library where users can discover and use templates created by others. T
 **Status:** Planned
 **Tier:** Paid
 
-Optional accountability partners. Share momentum (not specifics) with a friend. Lightweight — not a full social network.
+Optional accountability partners. Share self-trust progress (not goal specifics) with a friend. Lightweight — not a full social network.
 
 ---
 
@@ -145,7 +146,7 @@ User accounts, cloud storage, API. Required before community features can ship.
 **Tier:** Paid
 **Dependency:** Backend
 
-Sync templates, progress, and analytics across devices.
+Sync goals, progress, and analytics across devices.
 
 ---
 
@@ -161,13 +162,13 @@ Port to Apple App Store. Most of the codebase is cross-platform already. Main wo
 
 | Priority | Feature                      | Tier      | Dependencies       |
 | -------- | ---------------------------- | --------- | ------------------ |
-| 1        | Random Nudge Windows         | Paid      | None               |
-| 2        | Personal Analytics Dashboard | Paid      | None               |
-| 3        | Unlimited Templates (gate)   | Paid      | Subscription infra |
-| 4        | Theme Customization          | Paid      | None               |
-| 5        | Template Import / Export     | Paid      | None               |
-| 6        | Backend & User Accounts      | Infra     | —                  |
-| 7        | Community Template Library   | Free/Paid | Backend            |
-| 8        | Cross-Device Sync            | Paid      | Backend            |
-| 9        | Social Accountability        | Paid      | Backend            |
-| 10       | iOS Support                  | —         | —                  |
+| ✅       | Random Reminder Windows      | Core      | — (shipped in V1)  |
+| 1        | Personal Analytics Dashboard | Paid      | None               |
+| 2        | Unlimited Goals (gate)       | Paid      | Subscription infra |
+| 3        | Theme Customization          | Paid      | None               |
+| 4        | Goal Import / Export         | Paid      | None               |
+| 5        | Backend & User Accounts      | Infra     | —                  |
+| 6        | Community Goal Library       | Free/Paid | Backend            |
+| 7        | Cross-Device Sync            | Paid      | Backend            |
+| 8        | Social Accountability        | Paid      | Backend            |
+| 9        | iOS Support                  | —         | —                  |

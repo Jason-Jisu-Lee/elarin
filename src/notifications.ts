@@ -1,11 +1,10 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
-import { Template } from "./types";
+import { Goal } from "./types";
 import { NOTIFICATION_CHANNEL_ID, SNOOZE_DURATION_MINUTES } from "./constants";
-import { recordCompletion, recordSnooze } from "./progression";
-import { getTemplates } from "./storage";
-import { scheduleAlarms, cancelAlarms } from "./alarms";
+import { recordDoIt, recordStepDown, recordSnooze } from "./progression";
+import { getGoals } from "./storage";
 
 // ─── Setup ───
 
@@ -15,10 +14,9 @@ export async function setupNotifications(): Promise<boolean> {
     return false;
   }
 
-  // Create Android channel
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNEL_ID, {
-      name: "Elarin Steps",
+      name: "Elarin Reminders",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
     });
@@ -35,91 +33,83 @@ export async function setupNotifications(): Promise<boolean> {
   return finalStatus === "granted";
 }
 
-// ─── Schedule Notifications for a Template ───
+// ─── Schedule Notifications for a Goal ───
 
-export async function scheduleTemplateNotifications(
-  template: Template,
-): Promise<void> {
-  // Cancel existing notifications for this template first
-  await cancelTemplateNotifications(template.id);
+export async function scheduleGoalNotifications(goal: Goal): Promise<void> {
+  await cancelGoalNotifications(goal.id);
 
-  // Schedule AlarmManager alarms (high priority, survives Doze)
-  await scheduleAlarms(template);
+  const { reminder } = goal;
 
-  for (const timeStr of template.schedule.times) {
-    const [hours, minutes] = timeStr.split(":").map(Number);
-
-    if (template.schedule.activeDays.length === 0) {
-      // Every day: use daily trigger
+  if (reminder.type === "exact") {
+    const [hours, minutes] = reminder.startTime.split(":").map(Number);
+    for (let i = 0; i < reminder.remindersPerDay; i++) {
       await Notifications.scheduleNotificationAsync({
-        content: buildNotificationContent(template, 0),
+        content: buildNotificationContent(goal),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: hours,
           minute: minutes,
           channelId: NOTIFICATION_CHANNEL_ID,
         },
-        identifier: `${template.id}-daily-${timeStr}`,
+        identifier: `${goal.id}-daily-${i}`,
       });
-    } else {
-      // Specific days
-      for (const weekday of template.schedule.activeDays) {
-        await Notifications.scheduleNotificationAsync({
-          content: buildNotificationContent(template, 0),
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-            weekday: weekday + 1, // expo uses 1-7 (Sun=1)
-            hour: hours,
-            minute: minutes,
-            channelId: NOTIFICATION_CHANNEL_ID,
-          },
-          identifier: `${template.id}-weekly-${weekday}-${timeStr}`,
-        });
-      }
+    }
+  } else {
+    // Window type: space reminders evenly within the window
+    const [startH, startM] = reminder.startTime.split(":").map(Number);
+    const [endH, endM] = (reminder.endTime || reminder.startTime)
+      .split(":")
+      .map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    const range = Math.max(1, endMinutes - startMinutes);
+
+    for (let i = 0; i < reminder.remindersPerDay; i++) {
+      const offset = Math.round(
+        (range / (reminder.remindersPerDay + 1)) * (i + 1),
+      );
+      const totalMin = startMinutes + offset;
+      const hours = Math.floor(totalMin / 60) % 24;
+      const minutes = totalMin % 60;
+
+      await Notifications.scheduleNotificationAsync({
+        content: buildNotificationContent(goal),
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours,
+          minute: minutes,
+          channelId: NOTIFICATION_CHANNEL_ID,
+        },
+        identifier: `${goal.id}-window-${i}`,
+      });
     }
   }
 }
 
 function buildNotificationContent(
-  template: Template,
-  currentStep: number,
+  goal: Goal,
 ): Notifications.NotificationContentInput {
-  const step = template.ladder.steps[currentStep];
-  const isEasiest = currentStep >= template.ladder.steps.length - 1;
-
   return {
-    title: `⚡ ${template.name}`,
-    body: step,
+    title: `${goal.emoji} ${goal.name}`,
+    body: goal.tiers.primary,
     data: {
-      templateId: template.id,
-      currentStep,
-      totalSteps: template.ladder.steps.length,
+      goalId: goal.id,
     },
-    categoryIdentifier: "elarin-step",
+    categoryIdentifier: "elarin-goal",
     ...(Platform.OS === "android"
-      ? {
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        }
+      ? { priority: Notifications.AndroidNotificationPriority.HIGH }
       : {}),
   };
 }
 
 // ─── Cancel ───
 
-export async function cancelTemplateNotifications(
-  templateId: string,
-): Promise<void> {
+export async function cancelGoalNotifications(goalId: string): Promise<void> {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   for (const notif of scheduled) {
-    if (notif.identifier.startsWith(templateId)) {
+    if (notif.identifier.startsWith(goalId)) {
       await Notifications.cancelScheduledNotificationAsync(notif.identifier);
     }
-  }
-  // Also cancel AlarmManager alarms — requires template data for times
-  const templates = await getTemplates();
-  const template = templates.find((t) => t.id === templateId);
-  if (template) {
-    await cancelAlarms(template);
   }
 }
 
@@ -130,15 +120,15 @@ export async function cancelAllNotifications(): Promise<void> {
 // ─── Notification Action Categories ───
 
 export async function registerNotificationCategories(): Promise<void> {
-  await Notifications.setNotificationCategoryAsync("elarin-step", [
+  await Notifications.setNotificationCategoryAsync("elarin-goal", [
     {
       identifier: "DO_IT",
-      buttonTitle: "✅ Do it",
+      buttonTitle: "✅ Done",
       options: { opensAppToForeground: false },
     },
     {
-      identifier: "MAKE_EASIER",
-      buttonTitle: "⬇️ Make it easier",
+      identifier: "STEP_DOWN",
+      buttonTitle: "⬇️ Step down",
       options: { opensAppToForeground: false },
     },
     {
@@ -156,62 +146,38 @@ export async function handleNotificationResponse(
 ): Promise<void> {
   const { actionIdentifier } = response;
   const data = response.notification.request.content.data as {
-    templateId: string;
-    currentStep: number;
-    totalSteps: number;
+    goalId: string;
   };
 
-  if (!data?.templateId) return;
+  if (!data?.goalId) return;
 
-  const templates = await getTemplates();
-  const template = templates.find((t) => t.id === data.templateId);
-  if (!template) return;
+  const goals = await getGoals();
+  const goal = goals.find((g) => g.id === data.goalId);
+  if (!goal) return;
 
   switch (actionIdentifier) {
     case "DO_IT":
-      await recordCompletion(
-        data.templateId,
-        data.currentStep,
-        data.totalSteps,
-      );
+      await recordDoIt(data.goalId, "primary");
       break;
 
-    case "MAKE_EASIER": {
-      const nextStep = data.currentStep + 1;
-      if (nextStep < data.totalSteps) {
-        // Fire a new notification with the easier step
-        await Notifications.scheduleNotificationAsync({
-          content: buildNotificationContent(template, nextStep),
-          trigger: null, // immediate
-          identifier: `${data.templateId}-stepdown-${nextStep}`,
-        });
-      } else {
-        // Already at easiest — just show it again
-        await Notifications.scheduleNotificationAsync({
-          content: buildNotificationContent(template, data.currentStep),
-          trigger: null,
-          identifier: `${data.templateId}-stepdown-min`,
-        });
-      }
+    case "STEP_DOWN":
+      await recordStepDown(data.goalId, "easier");
       break;
-    }
 
     case "SNOOZE":
-      await recordSnooze(data.templateId);
-      // Re-fire the same notification after snooze delay
+      await recordSnooze(data.goalId);
       await Notifications.scheduleNotificationAsync({
-        content: buildNotificationContent(template, data.currentStep),
+        content: buildNotificationContent(goal),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
           seconds: SNOOZE_DURATION_MINUTES * 60,
           channelId: NOTIFICATION_CHANNEL_ID,
         },
-        identifier: `${data.templateId}-snooze-${Date.now()}`,
+        identifier: `${data.goalId}-snooze-${Date.now()}`,
       });
       break;
 
     default:
-      // User tapped the notification itself (opened app)
       break;
   }
 }

@@ -1,32 +1,26 @@
 import * as TaskManager from "expo-task-manager";
 import * as Notifications from "expo-notifications";
-import { getTemplates } from "./storage";
-import { recordCompletion, recordSnooze } from "./progression";
+import { Goal } from "./types";
+import { getGoals } from "./storage";
+import { recordDoIt, recordStepDown, recordSnooze } from "./progression";
 import { NOTIFICATION_CHANNEL_ID, SNOOZE_DURATION_MINUTES } from "./constants";
-import { Template } from "./types";
 
 const BACKGROUND_NOTIFICATION_TASK = "ELARIN_BACKGROUND_NOTIFICATION";
 
 function buildNotificationContent(
-  template: Template,
-  currentStep: number,
+  goal: Goal,
 ): Notifications.NotificationContentInput {
-  const step = template.ladder.steps[currentStep];
   return {
-    title: `⚡ ${template.name}`,
-    body: step,
+    title: `${goal.emoji} ${goal.name}`,
+    body: goal.tiers.primary,
     data: {
-      templateId: template.id,
-      currentStep,
-      totalSteps: template.ladder.steps.length,
+      goalId: goal.id,
     },
-    categoryIdentifier: "elarin-step",
+    categoryIdentifier: "elarin-goal",
     priority: Notifications.AndroidNotificationPriority.HIGH,
   };
 }
 
-// This runs even when the app is fully closed.
-// expo-task-manager keeps a headless JS context alive for this.
 TaskManager.defineTask(
   BACKGROUND_NOTIFICATION_TASK,
   async ({
@@ -45,56 +39,34 @@ TaskManager.defineTask(
 
     const actionIdentifier = response.actionIdentifier;
     const notifData = response.notification?.request?.content?.data as
-      | {
-          templateId: string;
-          currentStep: number;
-          totalSteps: number;
-        }
+      | { goalId: string }
       | undefined;
 
-    if (!notifData?.templateId) return;
+    if (!notifData?.goalId) return;
 
-    const templates = await getTemplates();
-    const template = templates.find((t) => t.id === notifData.templateId);
-    if (!template) return;
+    const goals = await getGoals();
+    const goal = goals.find((g) => g.id === notifData.goalId);
+    if (!goal) return;
 
     switch (actionIdentifier) {
       case "DO_IT":
-        await recordCompletion(
-          notifData.templateId,
-          notifData.currentStep,
-          notifData.totalSteps,
-        );
+        await recordDoIt(notifData.goalId, "primary");
         break;
 
-      case "MAKE_EASIER": {
-        const nextStep = notifData.currentStep + 1;
-        if (nextStep < notifData.totalSteps) {
-          await Notifications.scheduleNotificationAsync({
-            content: buildNotificationContent(template, nextStep),
-            trigger: null,
-            identifier: `${notifData.templateId}-stepdown-${nextStep}`,
-          });
-        } else {
-          await Notifications.scheduleNotificationAsync({
-            content: buildNotificationContent(template, notifData.currentStep),
-            trigger: null,
-            identifier: `${notifData.templateId}-stepdown-min`,
-          });
-        }
+      case "STEP_DOWN":
+        await recordStepDown(notifData.goalId, "easier");
         break;
-      }
 
       case "SNOOZE":
-        await recordSnooze(notifData.templateId);
+        await recordSnooze(notifData.goalId);
         await Notifications.scheduleNotificationAsync({
-          content: buildNotificationContent(template, notifData.currentStep),
+          content: buildNotificationContent(goal),
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
             seconds: SNOOZE_DURATION_MINUTES * 60,
             channelId: NOTIFICATION_CHANNEL_ID,
           },
-          identifier: `${notifData.templateId}-snooze-${Date.now()}`,
+          identifier: `${notifData.goalId}-snooze-${Date.now()}`,
         });
         break;
     }

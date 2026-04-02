@@ -21,7 +21,7 @@ import {
   openBatteryOptimizationSettings,
 } from "../src/battery";
 import { processPendingNativeActions } from "../src/alarms";
-import { recordCompletion, recordSnooze } from "../src/progression";
+import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
 import { colors } from "../src/constants";
 
 // Handle notifications when app is in foreground
@@ -53,16 +53,13 @@ export default function RootLayout() {
     // Process any pending actions from native receivers (app was killed)
     processPendingNativeActions().then(async (actions) => {
       for (const action of actions) {
-        if (action.type === "completion") {
-          await recordCompletion(
-            action.templateId,
-            action.stepIndex,
-            action.totalSteps,
-          );
+        if (action.type === "do_it") {
+          await recordDoIt(action.goalId, "primary");
+        } else if (action.type === "step_down") {
+          await recordStepDown(action.goalId, "easier");
         } else if (action.type === "snooze") {
-          await recordSnooze(action.templateId);
+          await recordSnooze(action.goalId);
         }
-        // step_down is handled natively
       }
     });
 
@@ -80,7 +77,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },
@@ -93,9 +90,13 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen name="templates" options={{ headerShown: false }} />
+        <Stack.Screen name="create" options={{ headerShown: false }} />
+        <Stack.Screen name="goal/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
         <Stack.Screen
           name="template/create"
-          options={{ title: "New Template", presentation: "modal" }}
+          options={{ title: "Edit Goal", presentation: "modal" }}
         />
       </Stack>
 

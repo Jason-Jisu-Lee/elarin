@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,35 +6,69 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Animated,
+  Modal,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
+import { Swipeable } from "react-native-gesture-handler";
+import { colors, MICROCOPY } from "../src/constants";
 import {
-  colors,
-  getLevelForXp,
-  getXpToNextLevel,
-  LEVELS,
-} from "../src/constants";
-import { getLiveProgress } from "../src/progression";
-import { getTemplates } from "../src/storage";
-import { Template, UserProgress } from "../src/types";
+  getGoals,
+  getDailyStates,
+  hasShownSwipeTutorial,
+  setSwipeTutorialShown,
+} from "../src/storage";
+import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
+import { Goal, DailyGoalState } from "../src/types";
 
 export default function Home() {
   const router = useRouter();
-  const [progress, setProgress] = useState<UserProgress | null>(null);
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [dailyStates, setDailyStates] = useState<DailyGoalState[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showFabMenu, setShowFabMenu] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const tutorialAnim = useRef(new Animated.Value(0)).current;
+  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
   const load = useCallback(async () => {
-    const [p, t] = await Promise.all([getLiveProgress(), getTemplates()]);
-    setProgress(p);
-    setTemplates(t);
+    const [g, ds] = await Promise.all([getGoals(), getDailyStates()]);
+    setGoals(g);
+    setDailyStates(ds);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       load();
+      setShowFabMenu(false);
     }, [load]),
   );
+
+  // Swipe tutorial on first visit
+  useEffect(() => {
+    hasShownSwipeTutorial().then((shown) => {
+      if (!shown && goals.length > 0) {
+        setTimeout(() => {
+          setShowTutorial(true);
+          Animated.sequence([
+            Animated.timing(tutorialAnim, {
+              toValue: -80,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+            Animated.timing(tutorialAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setTimeout(() => setShowTutorial(false), 2000);
+          });
+          setSwipeTutorialShown();
+        }, 800);
+      }
+    });
+  }, [goals.length]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -42,17 +76,83 @@ export default function Home() {
     setRefreshing(false);
   };
 
-  const level = progress ? getLevelForXp(progress.totalXp) : LEVELS[0];
-  const xpNext = progress ? getXpToNextLevel(progress.totalXp) : null;
-  const momentum = progress?.momentum ?? 0;
+  const getGoalState = (goalId: string): DailyGoalState | undefined =>
+    dailyStates.find((s) => s.goalId === goalId);
+
+  const handleDoIt = async (goalId: string) => {
+    swipeableRefs.current.get(goalId)?.close();
+    await recordDoIt(goalId, "primary");
+    await load();
+  };
+
+  const handleStepDown = async (goalId: string) => {
+    swipeableRefs.current.get(goalId)?.close();
+    await recordStepDown(goalId, "easier");
+    await load();
+  };
+
+  const handleSnooze = async (goalId: string) => {
+    swipeableRefs.current.get(goalId)?.close();
+    await recordSnooze(goalId);
+    await load();
+  };
+
+  const formatReminderTime = (goal: Goal): string => {
+    const { reminder } = goal;
+    const fmt = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+    };
+    if (reminder.type === "exact") return fmt(reminder.startTime);
+    return `${fmt(reminder.startTime)} – ${fmt(reminder.endTime || reminder.startTime)}`;
+  };
+
+  const renderLeftActions = (goalId: string) => (
+    <TouchableOpacity
+      style={styles.snoozeAction}
+      onPress={() => handleSnooze(goalId)}
+    >
+      <Text style={styles.actionText}>💤</Text>
+      <Text style={styles.actionLabel}>Snooze</Text>
+    </TouchableOpacity>
+  );
+
+  const renderRightActions = (goalId: string) => (
+    <View style={styles.rightActions}>
+      <TouchableOpacity
+        style={styles.doItAction}
+        onPress={() => handleDoIt(goalId)}
+      >
+        <Text style={styles.actionText}>✅</Text>
+        <Text style={styles.actionLabel}>Done</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.stepDownAction}
+        onPress={() => handleStepDown(goalId)}
+      >
+        <Text style={styles.actionText}>⬇️</Text>
+        <Text style={styles.actionLabel}>Step Down</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const isDone = (state?: DailyGoalState) =>
+    state?.status === "done" || state?.status === "stepped_down";
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.appName}>Elarin</Text>
-        <Text style={styles.subtitle}>lower the barrier</Text>
-      </View>
+      {/* Profile icon */}
+      <TouchableOpacity
+        style={styles.profileBtn}
+        onPress={() => router.push("/profile")}
+      >
+        <View style={styles.profileIcon}>
+          <View style={styles.profileHead} />
+          <View style={styles.profileBody} />
+        </View>
+      </TouchableOpacity>
 
       <ScrollView
         style={styles.scroll}
@@ -65,107 +165,135 @@ export default function Home() {
           />
         }
       >
-        {/* Momentum Meter */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Momentum</Text>
-          <View style={styles.momentumBar}>
-            <View
-              style={[
-                styles.momentumFill,
-                {
-                  width: `${Math.min(100, Math.max(0, momentum))}%`,
-                  opacity: momentum > 0 ? 0.7 + (momentum / 100) * 0.3 : 0.3,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.momentumLabel}>
-            {momentum < 10
-              ? "Cold start — do anything to light the ember"
-              : momentum < 40
-                ? "Warming up — keep going"
-                : momentum < 70
-                  ? "Building heat — nice momentum"
-                  : "On fire — unstoppable"}
-          </Text>
-        </View>
-
-        {/* Level & XP */}
-        <View style={styles.card}>
-          <View style={styles.levelRow}>
-            <View>
-              <Text style={styles.levelName}>{level.name}</Text>
-              <Text style={styles.levelLabel}>Level {level.level}</Text>
-            </View>
-            <View style={styles.xpBox}>
-              <Text style={styles.xpValue}>{progress?.totalXp ?? 0}</Text>
-              <Text style={styles.xpLabel}>XP</Text>
-            </View>
-          </View>
-          {xpNext && (
-            <View style={styles.xpBar}>
-              <View
-                style={[
-                  styles.xpFill,
-                  {
-                    width: `${Math.min(100, (xpNext.current / xpNext.needed) * 100)}%`,
-                  },
-                ]}
-              />
-            </View>
-          )}
-          {xpNext && (
-            <Text style={styles.xpToNext}>
-              {xpNext.needed - xpNext.current} XP to next level
-            </Text>
-          )}
-        </View>
-
-        {/* Templates */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Templates</Text>
-        </View>
-
-        {templates.length === 0 ? (
-          <View style={styles.emptyCard}>
+        {goals.length === 0 ? (
+          <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🎯</Text>
-            <Text style={styles.emptyTitle}>No templates yet</Text>
+            <Text style={styles.emptyTitle}>No goals yet</Text>
             <Text style={styles.emptyBody}>
-              Create your first step-down template to get started
+              Tap + to create your first goal
             </Text>
           </View>
         ) : (
-          templates.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={styles.templateCard}
-              onPress={() => router.push(`/template/create?id=${t.id}`)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.templateName}>{t.name}</Text>
-              <Text style={styles.templateSteps}>
-                {t.ladder.steps.length} steps · {t.schedule.times.length} daily
-              </Text>
-              <View style={styles.ladderPreview}>
-                {t.ladder.steps.map((step, i) => (
-                  <Text key={i} style={styles.ladderPreviewStep}>
-                    {i === 0 ? "⚡" : "↓"} {step}
-                  </Text>
-                ))}
-              </View>
-            </TouchableOpacity>
-          ))
+          goals.map((goal) => {
+            const state = getGoalState(goal.id);
+            const done = isDone(state);
+
+            return (
+              <Swipeable
+                key={goal.id}
+                ref={(ref) => {
+                  if (ref) swipeableRefs.current.set(goal.id, ref);
+                }}
+                renderLeftActions={
+                  done ? undefined : () => renderLeftActions(goal.id)
+                }
+                renderRightActions={
+                  done ? undefined : () => renderRightActions(goal.id)
+                }
+                enabled={!done}
+                overshootLeft={false}
+                overshootRight={false}
+              >
+                <Animated.View
+                  style={[
+                    showTutorial && goal.id === goals[0]?.id
+                      ? { transform: [{ translateX: tutorialAnim }] }
+                      : {},
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.goalCard,
+                      {
+                        borderColor: done
+                          ? colors.doneBorder
+                          : colors.pendingBorder,
+                      },
+                    ]}
+                    onPress={() => router.push(`/goal/${goal.id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.goalHeader}>
+                      <Text style={styles.goalEmoji}>{goal.emoji}</Text>
+                      <View style={styles.goalInfo}>
+                        <Text
+                          style={[styles.goalName, done && styles.goalNameDone]}
+                        >
+                          {goal.name}
+                        </Text>
+                        {done ? (
+                          <Text style={styles.goalDoneText}>
+                            {state?.status === "stepped_down"
+                              ? MICROCOPY.STEP_DOWN
+                              : MICROCOPY.DO_IT}
+                          </Text>
+                        ) : (
+                          <Text style={styles.goalTime}>
+                            {formatReminderTime(goal)}
+                          </Text>
+                        )}
+                      </View>
+                      {done && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              </Swipeable>
+            );
+          })
         )}
       </ScrollView>
+
+      {/* Swipe tutorial tooltip */}
+      {showTutorial && (
+        <View style={styles.tutorialTooltip}>
+          <Text style={styles.tutorialText}>Swipe to act</Text>
+        </View>
+      )}
 
       {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push("/template/create")}
+        onPress={() => setShowFabMenu(true)}
         activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      {/* FAB Menu Modal */}
+      <Modal
+        visible={showFabMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFabMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.fabOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFabMenu(false)}
+        >
+          <View style={styles.fabMenu}>
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => {
+                setShowFabMenu(false);
+                router.push("/create");
+              }}
+            >
+              <Text style={styles.fabMenuText}>Create</Text>
+            </TouchableOpacity>
+            <View style={styles.fabMenuDivider} />
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => {
+                setShowFabMenu(false);
+                router.push("/templates");
+              }}
+            >
+              <Text style={styles.fabMenuText}>Template</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -175,168 +303,174 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  header: {
-    paddingTop: 56,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
+  profileBtn: {
+    position: "absolute",
+    top: 52,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
   },
-  appName: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: colors.text,
-    letterSpacing: -0.5,
+  profileIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 2,
+  profileHead: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.text,
+    position: "absolute",
+    top: 4,
+  },
+  profileBody: {
+    width: 20,
+    height: 12,
+    borderRadius: 10,
+    backgroundColor: colors.text,
+    position: "absolute",
+    bottom: -3,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingTop: 100,
     paddingBottom: 100,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-  },
-  cardLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  momentumBar: {
-    height: 8,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  momentumFill: {
-    height: "100%",
-    backgroundColor: colors.momentumGlow,
-    borderRadius: 4,
-  },
-  momentumLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 8,
-  },
-  levelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  emptyState: {
     alignItems: "center",
-  },
-  levelName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.accent,
-  },
-  levelLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  xpBox: {
-    alignItems: "flex-end",
-  },
-  xpValue: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  xpLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  xpBar: {
-    height: 6,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 3,
-    overflow: "hidden",
-    marginTop: 12,
-  },
-  xpFill: {
-    height: "100%",
-    backgroundColor: colors.success,
-    borderRadius: 3,
-  },
-  xpToNext: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 6,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 32,
-    alignItems: "center",
+    marginTop: 120,
   },
   emptyEmoji: {
     fontSize: 48,
     marginBottom: 12,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: colors.text,
     marginBottom: 8,
   },
   emptyBody: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textMuted,
-    textAlign: "center",
   },
-  templateCard: {
+  goalCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 2,
   },
-  templateName: {
+  goalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  goalEmoji: {
+    fontSize: 28,
+    marginRight: 14,
+  },
+  goalInfo: {
+    flex: 1,
+  },
+  goalName: {
     fontSize: 18,
     fontWeight: "600",
     color: colors.text,
   },
-  templateSteps: {
-    fontSize: 13,
+  goalNameDone: {
     color: colors.textMuted,
-    marginTop: 4,
   },
-  ladderPreview: {
-    marginTop: 10,
-  },
-  ladderPreviewStep: {
-    fontSize: 13,
+  goalTime: {
+    fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 2,
+    marginTop: 2,
   },
+  goalDoneText: {
+    fontSize: 14,
+    color: colors.doneBorder,
+    marginTop: 2,
+    fontStyle: "italic",
+  },
+  checkmark: {
+    fontSize: 22,
+    color: colors.doneBorder,
+    fontWeight: "700",
+  },
+  // Swipe actions
+  rightActions: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  doItAction: {
+    backgroundColor: colors.doItGreen,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingHorizontal: 8,
+  },
+  stepDownAction: {
+    backgroundColor: colors.stepDownYellow,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 8,
+  },
+  snoozeAction: {
+    backgroundColor: colors.snoozeGray,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  actionText: {
+    fontSize: 20,
+  },
+  actionLabel: {
+    fontSize: 11,
+    color: colors.white,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  // Tutorial
+  tutorialTooltip: {
+    position: "absolute",
+    top: 160,
+    alignSelf: "center",
+    backgroundColor: colors.text,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  tutorialText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  // FAB
   fab: {
     position: "absolute",
     bottom: 32,
     right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.accent,
     justifyContent: "center",
     alignItems: "center",
@@ -351,5 +485,36 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: "300",
     marginTop: -2,
+  },
+  fabOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-end",
+    alignItems: "flex-end",
+    padding: 24,
+    paddingBottom: 100,
+  },
+  fabMenu: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    minWidth: 160,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  fabMenuItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  fabMenuText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  fabMenuDivider: {
+    height: 1,
+    backgroundColor: colors.muted,
   },
 });

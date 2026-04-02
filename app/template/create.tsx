@@ -14,110 +14,71 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { colors, PRE_BUILT_GOALS } from "../../src/constants";
+import { Goal } from "../../src/types";
+import { addGoal, updateGoal, deleteGoal, getGoals } from "../../src/storage";
 import {
-  colors,
-  CATEGORY_LIST,
-  CATEGORY_LABELS,
-  EXAMPLE_LADDERS,
-} from "../../src/constants";
-import { Template, GoalCategory } from "../../src/types";
-import {
-  addTemplate,
-  updateTemplate,
-  deleteTemplate,
-  getTemplates,
-} from "../../src/storage";
-import {
-  scheduleTemplateNotifications,
-  cancelTemplateNotifications,
+  scheduleGoalNotifications,
+  cancelGoalNotifications,
 } from "../../src/notifications";
 
-export default function CreateTemplate() {
+// This file kept for backwards compat — redirects handled in create.tsx at root
+// But still used for editing existing goals via /template/create?id=xxx
+
+export default function EditGoal() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = !!id;
 
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<GoalCategory>("fitness");
-  const [steps, setSteps] = useState<string[]>(["", "", "", ""]);
-  const [times, setTimes] = useState<string[]>(["09:00"]);
-  const [activeDays, setActiveDays] = useState<number[]>([]);
+  const [emoji, setEmoji] = useState("⭐");
+  const [primary, setPrimary] = useState("");
+  const [easier, setEasier] = useState("");
+  const [easiest, setEasiest] = useState("");
+  const [reminderType, setReminderType] = useState<"window" | "exact">(
+    "window",
+  );
+  const [startTime, setStartTime] = useState("17:00");
+  const [endTime, setEndTime] = useState("20:00");
+  const [remindersPerDay, setRemindersPerDay] = useState(2);
 
-  // Load existing template if editing
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [editingField, setEditingField] = useState<"start" | "end">("start");
+
   useEffect(() => {
     if (id) {
-      getTemplates().then((templates) => {
-        const t = templates.find((t) => t.id === id);
-        if (t) {
-          setName(t.name);
-          setCategory(t.category);
-          setSteps(t.ladder.steps);
-          setTimes(t.schedule.times);
-          setActiveDays(t.schedule.activeDays);
+      getGoals().then((goals) => {
+        const g = goals.find((g) => g.id === id);
+        if (g) {
+          setName(g.name);
+          setEmoji(g.emoji);
+          setPrimary(g.tiers.primary);
+          setEasier(g.tiers.easier);
+          setEasiest(g.tiers.easiest);
+          setReminderType(g.reminder.type);
+          setStartTime(g.reminder.startTime);
+          setEndTime(g.reminder.endTime || "20:00");
+          setRemindersPerDay(g.reminder.remindersPerDay);
         }
       });
     }
   }, [id]);
 
-  const updateStep = (index: number, value: string) => {
-    const next = [...steps];
-    next[index] = value;
-    setSteps(next);
-  };
-
-  const addStep = () => setSteps([...steps, ""]);
-
-  const removeStep = (index: number) => {
-    if (steps.length <= 2) return; // minimum 2 steps
-    setSteps(steps.filter((_, i) => i !== index));
-  };
-
-  const loadExample = (key: string) => {
-    const ladder = EXAMPLE_LADDERS[key];
-    if (ladder) {
-      setSteps([...ladder]);
-      setName(key);
-    }
-  };
-
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [editingTimeIndex, setEditingTimeIndex] = useState<number | null>(null);
-
-  const addTime = () => {
-    setTimes([...times, "12:00"]);
-    setEditingTimeIndex(times.length);
+  const openTimePicker = (field: "start" | "end") => {
+    setEditingField(field);
     setPickerVisible(true);
   };
 
-  const openTimePicker = (index: number) => {
-    setEditingTimeIndex(index);
-    setPickerVisible(true);
-  };
-
-  const onTimePickerChange = (
-    event: DateTimePickerEvent,
-    selectedDate?: Date,
-  ) => {
+  const onTimePickerChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === "android") setPickerVisible(false);
-    if (
-      event.type === "dismissed" ||
-      !selectedDate ||
-      editingTimeIndex === null
-    )
-      return;
-    const h = selectedDate.getHours().toString().padStart(2, "0");
-    const m = selectedDate.getMinutes().toString().padStart(2, "0");
-    const next = [...times];
-    next[editingTimeIndex] = `${h}:${m}`;
-    setTimes(next);
+    if (event.type === "dismissed" || !date) return;
+    const h = date.getHours().toString().padStart(2, "0");
+    const m = date.getMinutes().toString().padStart(2, "0");
+    const time = `${h}:${m}`;
+    if (editingField === "start") setStartTime(time);
+    else setEndTime(time);
   };
 
-  const removeTime = (index: number) => {
-    if (times.length <= 1) return;
-    setTimes(times.filter((_, i) => i !== index));
-  };
-
-  /** Convert "HH:mm" to a Date for the picker */
   const timeToDate = (timeStr: string): Date => {
     const [h, m] = timeStr.split(":").map(Number);
     const d = new Date();
@@ -125,76 +86,71 @@ export default function CreateTemplate() {
     return d;
   };
 
-  const toggleDay = (day: number) => {
-    setActiveDays((prev) =>
-      prev.includes(day)
-        ? prev.filter((d) => d !== day)
-        : [...prev, day].sort(),
-    );
+  const formatTime = (timeStr: string): string => {
+    const [h, m] = timeStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
   };
 
   const handleSave = async () => {
-    const trimmedName = name.trim();
-    const validSteps = steps.map((s) => s.trim()).filter(Boolean);
-
-    if (!trimmedName) {
-      Alert.alert("Name required", "Give your template a name.");
+    if (!name.trim()) {
+      Alert.alert("Name required", "Give your goal a name.");
       return;
     }
-    if (validSteps.length < 2) {
-      Alert.alert("Need more steps", "Add at least 2 steps to your ladder.");
-      return;
-    }
-
-    const validTimes = times.filter((t) => /^\d{2}:\d{2}$/.test(t));
-    if (validTimes.length === 0) {
+    if (!primary.trim() || !easier.trim() || !easiest.trim()) {
       Alert.alert(
-        "Schedule required",
-        "Add at least one notification time (HH:mm).",
+        "All tiers required",
+        "Fill in all three versions of your goal.",
       );
       return;
     }
 
-    const template: Template = {
+    const goal: Goal = {
       id: id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: trimmedName,
-      category,
-      ladder: { steps: validSteps },
-      schedule: { times: validTimes, activeDays },
+      name: name.trim(),
+      emoji,
+      tiers: {
+        primary: primary.trim(),
+        easier: easier.trim(),
+        easiest: easiest.trim(),
+      },
+      reminder: {
+        type: reminderType,
+        startTime,
+        endTime: reminderType === "window" ? endTime : undefined,
+        remindersPerDay,
+        activeDays: [],
+        frequency: "daily",
+      },
       createdAt: Date.now(),
     };
 
     if (isEditing) {
-      await updateTemplate(template);
+      await updateGoal(goal);
     } else {
-      await addTemplate(template);
+      await addGoal(goal);
     }
 
-    await scheduleTemplateNotifications(template);
+    await scheduleGoalNotifications(goal);
     router.back();
   };
 
   const handleDelete = () => {
     if (!id) return;
-    Alert.alert(
-      "Delete template?",
-      "This will cancel all scheduled notifications.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await cancelTemplateNotifications(id);
-            await deleteTemplate(id);
-            router.back();
-          },
+    Alert.alert("Delete goal?", "This will cancel all scheduled reminders.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await cancelGoalNotifications(id);
+          await deleteGoal(id);
+          router.back();
         },
-      ],
-    );
+      },
+    ]);
   };
-
-  const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
     <KeyboardAvoidingView
@@ -207,174 +163,162 @@ export default function CreateTemplate() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Name */}
-        <Text style={styles.label}>Template Name</Text>
+        <Text style={styles.label}>Goal Name</Text>
         <TextInput
           style={styles.input}
           value={name}
           onChangeText={setName}
-          placeholder="e.g., Morning Pushups"
+          placeholder="e.g., Daily Walk"
           placeholderTextColor={colors.textMuted}
           maxLength={50}
         />
 
-        {/* Category */}
-        <Text style={styles.label}>Category</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryRow}
-        >
-          {CATEGORY_LIST.map((cat) => (
-            <TouchableOpacity
-              key={cat}
+        {/* Emoji */}
+        <Text style={styles.label}>Emoji</Text>
+        <TextInput
+          style={[styles.input, styles.emojiInput]}
+          value={emoji}
+          onChangeText={(t) => setEmoji(t.slice(-2))}
+          maxLength={2}
+        />
+
+        {/* 3-Tier Ladder */}
+        <Text style={styles.label}>Your Goal</Text>
+        <Text style={styles.hint}>What do you want to do?</Text>
+        <TextInput
+          style={styles.input}
+          value={primary}
+          onChangeText={setPrimary}
+          placeholder="e.g., 15 min walk outside"
+          placeholderTextColor={colors.textMuted}
+          maxLength={100}
+        />
+
+        <Text style={styles.label}>Easier Version</Text>
+        <Text style={styles.hint}>What's an easier version?</Text>
+        <TextInput
+          style={styles.input}
+          value={easier}
+          onChangeText={setEasier}
+          placeholder="e.g., 1 min walk outside"
+          placeholderTextColor={colors.textMuted}
+          maxLength={100}
+        />
+
+        <Text style={styles.label}>Easiest Version</Text>
+        <Text style={styles.hint}>
+          Something you'd do even on your worst day.
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={easiest}
+          onChangeText={setEasiest}
+          placeholder="e.g., 1 min walk in your room"
+          placeholderTextColor={colors.textMuted}
+          maxLength={100}
+        />
+
+        {/* Reminder Config */}
+        <Text style={styles.label}>When should we remind you?</Text>
+        <View style={styles.typeRow}>
+          <TouchableOpacity
+            style={[
+              styles.typeChip,
+              reminderType === "window" && styles.typeChipActive,
+            ]}
+            onPress={() => setReminderType("window")}
+          >
+            <Text
               style={[
-                styles.categoryChip,
-                category === cat && styles.categoryChipActive,
+                styles.typeChipText,
+                reminderType === "window" && styles.typeChipTextActive,
               ]}
-              onPress={() => setCategory(cat)}
             >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  category === cat && styles.categoryChipTextActive,
-                ]}
-              >
-                {CATEGORY_LABELS[cat]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              Time Window
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.typeChip,
+              reminderType === "exact" && styles.typeChipActive,
+            ]}
+            onPress={() => setReminderType("exact")}
+          >
+            <Text
+              style={[
+                styles.typeChipText,
+                reminderType === "exact" && styles.typeChipTextActive,
+              ]}
+            >
+              Exact Time
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Example Templates */}
-        <Text style={styles.label}>Quick Start</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryRow}
+        <TouchableOpacity
+          style={styles.timeBtn}
+          onPress={() => openTimePicker("start")}
         >
-          {Object.keys(EXAMPLE_LADDERS).map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={styles.exampleChip}
-              onPress={() => loadExample(key)}
-            >
-              <Text style={styles.exampleChipText}>{key}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Step-Down Ladder */}
-        <Text style={styles.label}>Step-Down Ladder</Text>
-        <Text style={styles.hint}>Hardest at top → easiest at bottom</Text>
-
-        {steps.map((step, i) => (
-          <View key={i} style={styles.stepRow}>
-            <View style={styles.stepIndicator}>
-              <Text style={styles.stepNumber}>{i + 1}</Text>
-              {i === 0 && <Text style={styles.stepTag}>Primary</Text>}
-              {i === steps.length - 1 && (
-                <Text style={styles.stepTag}>Easiest</Text>
-              )}
-            </View>
-            <TextInput
-              style={styles.stepInput}
-              value={step}
-              onChangeText={(v) => updateStep(i, v)}
-              placeholder={
-                i === 0
-                  ? "Primary action (hardest)"
-                  : i === steps.length - 1
-                    ? "Minimum viable action"
-                    : "Easier step..."
-              }
-              placeholderTextColor={colors.textMuted}
-              maxLength={100}
-            />
-            {steps.length > 2 && (
-              <TouchableOpacity
-                onPress={() => removeStep(i)}
-                style={styles.removeBtn}
-              >
-                <Text style={styles.removeBtnText}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-
-        <TouchableOpacity style={styles.addStepBtn} onPress={addStep}>
-          <Text style={styles.addStepText}>+ Add step</Text>
+          <Text style={styles.timeBtnLabel}>
+            {reminderType === "window" ? "From" : "At"}
+          </Text>
+          <Text style={styles.timeBtnValue}>{formatTime(startTime)}</Text>
         </TouchableOpacity>
 
-        {/* Schedule */}
-        <Text style={styles.label}>Notification Times</Text>
-        {times.map((time, i) => (
-          <View key={i} style={styles.timeRow}>
-            <TouchableOpacity
-              style={styles.timeInput}
-              onPress={() => openTimePicker(i)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.timeDisplayText}>{time}</Text>
-            </TouchableOpacity>
-            {times.length > 1 && (
-              <TouchableOpacity
-                onPress={() => removeTime(i)}
-                style={styles.removeBtn}
-              >
-                <Text style={styles.removeBtnText}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-        <TouchableOpacity style={styles.addStepBtn} onPress={addTime}>
-          <Text style={styles.addStepText}>+ Add time</Text>
-        </TouchableOpacity>
+        {reminderType === "window" && (
+          <TouchableOpacity
+            style={styles.timeBtn}
+            onPress={() => openTimePicker("end")}
+          >
+            <Text style={styles.timeBtnLabel}>To</Text>
+            <Text style={styles.timeBtnValue}>{formatTime(endTime)}</Text>
+          </TouchableOpacity>
+        )}
 
-        {pickerVisible && editingTimeIndex !== null && (
+        {pickerVisible && (
           <DateTimePicker
             mode="time"
-            value={timeToDate(times[editingTimeIndex] || "12:00")}
+            value={timeToDate(editingField === "start" ? startTime : endTime)}
             onChange={onTimePickerChange}
             is24Hour={false}
             display={Platform.OS === "ios" ? "spinner" : "default"}
           />
         )}
 
-        {/* Active Days */}
-        <Text style={styles.label}>Active Days</Text>
-        <Text style={styles.hint}>Leave all unselected for every day</Text>
-        <View style={styles.daysRow}>
-          {DAY_LABELS.map((label, i) => (
+        {/* Reminders per day */}
+        <Text style={styles.label}>Reminders per day</Text>
+        <View style={styles.typeRow}>
+          {[1, 2, 3].map((n) => (
             <TouchableOpacity
-              key={label}
+              key={n}
               style={[
-                styles.dayChip,
-                activeDays.includes(i) && styles.dayChipActive,
+                styles.typeChip,
+                remindersPerDay === n && styles.typeChipActive,
               ]}
-              onPress={() => toggleDay(i)}
+              onPress={() => setRemindersPerDay(n)}
             >
               <Text
                 style={[
-                  styles.dayChipText,
-                  activeDays.includes(i) && styles.dayChipTextActive,
+                  styles.typeChipText,
+                  remindersPerDay === n && styles.typeChipTextActive,
                 ]}
               >
-                {label}
+                {n}x
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Actions */}
+        {/* Save */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>
-            {isEditing ? "Save Changes" : "Create Template"}
+            {isEditing ? "Save Changes" : "Create Goal"}
           </Text>
         </TouchableOpacity>
 
         {isEditing && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-            <Text style={styles.deleteBtnText}>Delete Template</Text>
+            <Text style={styles.deleteBtnText}>Delete Goal</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -387,9 +331,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
     padding: 20,
     paddingBottom: 60,
@@ -399,147 +341,67 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.text,
     marginTop: 20,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   hint: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textMuted,
     marginBottom: 8,
-    marginTop: -4,
   },
   input: {
     backgroundColor: colors.surface,
-    color: colors.text,
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 16,
     fontSize: 16,
-  },
-  categoryRow: {
-    flexDirection: "row",
+    color: colors.text,
     marginBottom: 4,
   },
-  categoryChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
+  emojiInput: {
+    fontSize: 28,
+    textAlign: "center",
+    width: 70,
+    paddingVertical: 8,
   },
-  categoryChipActive: {
+  typeRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  typeChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  typeChipActive: {
     backgroundColor: colors.accent,
   },
-  categoryChipText: {
+  typeChipText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "500",
   },
-  categoryChipTextActive: {
+  typeChipTextActive: {
     color: colors.white,
   },
-  exampleChip: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  exampleChipText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  stepIndicator: {
-    width: 48,
-    alignItems: "center",
-  },
-  stepNumber: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.accent,
-  },
-  stepTag: {
-    fontSize: 9,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  stepInput: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    color: colors.text,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-  },
-  removeBtn: {
-    marginLeft: 8,
-    padding: 8,
-  },
-  removeBtnText: {
-    color: colors.textMuted,
-    fontSize: 16,
-  },
-  addStepBtn: {
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginTop: 4,
-  },
-  addStepText: {
-    color: colors.accent,
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  timeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  timeInput: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    color: colors.text,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontVariant: ["tabular-nums"],
-    justifyContent: "center",
-  },
-  timeDisplayText: {
-    color: colors.text,
-    fontSize: 16,
-    fontVariant: ["tabular-nums"],
-  },
-  daysRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  dayChip: {
+  timeBtn: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
-  dayChipActive: {
-    backgroundColor: colors.accent,
-  },
-  dayChipText: {
+  timeBtnLabel: {
+    fontSize: 15,
     color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "500",
   },
-  dayChipTextActive: {
-    color: colors.white,
+  timeBtnValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.accent,
   },
   saveBtn: {
     backgroundColor: colors.accent,
@@ -550,7 +412,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     color: colors.white,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "600",
   },
   deleteBtn: {
@@ -559,8 +421,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   deleteBtnText: {
-    color: "#FF6B6B",
-    fontSize: 15,
-    fontWeight: "500",
+    color: "#EF4444",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

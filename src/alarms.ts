@@ -1,25 +1,43 @@
 import { NativeModules, Platform } from "react-native";
-import { Template } from "./types";
+import { Goal } from "./types";
 
 const { ElarinAlarmModule, ElarinPendingActions } = NativeModules;
 
 /**
- * Schedule AlarmManager alarms for a template using setAlarmClock().
+ * Schedule AlarmManager alarms for a goal using setAlarmClock().
  * These fire even under Doze mode and aggressive battery optimization.
  */
-export async function scheduleAlarms(template: Template): Promise<void> {
+export async function scheduleAlarms(goal: Goal): Promise<void> {
   if (Platform.OS !== "android" || !ElarinAlarmModule) return;
 
-  const firstStep = template.ladder.steps[0];
+  const { reminder } = goal;
 
-  for (const timeStr of template.schedule.times) {
-    const [hours, minutes] = timeStr.split(":").map(Number);
+  if (reminder.type === "exact") {
+    const [hours, minutes] = reminder.startTime.split(":").map(Number);
     await ElarinAlarmModule.scheduleAlarm(
-      template.id,
-      template.name,
-      firstStep,
+      goal.id,
+      goal.name,
+      goal.tiers.primary,
       0,
-      template.ladder.steps.length,
+      3, // 3 tiers
+      hours,
+      minutes,
+    );
+  } else {
+    // Window: schedule at the midpoint
+    const [startH, startM] = reminder.startTime.split(":").map(Number);
+    const [endH, endM] = (reminder.endTime || reminder.startTime)
+      .split(":")
+      .map(Number);
+    const midMin = Math.round((startH * 60 + startM + (endH * 60 + endM)) / 2);
+    const hours = Math.floor(midMin / 60) % 24;
+    const minutes = midMin % 60;
+    await ElarinAlarmModule.scheduleAlarm(
+      goal.id,
+      goal.name,
+      goal.tiers.primary,
+      0,
+      3,
       hours,
       minutes,
     );
@@ -27,14 +45,24 @@ export async function scheduleAlarms(template: Template): Promise<void> {
 }
 
 /**
- * Cancel all AlarmManager alarms for a template.
+ * Cancel all AlarmManager alarms for a goal.
  */
-export async function cancelAlarms(template: Template): Promise<void> {
+export async function cancelAlarms(goal: Goal): Promise<void> {
   if (Platform.OS !== "android" || !ElarinAlarmModule) return;
 
-  for (const timeStr of template.schedule.times) {
-    const [hours, minutes] = timeStr.split(":").map(Number);
-    await ElarinAlarmModule.cancelAlarm(template.id, hours, minutes);
+  const { reminder } = goal;
+  if (reminder.type === "exact") {
+    const [hours, minutes] = reminder.startTime.split(":").map(Number);
+    await ElarinAlarmModule.cancelAlarm(goal.id, hours, minutes);
+  } else {
+    const [startH, startM] = reminder.startTime.split(":").map(Number);
+    const [endH, endM] = (reminder.endTime || reminder.startTime)
+      .split(":")
+      .map(Number);
+    const midMin = Math.round((startH * 60 + startM + (endH * 60 + endM)) / 2);
+    const hours = Math.floor(midMin / 60) % 24;
+    const minutes = midMin % 60;
+    await ElarinAlarmModule.cancelAlarm(goal.id, hours, minutes);
   }
 }
 
@@ -44,10 +72,8 @@ export async function cancelAlarms(template: Template): Promise<void> {
  */
 export async function processPendingNativeActions(): Promise<
   Array<{
-    type: "completion" | "snooze" | "step_down";
-    templateId: string;
-    stepIndex: number;
-    totalSteps: number;
+    type: "do_it" | "step_down" | "snooze";
+    goalId: string;
   }>
 > {
   if (Platform.OS !== "android" || !ElarinPendingActions) return [];
@@ -59,10 +85,8 @@ export async function processPendingNativeActions(): Promise<
     const actions = pending.map(({ value }) => {
       const parts = value.split("|");
       return {
-        type: parts[0] as "completion" | "snooze" | "step_down",
-        templateId: parts[1],
-        stepIndex: parseInt(parts[2], 10),
-        totalSteps: parseInt(parts[3], 10),
+        type: parts[0] as "do_it" | "step_down" | "snooze",
+        goalId: parts[1],
       };
     });
 

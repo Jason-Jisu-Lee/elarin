@@ -1,97 +1,98 @@
 # Elarin — Product & Business Document
 
-> **Last Updated:** March 9, 2026
-> **Version:** 0.1.0 (MVP)
-> **Status:** MVP Complete — Ready for Device Testing
+> **Last Updated:** March 27, 2026
+> **Version:** 0.2.0
+> **Status:** Design Phase Complete — Ready for Frontend Rebuild
 
 ---
 
 ## Vision
 
-Elarin is a mobile self-improvement app built around one core behavioral science principle: **lowering the activation barrier to action.** The thesis is that _starting_ — even in its smallest possible form — is more valuable than the action itself. Starting builds momentum. Any action counts.
+Elarin is a mobile self-improvement app that rebuilds **broken self-trust.** Every abandoned gym plan, failed diet, dropped routine — your brain learns "I don't follow through." That kills confidence at the root.
 
-There are no failures in Elarin. Only momentum.
+Elarin makes sure you ALWAYS do _something._ Step down on bad days instead of quitting. Every follow-through is a deposit into a self-trust account that's been empty for years.
+
+**Why it works:** Consistency over intensity. The action itself is almost irrelevant — "5 push-ups" sounds like nothing, but doing it every day for 60 days rewires the nervous system to believe "I follow through."
+
+There are no failures in Elarin. Step down, keep going.
 
 ---
 
-## Core Mechanic — The Step-Down Notification
+## Core Mechanic — 3-Tier Goals
 
-Users create **templates** — goal categories (fitness, mindfulness, creativity, etc.) with a primary action and a **step-down ladder** of progressively easier versions.
+Users create **goals** — each with the goal itself + 2 easier versions:
 
-**Example for "10 pushups":**
+> **20 air squats**
+> _or easier:_ 10 air squats
+> _or easiest:_ 5 air squats
 
-| Step                      | Action                   |
-| ------------------------- | ------------------------ |
-| 1 (Primary)               | 10 pushups               |
-| 2                         | 5 pushups                |
-| 3                         | 1 pushup                 |
-| 4 (Minimum Viable Action) | Stand up from your chair |
+**Reminder window:** Time range for random reminders (NOT activity duration). Can be a window ("5–8 PM") or exact time ("10 PM"). Random timing within the window — no predictable schedule.
 
-At a scheduled time, an **expanded Android notification** fires with 3 action buttons:
+**Reminders per day:** Default twice. Configurable.
 
-- **"Do it"** — marks the current step complete, earns XP
-- **"Make it easier"** — cycles down the ladder in-place, inside the notification (user never opens the app)
-- **"Snooze"** — reschedules the notification for later
+**Once done = done.** No more reminders that day.
+
+**Goal frequency:** Daily by default. Changeable (weekly, every 3 days, etc).
 
 **Key design rules:**
 
 - Every level is celebrated equally. No punishment for choosing easier.
 - No failure states. Ever.
 - Missed days show as **neutral gray**. No red UI. Ever.
-- A long snooze is always one tap away.
-- Users can run multiple templates simultaneously.
+- Users can run multiple goals simultaneously.
+
+**Notification actions:**
+
+- **Do It** → log completion, stop reminders, "Promise kept."
+- **Step Down** → show easier version, log, stop reminders, "Stepped down. Still in."
+- **Snooze** → remind again in 15 min, "Coming back soon."
 
 ---
 
 ## Progression System
 
-### 1. Momentum (Present Tense)
+**No daily streak counter.** Milestone celebrations only: 5, 10, 20, 30, 50, 100 days.
 
-A meter that fills with recent activity and **drains slowly** with inactivity. Never snaps to zero. Represents _"how you're doing right now."_ Fades gradually, never breaks.
+**Self-Trust Meter:** Fills based on consistency. Displayed on home screen.
 
-- Gain: +15 per action
-- Decay: -0.5 per hour of inactivity
-- Range: 0–100
+**Trust Levels (permanent — never goes down):**
 
-### 2. XP + Levels (Permanent)
-
-Permanent progression that **never goes down**. Represents _"who you are."_
-
-| Action                               | XP Earned |
-| ------------------------------------ | --------- |
-| Snooze engagement                    | 5 XP      |
-| Step completion (scaled by position) | 10–25 XP  |
-| Full action completion               | 25 XP     |
-| Notification open                    | 3 XP      |
-
-**Level names** use motion/growth language:
-
-| Level | Name      | Min XP |
-| ----- | --------- | ------ |
-| 1     | Spark     | 0      |
-| 2     | Kindling  | 50     |
-| 3     | Flame     | 150    |
-| 4     | Ember     | 350    |
-| 5     | Blaze     | 700    |
-| 6     | Torch     | 1,200  |
-| 7     | Beacon    | 2,000  |
-| 8     | Inferno   | 3,500  |
-| 9     | Radiance  | 5,500  |
-| 10    | Supernova | 8,000  |
-
-> _XP values are placeholders. Ratios matter more than absolute numbers._
+| Level | Name            |
+| ----- | --------------- |
+| 1     | Starting Out    |
+| 2     | Showing Up      |
+| 3     | Building Ground |
+| 4     | Steady          |
+| 5     | Consistent      |
+| 6     | Reliable        |
+| 7     | Committed       |
+| 8     | Resilient       |
+| 9     | Unshakable      |
+| 10    | Self-Made       |
 
 ---
 
 ## Onboarding Philosophy
 
-Three screens maximum. Must communicate before the user ever touches a template:
+Animated storytelling flow (~60 seconds). Not a "read and skip" tutorial. Sets the entire emotional contract of the app.
 
-1. **The hardest part is starting** — not finishing, not perfection
-2. **Every choice counts** — full action, one pushup, snooze — all earn progress
-3. **Start embarrassingly small** — interactive ladder demo
+1. **Name input** — "What is your name?"
+2. **The Goal** — Goals flash by, getting harder, subtly redder
+3. **The Reframe** — "But first — you need to become someone who follows through."
+4. **Descending ladder** — 1 hr reading → 1 sentence (red ↓ arrows)
+5. **Ascending ladder** — 1 sentence → 1 hr (green ↑ arrows)
+6. **The Line** — "That's how you rebuild trust in yourself."
+7. **Name close** — "I'm [name]. And I'm ready." → Template selection
 
-This is not a "read and skip" onboarding. It sets the entire emotional contract of the app.
+The onboarding teaches the step-down ladder mechanic through storytelling, not instructions.
+
+---
+
+## Accounts
+
+**No accounts for V1.** No signup, no login, no email. Everything stored locally on device. Zero friction.
+
+Accounts come later only when needed (cloud sync, cross-device, social features).
 
 ---
 
@@ -100,7 +101,7 @@ This is not a "read and skip" onboarding. It sets the entire emotional contract 
 | Component        | Technology                            |
 | ---------------- | ------------------------------------- |
 | Framework        | React Native + Expo (bare workflow)   |
-| SDK              | Expo SDK 52+ (currently 55)           |
+| SDK              | Expo SDK 55                           |
 | Language         | TypeScript (strict)                   |
 | Routing          | expo-router                           |
 | Storage          | AsyncStorage (local only)             |
@@ -113,34 +114,41 @@ This is not a "read and skip" onboarding. It sets the entire emotional contract 
 
 ---
 
-## Current State (v0.1.0 MVP)
+## Current State (v0.2.0)
 
-### What's Built
+### What's Done
 
 - [x] Project scaffold with Expo bare workflow
 - [x] Native Android project generated (`android/` directory)
-- [x] Data model (Template, StepDownLadder, Schedule, UserProgress, CompletionRecord)
-- [x] Local storage layer (AsyncStorage — templates, progress, onboarding state)
+- [x] Data model (goals with 3-tier ladder, schedule, progress tracking)
+- [x] Local storage layer (AsyncStorage — goals, progress, onboarding state)
 - [x] Notification system (scheduling, categories, action handlers)
-- [x] Step-down notification flow (Do it / Make it easier / Snooze buttons)
-- [x] **Background notification handler (expo-task-manager) — works when app is closed**
-- [x] **AlarmManager with setAlarmClock for time-critical scheduling**
-- [x] **Native Android receivers (ElarinAlarmReceiver, ElarinActionReceiver)**
-- [x] **Pending actions bridge (native → JS) for app-killed state recovery**
-- [x] **Battery optimization whitelist prompt on first launch**
-- [x] Progression system (XP calculation, momentum decay, level lookup)
-- [x] Onboarding flow (3 screens with interactive ladder demo)
-- [x] Home screen (momentum meter, XP/level display, template list)
-- [x] Template creation/editing UI (name, category, step-down ladder, schedule, active days)
-- [x] **Native time picker (replaced raw text input)**
-- [x] Template deletion with notification cleanup
-- [x] Dark theme (bg: #0D0D0D, accent: #7C5CFC)
+- [x] Step-down notification flow (Do It / Step Down / Snooze buttons)
+- [x] Background notification handler (expo-task-manager) — works when app is closed
+- [x] AlarmManager with setAlarmClock for time-critical scheduling
+- [x] Native Android receivers (ElarinAlarmReceiver, ElarinActionReceiver)
+- [x] Pending actions bridge (native → JS) for app-killed state recovery
+- [x] Battery optimization whitelist prompt on first launch
+- [x] Progression system (trust levels, self-trust meter, milestone streaks)
 - [x] Expo config plugin for native AlarmManager injection
+- [x] Debug APK built (182 MB) and installed on Samsung phone
+- [x] App running on device — JS bundle loads, no errors
+- [x] GitHub repo set up (github.com/Jason-Jisu-Lee/elarin.git)
+- [x] **DESIGN.md complete** — all UX/UI decisions locked in
+  - Storytelling onboarding (~60 sec animated flow)
+  - Template selection (4 cards — 3 pre-built + create your own)
+  - Home screen (todo list + swipe-to-act + first-time tutorial)
+  - Create goal flow (guided first time, form for returning users)
+  - Notifications (random within window, Do It / Step Down / Snooze)
+  - Progression (trust levels, milestone-only streaks, self-trust meter)
 
 ### What Needs Work
 
+- [ ] **Visual theme** — colors, fonts, spacing (doing in Stitch)
+- [ ] **Frontend rebuild** — rewrite all 7 screens to match DESIGN.md
 - [ ] Physical device testing for notification reliability
-- [ ] Random notification windows with configurable minimum gap
+- [ ] Random notification timing within windows
+- [ ] Signed release build (AAB)
 - [ ] Play Store listing and submission
 
 ---
@@ -181,24 +189,33 @@ This is not a "read and skip" onboarding. It sets the entire emotional contract 
 
 ## Roadmap
 
-### Phase 1 — MVP Launch (Current)
+### Phase 1 — Launch to Play Store (Current)
 
-- [x] Complete background notification handling (app-closed state)
+- [x] Background notification handling (app-closed state)
 - [x] AlarmManager integration for reliable scheduling
 - [x] Battery optimization whitelist prompt
-- [x] APK builds successfully (debug)
-- [ ] **Install debug APK on phone** — USB debugging, verify app launches
-- [ ] **Test core features on device** — Notifications fire at scheduled times, DO IT / MAKE EASIER / SNOOZE work, XP/momentum tracking
-- [ ] **Fix bugs found during testing** — Iterate on real-hardware issues
-- [ ] **Polish UI/UX** — Finalize spacing, animations, loading/error/empty states
-- [ ] **Build signed release AAB** — Generate keystore, build production Android App Bundle
-- [ ] **Create Google Play Developer account** — $25 one-time fee at play.google.com/console
-- [ ] **Prepare store listing** — Name, description, screenshots, feature graphic, app category
-- [ ] **Create privacy policy** — Host a page explaining data practices (all local, no data leaves device)
-- [ ] **Upload AAB to Play Console** — Content rating questionnaire, pricing (free), upload signed bundle
-- [ ] **Run closed testing** — 20+ testers for 14 days (Google requirement before production)
-- [ ] **Submit for production release** — Google review (1-3 days for new apps)
-- [ ] **Post-launch monitoring** — Add crash reporting (Sentry), gather user feedback
+- [x] Debug APK built and installed on phone
+- [x] App running on device (JS bundle loads, no errors)
+- [x] UX/UI design locked in (DESIGN.md)
+- [ ] **Visual theme** — finalize in Stitch
+- [ ] **Frontend rebuild** — rewrite all 7 screens per DESIGN.md:
+  1. Onboarding (animated storytelling flow)
+  2. Template Selection (4 cards)
+  3. Guided Goal Creation (first-time walkthrough)
+  4. Home (todo list + swipe-to-act + self-trust meter)
+  5. Goal Detail (view ladder, history, edit)
+  6. Create Goal (form for returning users)
+  7. Settings
+- [ ] **Test on device** — notifications, swipe actions, onboarding flow
+- [ ] **Polish** — animations, loading/error/empty states
+- [ ] **Build signed release AAB** — generate keystore, production build
+- [ ] **Google Play Developer account** — $25 one-time fee
+- [ ] **Store listing** — name, description, screenshots, feature graphic
+- [ ] **Privacy policy** — host a page (all local, no data leaves device)
+- [ ] **Upload to Play Console** — content rating, pricing (free), upload AAB
+- [ ] **Closed testing** — 20+ testers for 14 days (Google requirement)
+- [ ] **Submit for production** — Google review (1-3 days for new apps)
+- [ ] **Post-launch monitoring** — crash reporting (Sentry), user feedback
 
 ### Phase 2 — Polish & Monetization
 
@@ -224,27 +241,31 @@ This is not a "read and skip" onboarding. It sets the entire emotional contract 
 
 ---
 
-## Future Features (NOT in MVP)
+## Future Features (NOT in V1)
 
-These are explicitly out of scope for v0.1:
+These are explicitly out of scope for launch:
 
-- Community template library
-- Analytics dashboard
-- Pro tier / monetization logic
+- Community goal library
+- Personal analytics dashboard
+- Pro tier / subscription monetization
 - iOS support
-- Backend / login / user accounts
-- Social features
+- Backend / user accounts / cloud sync
+- Social features / accountability partners
+- Theme customization (beyond default)
+
+See FEATURES.md for the full backlog with details.
 
 ---
 
 ## Design Principles
 
-1. **No failure states** — every interaction is positive
+1. **No failure states** — every interaction is positive. Step down, never quit.
 2. **Gray, never red** — missed days are neutral, never punishing
 3. **Lowest barrier wins** — the app succeeds when the user does the minimum
-4. **Notifications feel owned** — user configures everything explicitly
-5. **Dark by default** — respects the user's focus and reduces visual noise
-6. **Start embarrassingly small** — the app's core philosophy is also its UX philosophy
+4. **Zero friction** — no accounts, no signup, no paywalls at launch
+5. **Teach by story, not instructions** — onboarding is a 60-second narrative
+6. **Milestone, not daily** — celebrate 5, 10, 20 day marks. No daily streak pressure.
+7. **Start embarrassingly small** — the app's core philosophy is also its UX philosophy
 
 ---
 

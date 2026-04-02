@@ -6,10 +6,12 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { colors, PRE_BUILT_GOALS } from "../src/constants";
+import { PRE_BUILT_GOALS } from "../src/constants";
+import { useTheme, fonts } from "../src/theme";
 
 export default function TemplateSelection() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   const handleSelectPreBuilt = (index: number) => {
     router.push(`/create?prebuilt=${index}`);
@@ -20,40 +22,66 @@ export default function TemplateSelection() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={[styles.sectionLabel, { color: colors.secondary }]}>
+          CHOOSE A TEMPLATE
+        </Text>
+        <Text style={[styles.title, { color: colors.onSurface }]}>
+          Pick a Goal
+        </Text>
+
         {PRE_BUILT_GOALS.map((goal, i) => (
           <TouchableOpacity
             key={i}
-            style={styles.card}
+            style={[
+              styles.card,
+              { backgroundColor: colors.surfaceContainerLowest },
+            ]}
             onPress={() => handleSelectPreBuilt(i)}
             activeOpacity={0.7}
           >
-            <View style={styles.cardHeader}>
-              <Text style={styles.goalName}>{goal.name}</Text>
-            </View>
-            <Text style={styles.primaryTier}>{goal.tiers.primary}</Text>
+            <Text style={[styles.goalName, { color: colors.onSurface }]}>
+              {goal.name}
+            </Text>
+            <Text style={[styles.primaryTier, { color: colors.onSurface }]}>
+              {goal.tiers.primary}
+            </Text>
             <View style={styles.tierRow}>
-              <Text style={styles.arrow}>↓</Text>
-              <Text style={styles.tierText}>{goal.tiers.easier}</Text>
+              <Text style={[styles.arrow, { color: colors.outlineVariant }]}>
+                ↓
+              </Text>
+              <Text
+                style={[styles.tierText, { color: colors.onSurfaceVariant }]}
+              >
+                {goal.tiers.easier}
+              </Text>
             </View>
             <View style={styles.tierRow}>
-              <Text style={styles.arrow}>↓</Text>
-              <Text style={styles.tierText}>{goal.tiers.easiest}</Text>
+              <Text style={[styles.arrow, { color: colors.outlineVariant }]}>
+                ↓
+              </Text>
+              <Text
+                style={[styles.tierText, { color: colors.onSurfaceVariant }]}
+              >
+                {goal.tiers.easiest}
+              </Text>
             </View>
           </TouchableOpacity>
         ))}
 
         <TouchableOpacity
-          style={[styles.card, styles.createCard]}
+          style={[styles.createCard, { borderColor: colors.outlineVariant }]}
           onPress={handleCreateOwn}
           activeOpacity={0.7}
         >
-          <Text style={styles.createText}>Create Your Own</Text>
+          <Text style={[styles.createText, { color: colors.primary }]}>
+            Create Your Own
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -61,42 +89,44 @@ export default function TemplateSelection() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scroll: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  scroll: { flex: 1 },
   scrollContent: {
     padding: 20,
     paddingTop: 60,
     paddingBottom: 40,
   },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 28,
+    fontFamily: fonts.headlineExtraBold,
+    letterSpacing: -0.5,
+    marginBottom: 24,
+  },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     marginBottom: 16,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  emoji: {
-    fontSize: 28,
-    marginRight: 12,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   goalName: {
     fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: fonts.headlineBold,
+    marginBottom: 16,
   },
   primaryTier: {
     fontSize: 17,
-    fontWeight: "600",
-    color: colors.text,
+    fontFamily: fonts.bodySemiBold,
     marginBottom: 8,
     marginLeft: 4,
   },
@@ -108,27 +138,22 @@ const styles = StyleSheet.create({
   },
   arrow: {
     fontSize: 16,
-    color: colors.textMuted,
     marginRight: 8,
   },
   tierText: {
     fontSize: 15,
-    color: colors.textMuted,
+    fontFamily: fonts.bodyRegular,
   },
   createCard: {
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.surfaceLight,
     borderStyle: "dashed",
+    borderRadius: 20,
+    paddingVertical: 24,
     backgroundColor: "transparent",
-  },
-  createEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
   },
   createText: {
     fontSize: 20,
-    fontWeight: "600",
-    color: colors.accent,
+    fontFamily: fonts.headlineBold,
   },
 });

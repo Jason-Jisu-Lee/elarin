@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Onboarding - Ladder Build</title>
+<!-- Fonts: Manrope for headlines, Plus Jakarta Sans for body, Caveat for annotations -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=Caveat:wght@400;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "egg-white": "#FAF8F5",
+              "scribble-yellow": "#C4A032",
+              "scribble-red": "#FF4C4C",
+              "on-surface": "#1b1c1a",
+              "primary": "#00658d",
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Plus Jakarta Sans"],
+              "handwritten": ["Caveat"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .scribble-line {
+            height: 4px;
+            border-radius: 99px;
+            background: #FF4C4C;
+            position: absolute;
+            top: 50%;
+            left: -10%;
+            right: -10%;
+            transform: rotate(-2deg);
+            opacity: 0.8;
+        }
+        /* Handwritten Arrow SVGs via background images for precise control */
+        .arrow-annotation {
+            width: 60px;
+            height: 60px;
+            position: absolute;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        /* Simplified paths for handwritten feel */
+        .arrow-1 { /* Top left pointing down-right */
+            top: 20px;
+            right: -50px;
+            transform: rotate(20deg);
+        }
+        .arrow-2 { /* Top right pointing down-left */
+            top: 25px;
+            left: -50px;
+            transform: rotate(-100deg) scaleX(-1);
+        }
+        .arrow-3 { /* Bottom left pointing up-right */
+            bottom: 40px;
+            right: -50px;
+            transform: rotate(-10deg);
+        }
+    </style>
+</head>
+<body class="bg-egg-white font-body text-on-surface antialiased min-h-screen flex flex-col items-center">
+<main class="flex-1 w-full max-w-lg px-8 flex flex-col items-center justify-center py-12">
+<!-- Strikethrough Section -->
+<div class="relative mb-20">
+<h1 class="font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface/40">
+            1 hour a day
+        </h1>
+<div class="scribble-line"></div>
+</div>
+<!-- The Ladder Build -->
+<div class="flex flex-col items-center space-y-16 w-full relative">
+<!-- Step 1: 30 minutes -->
+<div class="relative flex flex-col items-center">
+<div class="absolute -top-12 -left-20 w-48 text-right hidden sm:block">
+<span class="font-handwritten text-scribble-yellow text-2xl leading-tight block transform -rotate-3">
+                    You will try<br/>this first
+                </span>
+<svg class="absolute -right-8 top-6 w-12 h-12 text-scribble-yellow" fill="none" viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<path d="M10,20 Q40,10 50,50 Q60,90 80,70" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"></path>
+<path d="M70,65 L82,72 L75,85" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+</div>
+<!-- Mobile label version -->
+<span class="sm:hidden font-handwritten text-scribble-yellow text-xl mb-2">You will try this first</span>
+<div class="bg-white px-12 py-6 rounded-2xl shadow-sm border border-black/5 min-w-[260px] text-center">
+<p class="font-headline text-2xl text-on-surface font-bold">30 minutes a day</p>
+</div>
+</div>
+<!-- Step 2: 10 minutes -->
+<div class="relative flex flex-col items-center">
+<div class="absolute -top-6 -right-24 w-48 text-left hidden sm:block">
+<span class="font-handwritten text-scribble-yellow text-2xl leading-tight block transform rotate-3">
+                    If that's too<br/>much, try this
+                </span>
+<svg class="absolute -left-8 top-8 w-12 h-12 text-scribble-yellow transform scale-x-[-1]" fill="none" viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<path d="M10,20 Q40,10 50,50 Q60,90 80,70" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"></path>
+<path d="M70,65 L82,72 L75,85" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+</div>
+<!-- Mobile label version -->
+<span class="sm:hidden font-handwritten text-scribble-yellow text-xl mb-2">If that's too much, try this</span>
+<div class="bg-white px-12 py-6 rounded-2xl shadow-sm border border-black/5 min-w-[260px] text-center">
+<p class="font-headline text-2xl text-on-surface font-bold">10 minutes</p>
+</div>
+</div>
+<!-- Step 3: One page -->
+<div class="relative flex flex-col items-center">
+<div class="absolute -bottom-10 -left-24 w-48 text-right hidden sm:block">
+<svg class="absolute -right-8 -top-8 w-12 h-12 text-scribble-yellow transform rotate-[-120deg]" fill="none" viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<path d="M10,20 Q40,10 50,50 Q60,90 80,70" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"></path>
+<path d="M70,65 L82,72 L75,85" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<span class="font-handwritten text-scribble-yellow text-2xl leading-tight block transform -rotate-2">
+                    And if that's<br/>too much
+                </span>
+</div>
+<!-- Mobile label version -->
+<span class="sm:hidden font-handwritten text-scribble-yellow text-xl mb-2">And if that's too much</span>
+<div class="bg-white px-12 py-6 rounded-2xl shadow-sm border border-black/5 min-w-[260px] text-center">
+<p class="font-headline text-2xl text-on-surface font-bold">one page</p>
+</div>
+</div>
+</div>
+<!-- CTA -->
+<div class="mt-24 w-full flex flex-col items-center">
+<button class="w-full md:w-auto md:min-w-[280px] py-5 px-12 rounded-full bg-primary text-white font-bold text-lg shadow-lg active:scale-[0.98] transition-transform">
+            Build My Habit
+        </button>
+</div>
+</main>
+</body></html>

@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { Redirect } from "expo-router";
 import { getOnboarded } from "../src/storage";
-import { colors } from "../src/constants";
+import { useTheme } from "../src/theme";
 
 export default function Index() {
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(false);
 
@@ -17,8 +18,8 @@ export default function Index() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={[styles.container, { backgroundColor: colors.surface }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -31,6 +32,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.bg,
   },
 });

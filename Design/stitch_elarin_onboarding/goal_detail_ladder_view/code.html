@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Goal Detail - Daily Walk</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container": "#efeeeb",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#584400",
+                        "surface-container-high": "#eae8e5",
+                        "surface-container-highest": "#e4e2df",
+                        "tertiary-fixed-dim": "#77d9a9",
+                        "secondary-fixed-dim": "#e9c251",
+                        "outline": "#70787f",
+                        "outline-variant": "#bfc7cf",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed": "#ffe08d",
+                        "on-secondary-fixed": "#241a00",
+                        "primary-fixed": "#c6e7ff",
+                        "secondary-container": "#fed663",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#4bae81",
+                        "on-primary-container": "#003850",
+                        "surface-tint": "#00658d",
+                        "background": "#fbf9f6",
+                        "on-tertiary-container": "#003c27",
+                        "on-primary-fixed": "#001e2d",
+                        "on-surface-variant": "#40484e",
+                        "on-surface": "#1b1c1a",
+                        "surface-bright": "#fbf9f6",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-secondary-container": "#755c00",
+                        "surface-container-low": "#f5f3f0",
+                        "inverse-on-surface": "#f2f0ed",
+                        "surface-dim": "#dbdad7",
+                        "tertiary-fixed": "#93f6c4",
+                        "inverse-primary": "#87cffc",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#5ba4cf",
+                        "on-tertiary-fixed": "#002113",
+                        "inverse-surface": "#30312f",
+                        "secondary": "#745b00",
+                        "primary": "#00658d",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#006c48",
+                        "on-primary-fixed-variant": "#004c6b",
+                        "surface-variant": "#e4e2df",
+                        "surface": "#fbf9f6",
+                        "primary-fixed-dim": "#87cffc",
+                        "on-background": "#1b1c1a"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Plus Jakarta Sans"],
+                        "label": ["Plus Jakarta Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .scribble-line {
+            height: 2px;
+            background: #745b00; /* secondary */
+            width: 40px;
+            border-radius: 99px;
+            opacity: 0.4;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface antialiased">
+<!-- Top AppBar (Manual Construction based on JSON context) -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 py-4 bg-[#fbf9f6]/80 backdrop-blur-xl">
+<div class="flex items-center">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-low transition-colors duration-200 active:scale-95">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2">
+<h1 class="font-headline font-bold text-[#1b1c1a] text-lg tracking-tight">Daily Walk</h1>
+</div>
+<div class="flex items-center">
+<!-- Space for Trailing Avatar if needed, kept empty for focus -->
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User" class="w-full h-full object-cover" data-alt="close-up portrait of a calm person in soft natural lighting, minimalist aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADzA99XxJ1mfBUKviljJvBq_RSkTow9m8aZW1nxOBde4uRdsxXuuC7okIooYF-r_-BRlDQVT9V_4L80RS-NvVN4rr8obLXM9ED8HCeaTh8qufZyudycv9bd4HZSNCBNuAnXjaptirtgQEgsx20Ha0Q4YgGJ4aBolDWI_JCa4K-ULv0pE7nWMmMynclHVMBn7H3E_ghNfkvul-BrhKCd1SM-5n9LkJQGXcYj_bwx9-YL85WQP6OHt7w78cxz79CAdDeJpLUOSbRtXc"/>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="min-h-screen pt-24 pb-32 px-6 flex flex-col items-center max-w-lg mx-auto">
+<!-- Editorial Header Offset -->
+<div class="w-full mb-12 text-center">
+<p class="font-label text-secondary text-xs uppercase tracking-[0.2em] mb-2 opacity-70">Action Ladder</p>
+<div class="flex items-center justify-center gap-2">
+<div class="scribble-line"></div>
+<span class="material-symbols-outlined text-secondary scale-75">edit_note</span>
+<div class="scribble-line"></div>
+</div>
+</div>
+<!-- Vertical Ladder Stack -->
+<section class="w-full flex flex-col items-center gap-4">
+<!-- Tier 1: The Peak -->
+<div class="w-full group">
+<div class="bg-surface-container-lowest p-8 rounded-full shadow-[0_12px_40px_rgba(27,28,26,0.03)] border border-outline-variant/10 flex flex-col items-center transition-all duration-300 hover:shadow-[0_12px_40px_rgba(27,28,26,0.06)] active:scale-[0.98]">
+<span class="font-label text-[0.6875rem] text-secondary mb-2">Ideal Goal</span>
+<h2 class="text-on-surface font-headline font-semibold text-lg">15 min walk outside</h2>
+</div>
+</div>
+<!-- Transition Arrow -->
+<div class="py-2">
+<span class="material-symbols-outlined text-outline-variant scale-125">south</span>
+</div>
+<!-- Tier 2: The Middle -->
+<div class="w-full group">
+<div class="bg-surface-container-lowest p-6 rounded-full shadow-[0_8px_30px_rgba(27,28,26,0.02)] border border-outline-variant/10 flex flex-col items-center transition-all duration-300 hover:shadow-[0_12px_40px_rgba(27,28,26,0.05)] active:scale-[0.98]">
+<span class="font-label text-[0.6875rem] text-secondary mb-1">Stepping Stone</span>
+<h2 class="text-on-surface font-headline font-medium text-base">1 min walk outside</h2>
+</div>
+</div>
+<!-- Transition Arrow -->
+<div class="py-2">
+<span class="material-symbols-outlined text-outline-variant scale-110">south</span>
+</div>
+<!-- Tier 3: The Base -->
+<div class="w-full group">
+<div class="bg-surface-container-lowest p-5 rounded-full shadow-[0_4px_20px_rgba(27,28,26,0.01)] border border-outline-variant/10 flex flex-col items-center transition-all duration-300 hover:shadow-[0_12px_40px_rgba(27,28,26,0.04)] active:scale-[0.98]">
+<span class="font-label text-[0.6875rem] text-secondary mb-1">Minimum Baseline</span>
+<h2 class="text-on-surface font-headline font-medium text-sm">1 min walk in your room</h2>
+</div>
+</div>
+</section>
+<!-- Decorative Scribble -->
+<div class="mt-16 flex flex-col items-center opacity-60">
+<span class="font-label text-[0.6875rem] text-secondary italic">"Start small, stay consistent."</span>
+</div>
+</main>
+<!-- Footer / Bottom Context -->
+<footer class="fixed bottom-0 left-0 w-full bg-surface/90 backdrop-blur-md px-6 py-8 flex flex-col items-center gap-6">
+<!-- Reminder Info -->
+<div class="flex items-center gap-2 text-outline font-label text-sm tracking-wide">
+<span class="material-symbols-outlined text-base">notifications_active</span>
+<span>Reminder: 5:00 PM · 1x</span>
+</div>
+<!-- Action Button -->
+<div class="w-full max-w-xs">
+<button class="w-full py-3 px-6 rounded-full text-error font-headline font-bold text-sm tracking-widest hover:bg-error-container/20 transition-colors duration-200 active:scale-95 uppercase">
+                Delete
+            </button>
+</div>
+</footer>
+<!-- Layout Spacer for Fixed Footer -->
+<div class="h-24"></div>
+</body></html>

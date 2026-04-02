@@ -1,30 +1,5 @@
 import { TrustLevelInfo, Goal } from "./types";
 
-// ─── Colors ───
-export const colors = {
-  bg: "#FAF8F5", // egg white — main background
-  surface: "#FFFFFF", // white — card background
-  surfaceLight: "#F0F4F8", // light blue tint — subtle sections
-  accent: "#5BA4CF", // light blue — primary accent
-  accentLight: "#A3CFEA", // softer blue — secondary accent
-  muted: "#E8E6E1", // warm gray — borders, dividers
-  text: "#1A1A1A", // near-black — primary text
-  textMuted: "#8C8C8C", // gray — secondary text
-  textLight: "#B0B0B0", // lighter gray — hints, timestamps
-  white: "#FFFFFF",
-  black: "#000000",
-  // Goal card borders
-  pendingBorder: "#F5C542", // warm yellow — needs to be done today
-  doneBorder: "#4CAF82", // green — completed
-  // Swipe action colors
-  doItGreen: "#4CAF82",
-  stepDownYellow: "#F5C542",
-  snoozeGray: "#B0B0B0",
-  // Onboarding
-  onboardingBg: "#FAF8F5", // same egg white
-  onboardingText: "#1A1A1A",
-};
-
 // ─── Trust Levels ───
 export const TRUST_LEVELS: TrustLevelInfo[] = [
   { level: 1, name: "Starting Out" },

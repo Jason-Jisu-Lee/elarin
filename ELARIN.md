@@ -97,21 +97,21 @@ Accounts come later only when needed (cloud sync, cross-device, social features)
 
 ## Tech Stack
 
-| Component        | Technology                            |
-| ---------------- | ------------------------------------- |
-| Framework        | React Native + Expo (bare workflow)   |
-| SDK              | Expo SDK 55                           |
-| Language         | TypeScript (strict)                   |
-| Routing          | expo-router (file-based)              |
-| Storage          | AsyncStorage (local only)             |
-| Notifications    | expo-notifications                    |
-| Background Tasks | expo-task-manager                     |
-| Scheduling       | expo-notifications (daily triggers)   |
-| Gestures         | react-native-gesture-handler          |
-| Animations       | Animated API + LayoutAnimation        |
-| Font             | Caveat (handwritten, for onboarding)  |
-| Sound            | expo-av (pencil scratch in onboarding)|
-| Target           | Android SDK 34+                       |
+| Component        | Technology                             |
+| ---------------- | -------------------------------------- |
+| Framework        | React Native + Expo (bare workflow)    |
+| SDK              | Expo SDK 55                            |
+| Language         | TypeScript (strict)                    |
+| Routing          | expo-router (file-based)               |
+| Storage          | AsyncStorage (local only)              |
+| Notifications    | expo-notifications                     |
+| Background Tasks | expo-task-manager                      |
+| Scheduling       | expo-notifications (daily triggers)    |
+| Gestures         | react-native-gesture-handler           |
+| Animations       | Animated API + LayoutAnimation         |
+| Font             | Caveat (handwritten, for onboarding)   |
+| Sound            | expo-av (pencil scratch in onboarding) |
+| Target           | Android SDK 34+                        |
 
 **Critical technical requirement:** The step-down notification mechanic must work when the app is **fully closed**. Uses Expo bare workflow (not managed) and expo-task-manager for background notification action handling.
 

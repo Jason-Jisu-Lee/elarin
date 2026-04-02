@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Onboarding - Step 1</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container": "#efeeeb",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#584400",
+              "surface-container-high": "#eae8e5",
+              "surface-container-highest": "#e4e2df",
+              "tertiary-fixed-dim": "#77d9a9",
+              "secondary-fixed-dim": "#e9c251",
+              "outline": "#70787f",
+              "outline-variant": "#bfc7cf",
+              "on-tertiary": "#ffffff",
+              "secondary-fixed": "#ffe08d",
+              "on-secondary-fixed": "#241a00",
+              "primary-fixed": "#c6e7ff",
+              "secondary-container": "#fed663",
+              "error-container": "#ffdad6",
+              "tertiary-container": "#4bae81",
+              "on-primary-container": "#003850",
+              "surface-tint": "#00658d",
+              "background": "#FAF8F5",
+              "on-tertiary-container": "#003c27",
+              "on-primary-fixed": "#001e2d",
+              "on-surface-variant": "#40484e",
+              "on-surface": "#1b1c1a",
+              "surface-bright": "#FAF8F5",
+              "on-error": "#ffffff",
+              "on-primary": "#ffffff",
+              "error": "#ba1a1a",
+              "on-tertiary-fixed-variant": "#005236",
+              "on-secondary-container": "#755c00",
+              "surface-container-low": "#f5f3f0",
+              "inverse-on-surface": "#f2f0ed",
+              "surface-dim": "#dbdad7",
+              "tertiary-fixed": "#93f6c4",
+              "inverse-primary": "#87cffc",
+              "on-secondary": "#ffffff",
+              "primary-container": "#5ba4cf",
+              "on-tertiary-fixed": "#002113",
+              "inverse-surface": "#30312f",
+              "secondary": "#745b00",
+              "primary": "#00658d",
+              "surface-container-lowest": "#ffffff",
+              "tertiary": "#006c48",
+              "on-primary-fixed-variant": "#004c6b",
+              "surface-variant": "#e4e2df",
+              "surface": "#FAF8F5",
+              "primary-fixed-dim": "#87cffc",
+              "on-background": "#1b1c1a"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Plus Jakarta Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #FAF8F5; /* Egg-white background */
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .hand-drawn-scribble {
+            font-family: 'Brush Script MT', cursive; /* Generic fallback for scribbles */
+            color: #745b00; /* Secondary Harvest token */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- Progress Bar (The Shell Suppression Rule applies: No TopAppBar or SideNav for linear onboarding) -->
+<div class="fixed top-0 left-0 w-full h-[3px] bg-surface-container z-50">
+<div class="h-full w-1/4 transition-all duration-700 ease-out" style="background-color: #5BA4CF;"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-8 text-center max-w-2xl mx-auto">
+<!-- Decoration / Scribble (Editorial Mindfulness) -->
+<div class="mb-12 relative">
+<div class="absolute -top-8 -right-16 opacity-20">
+<svg fill="none" height="40" viewbox="0 0 120 40" width="120" xmlns="http://www.w3.org/2000/svg">
+<path d="M5 35C20 30 50 10 115 5" stroke="#745b00" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+<p class="text-secondary font-medium tracking-widest text-[0.65rem] uppercase mb-4">Step 01 / 04</p>
+</div>
+<!-- Headline (The Authority) -->
+<h1 class="font-headline text-4xl md:text-5xl font-extrabold text-on-surface mb-6 tracking-tight leading-tight">
+            What is your name?
+        </h1>
+<!-- Input Section (The "Space to Write" Input) -->
+<div class="w-full max-w-md mt-8 group">
+<input autofocus="" class="w-full bg-transparent border-none border-b-2 border-surface-variant focus:border-primary focus:ring-0 text-2xl md:text-3xl py-4 transition-all duration-300 placeholder:text-outline-variant font-body" placeholder="Type your name here..." type="text"/>
+<!-- Hand-written Annotation (Editorial Voice) -->
+<div class="flex justify-start mt-4">
+<p class="text-secondary opacity-60 text-sm italic font-medium">
+                    This is how we'll address you in your journal
+                </p>
+</div>
+</div>
+</main>
+<!-- Footer Action -->
+<footer class="p-12 flex flex-col items-center">
+<!-- Primary CTA (Gradient & Depth Rule) -->
+<button class="w-full max-w-sm py-5 px-10 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold text-lg shadow-sm hover:shadow-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-3">
+            Continue
+            <span class="material-symbols-outlined text-xl">arrow_forward</span>
+</button>
+<!-- Navigation Suppressed logic: No bottom nav bars in linear onboarding. -->
+</footer>
+<!-- Subtle Texture Overlay -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03] z-[60]">
+<img alt="" class="w-full h-full object-cover" data-alt="a subtle, high-quality paper grain texture with fine organic fibers and soft imperfections for a tactile feel" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj40Y9DjrQkqDtB_AOz5qaFiNne7P5KKQv2-XUpUFawGmT-xAphT_GRoCijJvneTaTh-5KYsmc9tnxiXixf9WgQcweFjVngqs99mxJjFMUnsAePUY0q4v3fgIOJLMI-yIkuqpPg5tu--HVZm7il5iGGF8P_9m7H1Gkqqa_pdYb-efdXF_pQeheCZVwdWITelkBBYcg6gjMYwrtxw5dlIy3enBu9C21p6dgyq7vwjTMmy9zmaB1lJm8XnWLZ6I9Gn_Dyv0ZL2y7_Xg"/>
+</div>
+</body></html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container": "#efeeeb",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#584400",
+              "surface-container-high": "#eae8e5",
+              "surface-container-highest": "#e4e2df",
+              "tertiary-fixed-dim": "#77d9a9",
+              "secondary-fixed-dim": "#e9c251",
+              "outline": "#70787f",
+              "outline-variant": "#bfc7cf",
+              "on-tertiary": "#ffffff",
+              "secondary-fixed": "#ffe08d",
+              "on-secondary-fixed": "#241a00",
+              "primary-fixed": "#c6e7ff",
+              "secondary-container": "#fed663",
+              "error-container": "#ffdad6",
+              "tertiary-container": "#4bae81",
+              "on-primary-container": "#003850",
+              "surface-tint": "#00658d",
+              "background": "#FAF8F5",
+              "on-tertiary-container": "#003c27",
+              "on-primary-fixed": "#001e2d",
+              "on-surface-variant": "#40484e",
+              "on-surface": "#1b1c1a",
+              "surface-bright": "#fbf9f6",
+              "on-error": "#ffffff",
+              "on-primary": "#ffffff",
+              "error": "#ba1a1a",
+              "on-tertiary-fixed-variant": "#005236",
+              "on-secondary-container": "#755c00",
+              "surface-container-low": "#f5f3f0",
+              "inverse-on-surface": "#f2f0ed",
+              "surface-dim": "#dbdad7",
+              "tertiary-fixed": "#93f6c4",
+              "inverse-primary": "#87cffc",
+              "on-secondary": "#ffffff",
+              "primary-container": "#5ba4cf",
+              "on-tertiary-fixed": "#002113",
+              "inverse-surface": "#30312f",
+              "secondary": "#745b00",
+              "primary": "#00658d",
+              "surface-container-lowest": "#ffffff",
+              "tertiary": "#006c48",
+              "on-primary-fixed-variant": "#004c6b",
+              "surface-variant": "#e4e2df",
+              "surface": "#fbf9f6",
+              "primary-fixed-dim": "#87cffc",
+              "on-background": "#1b1c1a"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Plus Jakarta Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scribble-line {
+            height: 3px;
+            background: #745b00;
+            border-radius: 100% 10% 100% 5%;
+            transform: rotate(-1deg);
+            opacity: 0.3;
+        }
+        /* Custom profile silhouette styling */
+        .profile-silhouette {
+            background: linear-gradient(145deg, #f0efeb, #e6e4e1);
+            box-shadow: inset 2px 2px 5px rgba(255,255,255,0.8), inset -2px -2px 5px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .silhouette-head {
+            background: linear-gradient(145deg, #585e64, #40484e);
+        }
+        .silhouette-body {
+            background: linear-gradient(145deg, #585e64, #40484e);
+        }
+        /* State management */
+        .goal-card[data-state="done"] .pending-indicator { background-color: #4bae81; opacity: 1; }
+        .goal-card[data-state="done"] .done-check { display: flex; }
+        .goal-card[data-state="done"] .promise-kept { display: block; }
+        .goal-card[data-state="done"] { opacity: 0.85; }
+        .done-check, .promise-kept { display: none; }
+    </style>
+<style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen selection:bg-primary-fixed">
+<header class="fixed top-0 left-0 w-full z-50 flex justify-end items-center px-8 py-8 pointer-events-none">
+<div class="pointer-events-auto group cursor-pointer transition-transform duration-200 active:scale-95">
+<div class="w-12 h-12 rounded-full profile-silhouette flex items-center justify-center overflow-hidden border border-outline-variant/30">
+<div class="relative w-full h-full flex flex-col items-center justify-center pt-2.5">
+<div class="w-4 h-4 rounded-full silhouette-head shadow-sm mb-0.5"></div>
+<div class="w-8 h-8 rounded-t-full silhouette-body shadow-sm"></div>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-2xl mx-auto px-6 pt-24 pb-32">
+<div class="mb-16 ml-[5%]">
+<span class="font-label text-secondary text-xs uppercase tracking-widest block mb-2 opacity-60">The Living Journal</span>
+<h1 class="font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface">Goal Hub</h1>
+<div class="scribble-line w-24 mt-2"></div>
+</div>
+<section class="space-y-8">
+<!-- Goal Card 1 -->
+<div class="relative pl-4 goal-card group cursor-pointer" data-state="pending" onclick="this.dataset.state = this.dataset.state === 'done' ? 'pending' : 'done'">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-container rounded-full opacity-60 transition-colors duration-300 pending-indicator"></div>
+<div class="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/10 shadow-[0_4px_20px_rgba(27,28,26,0.02)] transition-all hover:shadow-[0_12px_40px_rgba(27,28,26,0.05)]">
+<div class="flex justify-between items-start mb-6">
+<div>
+<div class="flex items-center gap-2 mb-1 done-check text-tertiary-container">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1">check_circle</span>
+<span class="font-label text-[10px] uppercase tracking-widest font-bold">Done</span>
+</div>
+<h2 class="font-headline text-2xl font-bold text-on-surface">Daily Walk</h2>
+<p class="promise-kept font-label text-xs italic text-on-surface-variant mt-1 opacity-70">Promise kept</p>
+</div>
+<div class="bg-surface-container px-3 py-1.5 rounded-full">
+<span class="font-label text-xs font-semibold text-on-surface-variant">5:00 PM</span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<span class="material-symbols-outlined text-xl" data-icon="directions_walk">directions_walk</span>
+<p class="text-sm">Consistent movement for a clear mind.</p>
+</div>
+</div>
+</div>
+<!-- Goal Card 2 -->
+<div class="relative pl-4 goal-card group cursor-pointer" data-state="pending" onclick="this.dataset.state = this.dataset.state === 'done' ? 'pending' : 'done'">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-container rounded-full opacity-60 transition-colors duration-300 pending-indicator"></div>
+<div class="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/10 shadow-[0_4px_20px_rgba(27,28,26,0.02)] transition-all hover:shadow-[0_12px_40px_rgba(27,28,26,0.05)]">
+<div class="flex justify-between items-start mb-6">
+<div>
+<div class="flex items-center gap-2 mb-1 done-check text-tertiary-container">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1">check_circle</span>
+<span class="font-label text-[10px] uppercase tracking-widest font-bold">Done</span>
+</div>
+<h2 class="font-headline text-2xl font-bold text-on-surface">Air Squats</h2>
+<p class="promise-kept font-label text-xs italic text-on-surface-variant mt-1 opacity-70">Promise kept</p>
+</div>
+<div class="bg-surface-container px-3 py-1.5 rounded-full">
+<span class="font-label text-xs font-semibold text-on-surface-variant">8:00 AM</span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<span class="material-symbols-outlined text-xl" data-icon="fitness_center">fitness_center</span>
+<p class="text-sm">15 repetitions to start the energy flow.</p>
+</div>
+</div>
+</div>
+<div class="mt-12 opacity-40 hover:opacity-100 transition-opacity flex flex-col items-center py-12 text-center border-t border-dashed border-outline-variant/30">
+<span class="material-symbols-outlined text-3xl mb-3" data-icon="keyboard_double_arrow_down">keyboard_double_arrow_down</span>
+<p class="font-label text-sm italic">Pull to reflect on today's path</p>
+</div>
+</section>
+</main>
+<button class="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-br from-primary-fixed-dim to-primary text-on-primary rounded-full shadow-[0_12px_40px_rgba(135,207,252,0.3)] flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 group z-50">
+<span class="material-symbols-outlined text-3xl transition-transform group-hover:rotate-90" data-icon="add">add</span>
+</button>
+<div class="fixed bottom-0 left-0 w-full h-24 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
+</body></html>

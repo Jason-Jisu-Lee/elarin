@@ -14,33 +14,35 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { colors } from "../../src/constants";
+import { LinearGradient } from "expo-linear-gradient";
 import { Goal } from "../../src/types";
 import { getGoals, updateGoal, deleteGoal } from "../../src/storage";
 import {
   scheduleGoalNotifications,
   cancelGoalNotifications,
 } from "../../src/notifications";
+import { useTheme, fonts } from "../../src/theme";
+
+const TIER_LABELS = [
+  "Ideal Goal",
+  "Stepping Stone",
+  "Minimum Baseline",
+] as const;
 
 export default function GoalDetail() {
   const router = useRouter();
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [editing, setEditing] = useState(false);
 
-  // Edit state
   const [name, setName] = useState("");
   const [primary, setPrimary] = useState("");
   const [easier, setEasier] = useState("");
   const [easiest, setEasiest] = useState("");
-  const [reminderType, setReminderType] = useState<"window" | "exact">(
-    "exact",
-  );
   const [startTime, setStartTime] = useState("17:00");
-  const [endTime, setEndTime] = useState("20:00");
   const [remindersPerDay, setRemindersPerDay] = useState(2);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [editingField, setEditingField] = useState<"start" | "end">("start");
 
   useEffect(() => {
     if (!id) return;
@@ -58,9 +60,7 @@ export default function GoalDetail() {
     setPrimary(g.tiers.primary);
     setEasier(g.tiers.easier);
     setEasiest(g.tiers.easiest);
-    setReminderType(g.reminder.type);
     setStartTime(g.reminder.startTime);
-    setEndTime(g.reminder.endTime || "20:00");
     setRemindersPerDay(g.reminder.remindersPerDay);
   };
 
@@ -83,9 +83,7 @@ export default function GoalDetail() {
     if (event.type === "dismissed" || !date) return;
     const h = date.getHours().toString().padStart(2, "0");
     const m = date.getMinutes().toString().padStart(2, "0");
-    const time = `${h}:${m}`;
-    if (editingField === "start") setStartTime(time);
-    else setEndTime(time);
+    setStartTime(`${h}:${m}`);
   };
 
   const handleSave = async () => {
@@ -99,7 +97,6 @@ export default function GoalDetail() {
       Alert.alert("Missing fields", "Please fill in all fields.");
       return;
     }
-
     const updated: Goal = {
       ...goal,
       name: name.trim(),
@@ -117,7 +114,6 @@ export default function GoalDetail() {
         frequency: goal.reminder.frequency,
       },
     };
-
     await updateGoal(updated);
     await scheduleGoalNotifications(updated);
     setGoal(updated);
@@ -142,10 +138,11 @@ export default function GoalDetail() {
 
   if (!goal) return null;
 
+  // ─── Edit Mode ───
   if (editing) {
     return (
       <KeyboardAvoidingView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.surface }]}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -159,48 +156,71 @@ export default function GoalDetail() {
               populateEdit(goal);
             }}
           >
-            <Text style={styles.cancelBtn}>Cancel</Text>
+            <Text style={[styles.cancelBtn, { color: colors.primary }]}>
+              Cancel
+            </Text>
           </TouchableOpacity>
 
-          <Text style={styles.editLabel}>Goal Name</Text>
+          <Text style={[styles.editLabel, { color: colors.onSurfaceVariant }]}>
+            Goal Name
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surfaceContainerHigh,
+                color: colors.onSurface,
+              },
+            ]}
             value={name}
             onChangeText={setName}
             maxLength={50}
           />
 
-          <TextInput
-            style={styles.input}
-            value={primary}
-            onChangeText={setPrimary}
-            maxLength={100}
-          />
+          {[
+            { label: "Ideal Goal", val: primary, set: setPrimary },
+            { label: "Stepping Stone", val: easier, set: setEasier },
+            { label: "Minimum Baseline", val: easiest, set: setEasiest },
+          ].map((tier) => (
+            <View key={tier.label}>
+              <Text
+                style={[styles.editLabel, { color: colors.onSurfaceVariant }]}
+              >
+                {tier.label}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surfaceContainerHigh,
+                    color: colors.onSurface,
+                  },
+                ]}
+                value={tier.val}
+                onChangeText={tier.set}
+                maxLength={100}
+              />
+            </View>
+          ))}
 
-          <TextInput
-            style={styles.input}
-            value={easier}
-            onChangeText={setEasier}
-            maxLength={100}
-          />
-
-          <TextInput
-            style={styles.input}
-            value={easiest}
-            onChangeText={setEasiest}
-            maxLength={100}
-          />
-
-          <Text style={styles.editLabel}>Reminder</Text>
+          <Text style={[styles.editLabel, { color: colors.onSurfaceVariant }]}>
+            Reminder
+          </Text>
           <TouchableOpacity
-            style={styles.timeBtn}
-            onPress={() => {
-              setEditingField("start");
-              setPickerVisible(true);
-            }}
+            style={[
+              styles.timeBtn,
+              { backgroundColor: colors.surfaceContainerHigh },
+            ]}
+            onPress={() => setPickerVisible(true)}
           >
-            <Text style={styles.timeBtnLabel}>At</Text>
-            <Text style={styles.timeBtnValue}>{formatTime(startTime)}</Text>
+            <Text
+              style={[styles.timeBtnLabel, { color: colors.onSurfaceVariant }]}
+            >
+              At
+            </Text>
+            <Text style={[styles.timeBtnValue, { color: colors.primary }]}>
+              {formatTime(startTime)}
+            </Text>
           </TouchableOpacity>
 
           {pickerVisible && (
@@ -213,21 +233,25 @@ export default function GoalDetail() {
             />
           )}
 
-          <Text style={styles.editLabel}>Reminders per day</Text>
+          <Text style={[styles.editLabel, { color: colors.onSurfaceVariant }]}>
+            Reminders per day
+          </Text>
           <View style={styles.typeRow}>
             {[1, 2, 3].map((n) => (
               <TouchableOpacity
                 key={n}
                 style={[
                   styles.typeChip,
-                  remindersPerDay === n && styles.typeChipActive,
+                  { backgroundColor: colors.surfaceContainerHigh },
+                  remindersPerDay === n && { backgroundColor: colors.primary },
                 ]}
                 onPress={() => setRemindersPerDay(n)}
               >
                 <Text
                   style={[
                     styles.typeChipText,
-                    remindersPerDay === n && styles.typeChipTextActive,
+                    { color: colors.onSurfaceVariant },
+                    remindersPerDay === n && { color: colors.onPrimary },
                   ]}
                 >
                   {n}x
@@ -236,72 +260,121 @@ export default function GoalDetail() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>Save</Text>
+          <TouchableOpacity onPress={handleSave}>
+            <LinearGradient
+              colors={[colors.primary, colors.primaryContainer]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.saveBtn}
+            >
+              <Text style={[styles.saveBtnText, { color: colors.onPrimary }]}>
+                Save
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     );
   }
 
-  // View mode
+  // ─── View Mode — Action Ladder ───
+  const tiers = [goal.tiers.primary, goal.tiers.easier, goal.tiers.easiest];
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={[styles.backArrow, { color: colors.onSurface }]}>←</Text>
+        </TouchableOpacity>
+        <Text style={[styles.topBarTitle, { color: colors.onSurface }]}>
+          {goal.name}
+        </Text>
+        <TouchableOpacity
+          style={styles.profileBtnSmall}
+          onPress={() => router.push("/profile")}
+        >
+          <View style={[styles.profileIcon, { borderColor: colors.onSurface }]}>
+            <View
+              style={[
+                styles.profileHead,
+                { backgroundColor: colors.onSurface },
+              ]}
+            />
+            <View
+              style={[
+                styles.profileBody,
+                { backgroundColor: colors.onSurface },
+              ]}
+            />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {/* Back button */}
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>←</Text>
-        </TouchableOpacity>
+        <Text style={[styles.ladderLabel, { color: colors.secondary }]}>
+          ACTION LADDER
+        </Text>
 
-        {/* Goal header */}
-        <View style={styles.header}>
-          <Text style={styles.headerName}>{goal.name}</Text>
-        </View>
+        {/* Tier cards */}
+        {tiers.map((tier, i) => (
+          <View key={i}>
+            <TouchableOpacity
+              style={[
+                styles.tierCard,
+                { backgroundColor: colors.surfaceContainerLowest },
+              ]}
+              onPress={() => setEditing(true)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[styles.tierBadge, { color: colors.onSurfaceVariant }]}
+              >
+                {TIER_LABELS[i]}
+              </Text>
+              <Text style={[styles.tierText, { color: colors.onSurface }]}>
+                {tier}
+              </Text>
+            </TouchableOpacity>
+            {i < 2 && (
+              <Text style={[styles.arrow, { color: colors.outlineVariant }]}>
+                ↓
+              </Text>
+            )}
+          </View>
+        ))}
 
-        {/* 3-Tier Ladder */}
-        <TouchableOpacity
-          style={styles.tierCard}
-          onPress={() => setEditing(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.tierText}>{goal.tiers.primary}</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.arrow}>↓</Text>
-
-        <TouchableOpacity
-          style={styles.tierCard}
-          onPress={() => setEditing(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.tierText}>{goal.tiers.easier}</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.arrow}>↓</Text>
-
-        <TouchableOpacity
-          style={styles.tierCard}
-          onPress={() => setEditing(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.tierText}>{goal.tiers.easiest}</Text>
-        </TouchableOpacity>
+        {/* Quote */}
+        <Text style={[styles.quote, { color: colors.onSurfaceVariant }]}>
+          "The enemy of a good plan is{"\n"}the dream of a perfect plan."
+        </Text>
 
         {/* Reminder info */}
-        <View style={styles.reminderInfo}>
-          <Text style={styles.reminderLabel}>Reminder</Text>
-          <Text style={styles.reminderValue}>
-            {goal.reminder.type === "exact"
-              ? formatTime(goal.reminder.startTime)
-              : `${formatTime(goal.reminder.startTime)} – ${formatTime(goal.reminder.endTime || goal.reminder.startTime)}`}
-            {" · "}
+        <View
+          style={[
+            styles.reminderInfo,
+            { backgroundColor: colors.surfaceContainerLow },
+          ]}
+        >
+          <Text
+            style={[styles.reminderLabel, { color: colors.onSurfaceVariant }]}
+          >
+            Reminder
+          </Text>
+          <Text style={[styles.reminderValue, { color: colors.onSurface }]}>
+            {formatTime(goal.reminder.startTime)} ·{" "}
             {goal.reminder.remindersPerDay}x/day
           </Text>
         </View>
 
         {/* Delete */}
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteBtnText}>Delete</Text>
+        <TouchableOpacity
+          style={[styles.deleteBtn, { borderColor: colors.error }]}
+          onPress={handleDelete}
+        >
+          <Text style={[styles.deleteBtnText, { color: colors.error }]}>
+            DELETE
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -309,180 +382,160 @@ export default function GoalDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    padding: 24,
-    paddingTop: 56,
-  },
-  backBtn: {
-    fontSize: 16,
-    color: colors.accent,
-    fontWeight: "600",
-    marginBottom: 24,
-  },
-  header: {
+  container: { flex: 1 },
+  topBar: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 32,
+    paddingTop: 52,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  headerEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
+  backBtn: { padding: 8, marginRight: 8 },
+  backArrow: { fontSize: 22, fontFamily: fonts.headlineBold },
+  topBarTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontFamily: fonts.headlineBold,
+    textAlign: "center",
   },
-  headerName: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: colors.text,
+  profileBtnSmall: { padding: 8 },
+  profileIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  profileHead: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    position: "absolute",
+    top: 3,
+  },
+  profileBody: {
+    width: 18,
+    height: 11,
+    borderRadius: 9,
+    position: "absolute",
+    bottom: -3,
+  },
+  scroll: { flex: 1 },
+  content: { padding: 24, paddingTop: 16, paddingBottom: 40 },
+  ladderLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    marginBottom: 20,
+    textAlign: "center",
   },
   tierCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.muted,
+    borderRadius: 24,
+    paddingVertical: 22,
+    paddingHorizontal: 24,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
-  tierLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.textMuted,
+  tierBadge: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 2,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   tierText: {
     fontSize: 18,
-    fontWeight: "500",
-    color: colors.text,
+    fontFamily: fonts.headlineBold,
   },
   arrow: {
     textAlign: "center",
-    fontSize: 14,
-    color: colors.textMuted,
-    paddingVertical: 8,
+    fontSize: 18,
+    paddingVertical: 10,
+  },
+  quote: {
+    fontSize: 15,
+    fontFamily: fonts.bodyItalic,
+    textAlign: "center",
+    marginTop: 32,
+    lineHeight: 24,
   },
   reminderInfo: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
+    marginTop: 28,
+    padding: 18,
+    borderRadius: 16,
   },
   reminderLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.textMuted,
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 2,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   reminderValue: {
     fontSize: 16,
-    color: colors.text,
+    fontFamily: fonts.bodyMedium,
   },
   deleteBtn: {
-    marginTop: 32,
+    marginTop: 28,
     paddingVertical: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 16,
   },
   deleteBtnText: {
-    fontSize: 16,
-    color: "#E53E3E",
-    fontWeight: "600",
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 2,
   },
   // Edit mode
-  editContent: {
-    padding: 24,
-    paddingTop: 56,
-    paddingBottom: 40,
-  },
-  cancelBtn: {
-    fontSize: 16,
-    color: colors.accent,
-    fontWeight: "600",
-    marginBottom: 24,
-  },
+  editContent: { padding: 24, paddingTop: 56, paddingBottom: 40 },
+  cancelBtn: { fontSize: 16, fontFamily: fonts.bodySemiBold, marginBottom: 24 },
   editLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textMuted,
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 2,
     textTransform: "uppercase",
-    letterSpacing: 1,
     marginTop: 16,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     fontSize: 17,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.muted,
+    fontFamily: fonts.bodyRegular,
   },
-  emojiInput: {
-    fontSize: 28,
-    textAlign: "center",
-    width: 60,
-  },
-  typeRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  typeRow: { flexDirection: "row", gap: 10 },
   typeChip: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.surface,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.muted,
-  },
-  typeChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
   },
   typeChipText: {
     fontSize: 15,
-    fontWeight: "600",
-    color: colors.textMuted,
-  },
-  typeChipTextActive: {
-    color: colors.white,
+    fontFamily: fonts.bodySemiBold,
   },
   timeBtn: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 8,
-    borderWidth: 1,
-    borderColor: colors.muted,
   },
-  timeBtnLabel: {
-    fontSize: 15,
-    color: colors.textMuted,
-  },
-  timeBtnValue: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.accent,
-  },
+  timeBtnLabel: { fontSize: 15, fontFamily: fonts.bodyRegular },
+  timeBtnValue: { fontSize: 18, fontFamily: fonts.bodySemiBold },
   saveBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 24,
   },
-  saveBtnText: {
-    color: colors.white,
-    fontSize: 17,
-    fontWeight: "600",
-  },
+  saveBtnText: { fontSize: 17, fontFamily: fonts.bodySemiBold },
 });

@@ -8,12 +8,13 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { colors } from "../src/constants";
-import { getProfile, saveProfile, setSwipeTutorialShown } from "../src/storage";
+import { getProfile, saveProfile } from "../src/storage";
+import { useTheme, fonts, storeTheme } from "../src/theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Profile() {
   const router = useRouter();
+  const { colors, theme, setTheme, isDark } = useTheme();
   const [name, setName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
@@ -31,6 +32,12 @@ export default function Profile() {
     setEditingName(false);
   };
 
+  const handleToggleTheme = async () => {
+    const next = isDark ? "light" : "dark";
+    setTheme(next);
+    await storeTheme(next);
+  };
+
   const handleReplayTutorial = async () => {
     await AsyncStorage.setItem("elarin:swipe_tutorial_shown", "false");
     Alert.alert(
@@ -40,19 +47,25 @@ export default function Profile() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Back */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={styles.backText}>←</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>←</Text>
       </TouchableOpacity>
 
       {/* Profile icon + name */}
       <View style={styles.header}>
-        <View style={styles.avatarCircle}>
-          <View style={styles.avatarHead} />
-          <View style={styles.avatarBody} />
+        <View style={[styles.avatarCircle, { borderColor: colors.onSurface }]}>
+          <View
+            style={[styles.avatarHead, { backgroundColor: colors.onSurface }]}
+          />
+          <View
+            style={[styles.avatarBody, { backgroundColor: colors.onSurface }]}
+          />
         </View>
-        <Text style={styles.name}>{name || "You"}</Text>
+        <Text style={[styles.name, { color: colors.onSurface }]}>
+          {name || "You"}
+        </Text>
       </View>
 
       {/* Menu items */}
@@ -61,49 +74,89 @@ export default function Profile() {
         {editingName ? (
           <View style={styles.editNameRow}>
             <TextInput
-              style={styles.nameInput}
+              style={[
+                styles.nameInput,
+                {
+                  backgroundColor: colors.surfaceContainerHigh,
+                  color: colors.onSurface,
+                  borderColor: colors.primary,
+                },
+              ]}
               value={newName}
               onChangeText={setNewName}
               placeholder="Enter name"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.outlineVariant}
               autoFocus
               maxLength={30}
               returnKeyType="done"
               onSubmitEditing={handleSaveName}
             />
             <TouchableOpacity
-              style={styles.saveNameBtn}
+              style={[styles.saveNameBtn, { backgroundColor: colors.primary }]}
               onPress={handleSaveName}
             >
-              <Text style={styles.saveNameText}>Save</Text>
+              <Text style={[styles.saveNameText, { color: colors.onPrimary }]}>
+                Save
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
-            style={styles.menuItem}
+            style={[
+              styles.menuItem,
+              { backgroundColor: colors.surfaceContainerLowest },
+            ]}
             onPress={() => {
               setNewName(name);
               setEditingName(true);
             }}
           >
-            <Text style={styles.menuText}>Edit Name</Text>
+            <Text style={[styles.menuText, { color: colors.onSurface }]}>
+              Edit Name
+            </Text>
           </TouchableOpacity>
         )}
 
+        {/* Theme Toggle */}
+        <TouchableOpacity
+          style={[
+            styles.menuItem,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
+          onPress={handleToggleTheme}
+        >
+          <Text style={[styles.menuText, { color: colors.onSurface }]}>
+            Theme: {isDark ? "Dark" : "Light"}
+          </Text>
+          <Text style={[styles.menuHint, { color: colors.onSurfaceVariant }]}>
+            Tap to switch
+          </Text>
+        </TouchableOpacity>
+
         {/* Replay Tutorial */}
         <TouchableOpacity
-          style={styles.menuItem}
+          style={[
+            styles.menuItem,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
           onPress={handleReplayTutorial}
         >
-          <Text style={styles.menuText}>Replay Tutorial</Text>
+          <Text style={[styles.menuText, { color: colors.onSurface }]}>
+            Replay Tutorial
+          </Text>
         </TouchableOpacity>
 
         {/* About */}
         <TouchableOpacity
-          style={styles.menuItem}
+          style={[
+            styles.menuItem,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
           onPress={() => Alert.alert("Elarin", "Version 0.2.0")}
         >
-          <Text style={styles.menuText}>About</Text>
+          <Text style={[styles.menuText, { color: colors.onSurface }]}>
+            About
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -111,30 +164,15 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingHorizontal: 24,
-  },
-  backBtn: {
-    paddingTop: 56,
-    marginBottom: 24,
-  },
-  backText: {
-    fontSize: 16,
-    color: colors.accent,
-    fontWeight: "600",
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
+  container: { flex: 1, paddingHorizontal: 24 },
+  backBtn: { paddingTop: 56, marginBottom: 24 },
+  backText: { fontSize: 22, fontFamily: fonts.headlineBold },
+  header: { alignItems: "center", marginBottom: 40 },
   avatarCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 3,
-    borderColor: colors.text,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -144,7 +182,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.text,
     position: "absolute",
     top: 10,
   },
@@ -152,61 +189,34 @@ const styles = StyleSheet.create({
     width: 44,
     height: 28,
     borderRadius: 22,
-    backgroundColor: colors.text,
     position: "absolute",
     bottom: -6,
   },
-  name: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  menu: {
-    gap: 0,
-  },
+  name: { fontSize: 24, fontFamily: fonts.headlineExtraBold },
+  menu: { gap: 0 },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    justifyContent: "space-between",
     borderRadius: 14,
     padding: 18,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.muted,
   },
-  menuIcon: {
-    fontSize: 20,
-    marginRight: 14,
-  },
-  menuText: {
-    fontSize: 17,
-    fontWeight: "500",
-    color: colors.text,
-  },
-  editNameRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
-  },
+  menuText: { fontSize: 17, fontFamily: fonts.bodyMedium },
+  menuHint: { fontSize: 13, fontFamily: fonts.bodyRegular },
+  editNameRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
   nameInput: {
     flex: 1,
-    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 18,
     fontSize: 17,
-    color: colors.text,
+    fontFamily: fonts.bodyRegular,
     borderWidth: 1,
-    borderColor: colors.accent,
   },
   saveNameBtn: {
-    backgroundColor: colors.accent,
     borderRadius: 14,
     paddingHorizontal: 20,
     justifyContent: "center",
   },
-  saveNameText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  saveNameText: { fontSize: 16, fontFamily: fonts.bodySemiBold },
 });

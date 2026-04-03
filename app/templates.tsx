@@ -4,7 +4,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme, fonts } from "../src/theme";
 
 const TEMPLATES = [
@@ -17,6 +17,8 @@ const TEMPLATES = [
 export default function TemplateSelection() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
+  const isOnboarding = onboarding === "1";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
@@ -32,7 +34,7 @@ export default function TemplateSelection() {
               styles.card,
               { backgroundColor: colors.surfaceContainerLowest },
             ]}
-            onPress={() => router.push(`/create?prebuilt=${t.prebuilt}`)}
+            onPress={() => router.push(`/create?prebuilt=${t.prebuilt}${isOnboarding ? "&onboarding=1" : ""}`)}
             activeOpacity={0.7}
           >
             <Text style={[styles.cardLabel, { color: colors.onSurface }]}>
@@ -42,7 +44,7 @@ export default function TemplateSelection() {
         ))}
         <TouchableOpacity
           style={[styles.card, { borderColor: colors.outlineVariant, borderWidth: 1, backgroundColor: "transparent" }]}
-          onPress={() => router.push("/create")}
+          onPress={() => router.push(`/create${isOnboarding ? "?onboarding=1" : ""}`)}
           activeOpacity={0.7}
         >
           <Text style={[styles.cardLabel, { color: colors.primary }]}>

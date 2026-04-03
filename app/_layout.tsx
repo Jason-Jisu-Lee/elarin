@@ -115,11 +115,7 @@ export default function RootLayout() {
       }
     });
 
-    if (Platform.OS === "android") {
-      promptBatteryOptimizationIfNeeded().then((shouldPrompt) => {
-        if (shouldPrompt) setShowBatteryModal(true);
-      });
-    }
+    // Battery optimization prompt disabled — too aggressive
 
     return () => {
       responseListener.current?.remove();

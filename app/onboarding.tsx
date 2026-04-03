@@ -10,7 +10,6 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
-  Dimensions,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Audio } from "expo-av";
@@ -19,8 +18,6 @@ import { setOnboarded, saveProfile } from "../src/storage";
 import { useTheme, fonts } from "../src/theme";
 
 const scratchSound = require("../assets/sounds/pencil-scratch.wav");
-
-const { width: SCREEN_W } = Dimensions.get("window");
 
 if (
   Platform.OS === "android" &&
@@ -114,6 +111,7 @@ export default function Onboarding() {
   const [scribStep, setScribStep] = useState(0);
   const [stripped, setStripped] = useState<Set<number>>(new Set());
   const [sageNextVisible, setSageNextVisible] = useState(false);
+  const [scribbleNextVisible, setScribbleNextVisible] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
 
   // Animated values
@@ -137,6 +135,7 @@ export default function Onboarding() {
   const firstOp = useRef(new Animated.Value(1)).current;
   const scOp = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
   const scGrpOp = useRef(new Animated.Value(1)).current;
+  const scribNextOp = useRef(new Animated.Value(0)).current;
   const allOp = useRef(new Animated.Value(1)).current;
 
   const pi = PHASES.indexOf(phase);
@@ -242,19 +241,21 @@ export default function Onboarding() {
         duration: 800,
         easing: EASE_OUT,
         useNativeDriver: true,
-      }).start(() => {
-        // Show "Next" button after second sentence appears
-        setSageNextVisible(true);
-        Animated.timing(sageNextOp, {
-          toValue: 1,
-          duration: 400,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      });
+      }).start();
     }, 2000);
 
-    return () => clearTimeout(t1);
+    // Show "Next" button ~1s after second sentence starts fading in
+    const t2 = setTimeout(() => {
+      setSageNextVisible(true);
+      Animated.timing(sageNextOp, {
+        toValue: 1,
+        duration: 500,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 3800);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [phase]);
 
   const handleSageNext = () => {
@@ -488,24 +489,17 @@ export default function Onboarding() {
     const t1 = show(0, 400);
     const t2 = show(1, 1700);
     const t3 = show(2, 3000);
+    // After all scribble annotations, show "Next" button
     const t4 = setTimeout(() => {
-      Animated.timing(scGrpOp, {
-        toValue: 0,
+      setScribbleNextVisible(true);
+      scribNextOp.setValue(0);
+      Animated.timing(scribNextOp, {
+        toValue: 1,
         duration: 500,
-        easing: EASE_IN,
+        easing: EASE_OUT,
         useNativeDriver: true,
-      }).start(() => {
-        setScribStep(0);
-        setTimeout(() => {
-          Animated.timing(allOp, {
-            toValue: 0,
-            duration: 700,
-            easing: EASE_IN,
-            useNativeDriver: true,
-          }).start(() => handleFinish());
-        }, 400);
-      });
-    }, 4800);
+      }).start();
+    }, 4500);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -518,6 +512,31 @@ export default function Onboarding() {
     if (name.trim()) tOut(() => setPhase("sage"));
   };
 
+  const handleScribbleNext = () => {
+    Animated.parallel([
+      Animated.timing(scGrpOp, {
+        toValue: 0,
+        duration: 500,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scribNextOp, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setScribStep(0);
+      Animated.timing(allOp, {
+        toValue: 0,
+        duration: 700,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }).start(() => handleFinish());
+    });
+  };
+
   const handleFinish = async () => {
     if (isReplay) {
       router.back();
@@ -525,7 +544,7 @@ export default function Onboarding() {
     }
     if (name.trim()) await saveProfile({ name: name.trim() });
     await setOnboarded(true);
-    router.replace("/theme-select");
+    router.replace("/templates?onboarding=1");
   };
 
   const bgColor = bgVal.interpolate({
@@ -552,38 +571,40 @@ export default function Onboarding() {
           ]}
         >
           {phase === "name" && (
-            <View style={styles.center}>
-              <Text style={[styles.question, { color: colors.onSurface }]}>
-                What is your name?
-              </Text>
-              <Animated.View
-                style={{
-                  opacity: fieldOp,
-                  width: "100%",
-                  alignItems: "center",
-                }}
-              >
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: colors.onSurface,
-                      borderBottomColor: colors.surfaceVariant,
-                    },
-                  ]}
-                  value={name}
-                  onChangeText={setName}
-                  placeholderTextColor={colors.outlineVariant}
-                  autoFocus
-                  onSubmitEditing={handleNameSubmit}
-                  returnKeyType="next"
-                  maxLength={30}
-                />
-              </Animated.View>
-              <Animated.View style={[styles.plainBtnWrap, { opacity: btnOp }]}>
+            <View style={[styles.center, { flex: 1 }]}>
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                <Text style={[styles.question, { color: colors.onSurface }]}>
+                  What is your name?
+                </Text>
+                <Animated.View
+                  style={{
+                    opacity: fieldOp,
+                    alignItems: "center",
+                  }}
+                >
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: colors.onSurface,
+                        borderBottomColor: colors.surfaceVariant,
+                      },
+                    ]}
+                    value={name}
+                    onChangeText={(t) => setName(t.replace(/[^a-zA-Z]/g, "").slice(0, 12))}
+                    placeholderTextColor={colors.outlineVariant}
+                    autoFocus
+                    onSubmitEditing={handleNameSubmit}
+                    returnKeyType="next"
+                    maxLength={12}
+                  />
+                </Animated.View>
+              </View>
+              <Animated.View style={[styles.bottomBtnWrap, { opacity: btnOp }]}>
                 <TouchableOpacity
                   onPress={handleNameSubmit}
                   activeOpacity={0.5}
+                  style={[styles.borderedBtn, { borderColor: colors.outlineVariant }]}
                 >
                   <Text
                     style={[styles.plainBtn, { color: colors.onSurface }]}
@@ -602,30 +623,33 @@ export default function Onboarding() {
       {/* Sage (combined) — both sentences on one screen */}
       {phase === "sage" && (
         <View style={styles.body}>
-          <View style={styles.center}>
-            <Animated.Text
-              style={[
-                styles.sage,
-                { color: colors.onSurface, opacity: sage1Op },
-              ]}
-            >
-              You already know where you want to be.
-            </Animated.Text>
-            <Animated.Text
-              style={[
-                styles.sage,
-                { color: colors.onSurface, opacity: sage2Op, marginTop: 24 },
-              ]}
-            >
-              The path there is not a leap, or even a step{"\n"}— it's a nudge.
-            </Animated.Text>
+          <View style={[styles.center, { flex: 1 }]}>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <Animated.Text
+                style={[
+                  styles.sage,
+                  { color: colors.onSurface, opacity: sage1Op },
+                ]}
+              >
+                You already know where you want to be.
+              </Animated.Text>
+              <Animated.Text
+                style={[
+                  styles.sage,
+                  { color: colors.onSurface, opacity: sage2Op, marginTop: 24 },
+                ]}
+              >
+                The path there is not a leap, or even a step{"\n"}— it's a nudge.
+              </Animated.Text>
+            </View>
             {sageNextVisible && (
               <Animated.View
-                style={[styles.plainBtnWrap, { opacity: sageNextOp }]}
+                style={[styles.bottomBtnWrap, { opacity: sageNextOp }]}
               >
                 <TouchableOpacity
                   onPress={handleSageNext}
                   activeOpacity={0.5}
+                  style={[styles.borderedBtn, { borderColor: colors.outlineVariant }]}
                 >
                   <Text
                     style={[styles.plainBtn, { color: colors.onSurface }]}
@@ -837,16 +861,20 @@ export default function Onboarding() {
                 );
               })}
 
-            {phase === "ladder_scribble" && (
-              <View style={styles.buildBtnWrap}>
-                <TouchableOpacity activeOpacity={0.5} onPress={handleFinish}>
+            {phase === "ladder_scribble" && scribbleNextVisible && (
+              <Animated.View style={[styles.buildBtnWrap, { opacity: scribNextOp }]}>
+                <TouchableOpacity
+                  activeOpacity={0.5}
+                  onPress={handleScribbleNext}
+                  style={[styles.borderedBtn, { borderColor: colors.outlineVariant }]}
+                >
                   <Text
                     style={[styles.plainBtn, { color: colors.onSurface }]}
                   >
-                    Build My Habit
+                    Next
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </Animated.View>
             )}
           </View>
         </Animated.View>
@@ -873,11 +901,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     paddingVertical: 12,
     paddingHorizontal: 4,
-    textAlign: "left",
-    width: SCREEN_W * 0.75,
+    textAlign: "center",
+    minWidth: 60,
     marginBottom: 12,
   },
-  plainBtnWrap: { marginTop: 40 },
+  bottomBtnWrap: { marginBottom: 60 },
+  borderedBtn: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
   plainBtn: {
     fontSize: 20,
     fontFamily: fonts.headlineExtraBold,
@@ -924,11 +958,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: "100%",
     alignItems: "center",
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
   },
   cardText: {
     fontSize: 22,

@@ -36,7 +36,8 @@ const FREQUENCY_OPTIONS = [
 export default function CreateGoal() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { prebuilt } = useLocalSearchParams<{ prebuilt?: string }>();
+  const { prebuilt, onboarding } = useLocalSearchParams<{ prebuilt?: string; onboarding?: string }>();
+  const isOnboarding = onboarding === "1";
 
   const prebuiltGoal =
     prebuilt !== undefined ? PRE_BUILT_GOALS[Number(prebuilt)] : null;
@@ -127,7 +128,7 @@ export default function CreateGoal() {
       await setupNotifications();
       await scheduleGoalNotifications(goal);
     }
-    router.replace("/home");
+    router.replace(isOnboarding ? "/theme-select" : "/home");
   };
 
   const PlainButton = ({

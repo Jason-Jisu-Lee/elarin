@@ -42,6 +42,7 @@ export default function GoalDetail() {
   const [easiest, setEasiest] = useState("");
   const [startTime, setStartTime] = useState("17:00");
   const [remindersPerDay, setRemindersPerDay] = useState(2);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [pickerVisible, setPickerVisible] = useState(false);
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function GoalDetail() {
     setEasiest(g.tiers.easiest);
     setStartTime(g.reminder.startTime);
     setRemindersPerDay(g.reminder.remindersPerDay);
+    setNotificationsEnabled(g.reminder.notificationsEnabled !== false);
   };
 
   const formatTime = (timeStr: string): string => {
@@ -112,10 +114,15 @@ export default function GoalDetail() {
         remindersPerDay,
         activeDays: goal.reminder.activeDays,
         frequency: goal.reminder.frequency,
+        notificationsEnabled,
       },
     };
     await updateGoal(updated);
-    await scheduleGoalNotifications(updated);
+    if (notificationsEnabled) {
+      await scheduleGoalNotifications(updated);
+    } else {
+      await cancelGoalNotifications(updated.id);
+    }
     setGoal(updated);
     setEditing(false);
   };
@@ -160,6 +167,45 @@ export default function GoalDetail() {
               Cancel
             </Text>
           </TouchableOpacity>
+
+          {/* Notification toggle — top right */}
+          <View style={styles.bellRow}>
+            <Text
+              style={[
+                styles.bellIcon,
+                {
+                  color: notificationsEnabled
+                    ? colors.primary
+                    : colors.outlineVariant,
+                },
+              ]}
+            >
+              🔔
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.bellToggle,
+                {
+                  backgroundColor: notificationsEnabled
+                    ? colors.tertiaryContainer
+                    : colors.surfaceContainer,
+                },
+              ]}
+              onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+            >
+              <View
+                style={[
+                  styles.bellToggleThumb,
+                  {
+                    backgroundColor: notificationsEnabled
+                      ? colors.onPrimary
+                      : colors.outlineVariant,
+                    alignSelf: notificationsEnabled ? "flex-end" : "flex-start",
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+          </View>
 
           <Text style={[styles.editLabel, { color: colors.onSurfaceVariant }]}>
             Goal Name
@@ -496,6 +542,27 @@ const styles = StyleSheet.create({
   // Edit mode
   editContent: { padding: 24, paddingTop: 56, paddingBottom: 40 },
   cancelBtn: { fontSize: 16, fontFamily: fonts.bodySemiBold, marginBottom: 24 },
+  bellRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "absolute",
+    top: 56,
+    right: 24,
+    gap: 8,
+  },
+  bellIcon: { fontSize: 18 },
+  bellToggle: {
+    width: 40,
+    height: 22,
+    borderRadius: 11,
+    padding: 2,
+    justifyContent: "center",
+  },
+  bellToggleThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
   editLabel: {
     fontSize: 11,
     fontFamily: fonts.bodySemiBold,

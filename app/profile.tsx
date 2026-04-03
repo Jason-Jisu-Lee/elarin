@@ -5,12 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Alert,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getProfile, saveProfile } from "../src/storage";
 import { useTheme, fonts, storeTheme } from "../src/theme";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Profile() {
   const router = useRouter();
@@ -18,6 +17,7 @@ export default function Profile() {
   const [name, setName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
+  const [showIntroDialog, setShowIntroDialog] = useState(false);
 
   useEffect(() => {
     getProfile().then((p) => {
@@ -38,14 +38,6 @@ export default function Profile() {
     await storeTheme(next);
   };
 
-  const handleReplayTutorial = async () => {
-    await AsyncStorage.setItem("elarin:swipe_tutorial_shown", "false");
-    Alert.alert(
-      "Tutorial reset",
-      "The swipe tutorial will show next time you open the home screen.",
-    );
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Back */}
@@ -53,7 +45,7 @@ export default function Profile() {
         <Text style={[styles.backText, { color: colors.primary }]}>←</Text>
       </TouchableOpacity>
 
-      {/* Profile icon + name */}
+      {/* Profile icon + name (tap to edit) */}
       <View style={styles.header}>
         <View style={[styles.avatarCircle, { borderColor: colors.onSurface }]}>
           <View
@@ -63,59 +55,49 @@ export default function Profile() {
             style={[styles.avatarBody, { backgroundColor: colors.onSurface }]}
           />
         </View>
-        <Text style={[styles.name, { color: colors.onSurface }]}>
-          {name || "You"}
-        </Text>
-      </View>
-
-      {/* Menu items */}
-      <View style={styles.menu}>
-        {/* Edit Name */}
         {editingName ? (
-          <View style={styles.editNameRow}>
-            <TextInput
-              style={[
-                styles.nameInput,
-                {
-                  backgroundColor: colors.surfaceContainerHigh,
-                  color: colors.onSurface,
-                  borderColor: colors.primary,
-                },
-              ]}
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Enter name"
-              placeholderTextColor={colors.outlineVariant}
-              autoFocus
-              maxLength={30}
-              returnKeyType="done"
-              onSubmitEditing={handleSaveName}
-            />
-            <TouchableOpacity
-              style={[styles.saveNameBtn, { backgroundColor: colors.primary }]}
-              onPress={handleSaveName}
-            >
-              <Text style={[styles.saveNameText, { color: colors.onPrimary }]}>
-                Save
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TextInput
+            style={[
+              styles.nameInput,
+              { color: colors.onSurface, borderBottomColor: colors.primary },
+            ]}
+            value={newName}
+            onChangeText={setNewName}
+            autoFocus
+            maxLength={30}
+            returnKeyType="done"
+            onSubmitEditing={handleSaveName}
+            onBlur={handleSaveName}
+            placeholder="Your name"
+            placeholderTextColor={colors.outlineVariant}
+          />
         ) : (
           <TouchableOpacity
-            style={[
-              styles.menuItem,
-              { backgroundColor: colors.surfaceContainerLowest },
-            ]}
             onPress={() => {
               setNewName(name);
               setEditingName(true);
             }}
           >
-            <Text style={[styles.menuText, { color: colors.onSurface }]}>
-              Edit Name
+            <Text style={[styles.name, { color: colors.onSurface }]}>
+              {name || "Tap to set name"}
             </Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Menu items */}
+      <View style={styles.menu}>
+        {/* Account (non-tappable) */}
+        <View
+          style={[
+            styles.menuItem,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
+        >
+          <Text style={[styles.menuText, { color: colors.onSurfaceVariant }]}>
+            Account
+          </Text>
+        </View>
 
         {/* Theme Toggle */}
         <TouchableOpacity
@@ -126,39 +108,76 @@ export default function Profile() {
           onPress={handleToggleTheme}
         >
           <Text style={[styles.menuText, { color: colors.onSurface }]}>
-            Theme: {isDark ? "Dark" : "Light"}
-          </Text>
-          <Text style={[styles.menuHint, { color: colors.onSurfaceVariant }]}>
-            Tap to switch
+            {isDark ? "Light Mode" : "Dark Mode"}
           </Text>
         </TouchableOpacity>
 
-        {/* Replay Tutorial */}
+        {/* Play Intro */}
         <TouchableOpacity
           style={[
             styles.menuItem,
             { backgroundColor: colors.surfaceContainerLowest },
           ]}
-          onPress={handleReplayTutorial}
+          onPress={() => setShowIntroDialog(true)}
         >
           <Text style={[styles.menuText, { color: colors.onSurface }]}>
-            Replay Tutorial
-          </Text>
-        </TouchableOpacity>
-
-        {/* About */}
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            { backgroundColor: colors.surfaceContainerLowest },
-          ]}
-          onPress={() => Alert.alert("Elarin", "Version 0.2.0")}
-        >
-          <Text style={[styles.menuText, { color: colors.onSurface }]}>
-            About
+            Play Intro
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Play Intro confirmation modal */}
+      <Modal
+        visible={showIntroDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowIntroDialog(false)}
+      >
+        <TouchableOpacity
+          style={styles.dialogOverlay}
+          activeOpacity={1}
+          onPress={() => setShowIntroDialog(false)}
+        >
+          <View
+            style={[
+              styles.dialogCard,
+              { backgroundColor: colors.surfaceContainerHigh },
+            ]}
+          >
+            <Text style={[styles.dialogTitle, { color: colors.onSurface }]}>
+              Play Intro?
+            </Text>
+            <View style={styles.dialogActions}>
+              <TouchableOpacity
+                style={styles.dialogBtn}
+                onPress={() => setShowIntroDialog(false)}
+              >
+                <Text
+                  style={[
+                    styles.dialogBtnText,
+                    { color: colors.onSurfaceVariant },
+                  ]}
+                >
+                  No
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dialogBtn}
+                onPress={() => {
+                  setShowIntroDialog(false);
+                  router.push("/onboarding?replay=1");
+                }}
+              >
+                <Text
+                  style={[styles.dialogBtnText, { color: colors.onSurface }]}
+                >
+                  Yes
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -192,31 +211,59 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: -6,
   },
-  name: { fontSize: 24, fontFamily: fonts.headlineExtraBold },
+  name: { fontSize: 24, fontFamily: fonts.headlineExtraBold, textAlign: "center" },
+  nameInput: {
+    fontSize: 24,
+    fontFamily: fonts.headlineExtraBold,
+    textAlign: "center",
+    borderBottomWidth: 2,
+    paddingBottom: 4,
+    minWidth: 120,
+  },
   menu: { gap: 0 },
   menuItem: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     borderRadius: 14,
-    padding: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     marginBottom: 10,
   },
-  menuText: { fontSize: 17, fontFamily: fonts.bodyMedium },
-  menuHint: { fontSize: 13, fontFamily: fonts.bodyRegular },
-  editNameRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  nameInput: {
+  menuText: { fontSize: 15, fontFamily: fonts.bodyMedium },
+  // Dialog
+  dialogOverlay: {
     flex: 1,
-    borderRadius: 14,
-    padding: 18,
-    fontSize: 17,
-    fontFamily: fonts.bodyRegular,
-    borderWidth: 1,
-  },
-  saveNameBtn: {
-    borderRadius: 14,
-    paddingHorizontal: 20,
+    backgroundColor: "rgba(0,0,0,0.35)",
     justifyContent: "center",
+    alignItems: "center",
   },
-  saveNameText: { fontSize: 16, fontFamily: fonts.bodySemiBold },
+  dialogCard: {
+    borderRadius: 18,
+    paddingVertical: 28,
+    paddingHorizontal: 32,
+    minWidth: 240,
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontFamily: fonts.headlineBold,
+    marginBottom: 24,
+  },
+  dialogActions: {
+    flexDirection: "row",
+    gap: 32,
+  },
+  dialogBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  dialogBtnText: {
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+  },
 });

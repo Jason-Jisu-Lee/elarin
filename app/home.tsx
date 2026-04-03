@@ -11,26 +11,76 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
-import { LinearGradient } from "expo-linear-gradient";
 import { MICROCOPY } from "../src/constants";
 import {
   getGoals,
   getDailyStates,
   hasShownSwipeTutorial,
   setSwipeTutorialShown,
+  getCompletionHistory,
+  getHeatmapStartDate,
+  ensureHeatmapStartDate,
 } from "../src/storage";
 import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
 import { Goal, DailyGoalState } from "../src/types";
 import { useTheme, fonts } from "../src/theme";
 
+const FREQ_ORDER: Record<string, number> = {
+  daily: 0,
+  every_other_day: 1,
+  every_3_days: 2,
+  weekly: 3,
+  every_2_weeks: 4,
+  monthly: 5,
+};
+
+const FREQ_LABELS: Record<string, string> = {
+  daily: "Daily",
+  every_other_day: "Every 2 Days",
+  every_3_days: "Every 3 Days",
+  weekly: "Weekly",
+  every_2_weeks: "Biweekly",
+  monthly: "Monthly",
+};
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
+
+type HeatmapEntry = {
+  date: string;
+  ratio: number;
+  completed: number;
+  total: number;
+};
+
 export default function Home() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [dailyStates, setDailyStates] = useState<DailyGoalState[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [heatmapData, setHeatmapData] = useState<HeatmapEntry[]>([]);
+  const [tooltip, setTooltip] = useState<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
   const tutorialAnim = useRef(new Animated.Value(0)).current;
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
@@ -38,12 +88,28 @@ export default function Home() {
     const [g, ds] = await Promise.all([getGoals(), getDailyStates()]);
     setGoals(g);
     setDailyStates(ds);
+    if (g.length > 0) {
+      await ensureHeatmapStartDate();
+      const startStr = await getHeatmapStartDate();
+      if (startStr) {
+        const start = new Date(startStr);
+        const now = new Date();
+        const diffDays =
+          Math.floor(
+            (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+          ) + 1;
+        const days = Math.min(Math.max(diffDays, 7), 365);
+        const history = await getCompletionHistory(days);
+        setHeatmapData(history);
+      }
+    }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       load();
       setShowFabMenu(false);
+      setTooltip(null);
     }, [load]),
   );
 
@@ -98,6 +164,7 @@ export default function Home() {
   };
 
   const formatReminderTime = (goal: Goal): string => {
+    if (goal.reminder.notificationsEnabled === false) return "";
     const { reminder } = goal;
     const fmt = (t: string) => {
       const [h, m] = t.split(":").map(Number);
@@ -111,6 +178,20 @@ export default function Home() {
 
   const isDone = (state?: DailyGoalState) =>
     state?.status === "done" || state?.status === "stepped_down";
+
+  const groupedGoals = goals.reduce(
+    (acc, goal) => {
+      const freq = goal.reminder.frequency || "daily";
+      if (!acc[freq]) acc[freq] = [];
+      acc[freq].push(goal);
+      return acc;
+    },
+    {} as Record<string, Goal[]>,
+  );
+
+  const sortedFreqs = Object.keys(groupedGoals).sort(
+    (a, b) => (FREQ_ORDER[a] ?? 99) - (FREQ_ORDER[b] ?? 99),
+  );
 
   const renderLeftActions = (goalId: string) => (
     <TouchableOpacity
@@ -152,23 +233,260 @@ export default function Home() {
     </View>
   );
 
+  // Heatmap color scale using theme-appropriate greens
+  const getHeatColor = (ratio: number): string => {
+    if (ratio < 0) return "transparent";
+    if (ratio === 0)
+      return isDark ? colors.surfaceContainerHigh : colors.surfaceContainerHighest;
+    if (ratio <= 0.25) return isDark ? "#0e4429" : "#9be9a8";
+    if (ratio <= 0.5) return isDark ? "#006d32" : "#40c463";
+    if (ratio <= 0.75) return isDark ? "#26a641" : "#30a14e";
+    return isDark ? "#39d353" : "#216e39";
+  };
+
+  const legendColors = [
+    isDark ? colors.surfaceContainerHigh : colors.surfaceContainerHighest,
+    isDark ? "#0e4429" : "#9be9a8",
+    isDark ? "#006d32" : "#40c463",
+    isDark ? "#26a641" : "#30a14e",
+    isDark ? "#39d353" : "#216e39",
+  ];
+
+  const formatDateLabel = (dateStr: string): string => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const suffix =
+      d === 1 || d === 21 || d === 31
+        ? "st"
+        : d === 2 || d === 22
+          ? "nd"
+          : d === 3 || d === 23
+            ? "rd"
+            : "th";
+    return `${months[m - 1]} ${d}${suffix}`;
+  };
+
+  // Heatmap renderer — GitHub-style with month labels, day labels, legend
+  const renderHeatmap = () => {
+    if (heatmapData.length === 0) return null;
+
+    // Build week columns
+    const weeks: HeatmapEntry[][] = [];
+    let currentWeek: HeatmapEntry[] = [];
+    const firstDate = new Date(heatmapData[0].date);
+    const startDay = firstDate.getDay(); // 0=Sun
+    // Pad start of first week
+    for (let i = 0; i < startDay; i++) {
+      currentWeek.push({ date: "", ratio: -1, completed: 0, total: 0 });
+    }
+    for (const entry of heatmapData) {
+      currentWeek.push(entry);
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7)
+        currentWeek.push({ date: "", ratio: -1, completed: 0, total: 0 });
+      weeks.push(currentWeek);
+    }
+
+    // Month labels: find which weeks start a new month
+    const monthMarkers: { weekIndex: number; label: string }[] = [];
+    let lastMonth = -1;
+    weeks.forEach((week, wi) => {
+      // Use first real day in the week
+      const realDay = week.find((d) => d.date !== "");
+      if (realDay) {
+        const m = parseInt(realDay.date.split("-")[1], 10) - 1;
+        if (m !== lastMonth) {
+          monthMarkers.push({ weekIndex: wi, label: MONTH_LABELS[m] });
+          lastMonth = m;
+        }
+      }
+    });
+
+    const CELL = 11;
+    const GAP = 3;
+    const DAY_LABEL_W = 28;
+
+    const handleCellPress = (
+      entry: HeatmapEntry,
+      pageX: number,
+      pageY: number,
+    ) => {
+      if (entry.date === "" || entry.ratio < 0) return;
+      const label = formatDateLabel(entry.date);
+      setTooltip({
+        x: pageX,
+        y: pageY - 40,
+        text: `${entry.completed} of ${entry.total} completed on ${label}`,
+      });
+      setTimeout(() => setTooltip(null), 2500);
+    };
+
+    return (
+      <View style={styles.heatmapWrap}>
+        <Text
+          style={[styles.heatmapTitle, { color: colors.onSurfaceVariant }]}
+        >
+          2026 Activity
+        </Text>
+
+        {/* Month labels row */}
+        <View style={styles.heatmapMonthRow}>
+          <View style={{ width: DAY_LABEL_W }} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={false}
+          >
+            <View style={{ flexDirection: "row" }}>
+              {weeks.map((_, wi) => {
+                const marker = monthMarkers.find((m) => m.weekIndex === wi);
+                return (
+                  <View
+                    key={wi}
+                    style={{ width: CELL + GAP, alignItems: "flex-start" }}
+                  >
+                    {marker && (
+                      <Text
+                        style={[
+                          styles.monthLabel,
+                          { color: colors.onSurfaceVariant },
+                        ]}
+                      >
+                        {marker.label}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Grid: day labels + cells */}
+        <View style={{ flexDirection: "row" }}>
+          {/* Day labels column */}
+          <View style={{ width: DAY_LABEL_W }}>
+            {DAY_LABELS.map((lbl, i) => (
+              <View
+                key={i}
+                style={{ height: CELL + GAP, justifyContent: "center" }}
+              >
+                <Text
+                  style={[
+                    styles.dayLabel,
+                    { color: colors.onSurfaceVariant },
+                  ]}
+                >
+                  {lbl}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Scrollable grid */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.heatmapGrid}
+          >
+            {weeks.map((week, wi) => (
+              <View key={wi} style={styles.heatmapCol}>
+                {week.map((day, di) => (
+                  <TouchableOpacity
+                    key={`${wi}-${di}`}
+                    activeOpacity={0.7}
+                    onPress={(e) =>
+                      handleCellPress(
+                        day,
+                        e.nativeEvent.pageX,
+                        e.nativeEvent.pageY,
+                      )
+                    }
+                    style={[
+                      styles.heatmapCell,
+                      {
+                        backgroundColor: getHeatColor(day.ratio),
+                        borderWidth: day.ratio === 0 ? 1 : 0,
+                        borderColor:
+                          day.ratio === 0
+                            ? isDark
+                              ? colors.surfaceContainerHighest
+                              : colors.outlineVariant
+                            : "transparent",
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Legend row */}
+        <View style={styles.legendRow}>
+          <Text
+            style={[styles.legendText, { color: colors.onSurfaceVariant }]}
+          >
+            Less
+          </Text>
+          {legendColors.map((c, i) => (
+            <View
+              key={i}
+              style={[
+                styles.legendCell,
+                {
+                  backgroundColor: c,
+                  borderWidth: i === 0 ? 1 : 0,
+                  borderColor:
+                    i === 0
+                      ? isDark
+                        ? colors.surfaceContainerHighest
+                        : colors.outlineVariant
+                      : "transparent",
+                },
+              ]}
+            />
+          ))}
+          <Text
+            style={[styles.legendText, { color: colors.onSurfaceVariant }]}
+          >
+            More
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Header bar */}
       <View style={styles.headerBar}>
-        <View>
-          <Text style={[styles.journalLabel, { color: colors.secondary }]}>
-            THE LIVING JOURNAL
-          </Text>
-          <Text style={[styles.hubTitle, { color: colors.onSurface }]}>
-            Goal Hub
-          </Text>
-        </View>
+        <View style={{ flex: 1 }} />
         <TouchableOpacity
           style={styles.profileBtn}
           onPress={() => router.push("/profile")}
         >
-          <View style={[styles.profileIcon, { borderColor: colors.onSurface }]}>
+          <View
+            style={[styles.profileIcon, { borderColor: colors.onSurface }]}
+          >
             <View
               style={[
                 styles.profileHead,
@@ -208,134 +526,173 @@ export default function Home() {
             </Text>
           </View>
         ) : (
-          goals.map((goal) => {
-            const state = getGoalState(goal.id);
-            const done = isDone(state);
-
-            return (
-              <Swipeable
-                key={goal.id}
-                ref={(ref) => {
-                  if (ref) swipeableRefs.current.set(goal.id, ref);
-                }}
-                renderLeftActions={
-                  done ? undefined : () => renderLeftActions(goal.id)
-                }
-                renderRightActions={
-                  done ? undefined : () => renderRightActions(goal.id)
-                }
-                enabled={!done}
-                overshootLeft={false}
-                overshootRight={false}
-              >
-                <Animated.View
-                  style={
-                    showTutorial && goal.id === goals[0]?.id
-                      ? { transform: [{ translateX: tutorialAnim }] }
-                      : {}
-                  }
-                >
-                  <TouchableOpacity
+          <>
+            {sortedFreqs.map((freq, fi) => (
+              <View key={freq}>
+                {sortedFreqs.length > 1 && fi > 0 && (
+                  <View
                     style={[
-                      styles.goalCard,
-                      { backgroundColor: colors.surfaceContainerLowest },
+                      styles.freqSeparator,
+                      { backgroundColor: colors.outlineVariant },
                     ]}
-                    onPress={() => router.push(`/goal/${goal.id}`)}
-                    activeOpacity={0.7}
+                  />
+                )}
+                {sortedFreqs.length > 1 && (
+                  <Text
+                    style={[
+                      styles.freqGroupLabel,
+                      { color: colors.onSurfaceVariant },
+                    ]}
                   >
-                    {/* Left accent bar */}
-                    <View
-                      style={[
-                        styles.leftBar,
-                        {
-                          backgroundColor: done
-                            ? colors.tertiaryContainer
-                            : colors.secondaryContainer,
-                        },
-                      ]}
-                    />
-                    <View style={styles.goalContent}>
-                      <View style={styles.goalTop}>
-                        <Text
+                    {FREQ_LABELS[freq] || freq}
+                  </Text>
+                )}
+                {groupedGoals[freq].map((goal) => {
+                  const state = getGoalState(goal.id);
+                  const done = isDone(state);
+                  return (
+                    <Swipeable
+                      key={goal.id}
+                      ref={(ref) => {
+                        if (ref) swipeableRefs.current.set(goal.id, ref);
+                      }}
+                      renderLeftActions={
+                        done ? undefined : () => renderLeftActions(goal.id)
+                      }
+                      renderRightActions={
+                        done ? undefined : () => renderRightActions(goal.id)
+                      }
+                      enabled={!done}
+                      overshootLeft={false}
+                      overshootRight={false}
+                    >
+                      <Animated.View
+                        style={
+                          showTutorial && goal.id === goals[0]?.id
+                            ? { transform: [{ translateX: tutorialAnim }] }
+                            : {}
+                        }
+                      >
+                        <TouchableOpacity
                           style={[
-                            styles.goalName,
-                            { color: colors.onSurface },
-                            done && { color: colors.onSurfaceVariant },
+                            styles.goalCard,
+                            {
+                              backgroundColor: colors.surfaceContainerLowest,
+                            },
                           ]}
+                          onPress={() => router.push(`/goal/${goal.id}`)}
+                          activeOpacity={0.7}
                         >
-                          {goal.name}
-                        </Text>
-                        {done && (
                           <View
                             style={[
-                              styles.doneBadge,
-                              { backgroundColor: colors.tertiaryContainer },
+                              styles.leftBar,
+                              {
+                                backgroundColor: done
+                                  ? colors.tertiaryContainer
+                                  : colors.secondaryContainer,
+                              },
                             ]}
-                          >
-                            <Text
-                              style={[
-                                styles.doneBadgeText,
-                                { color: colors.onPrimary },
-                              ]}
-                            >
-                              DONE
-                            </Text>
+                          />
+                          <View style={styles.goalContent}>
+                            <View style={styles.goalTop}>
+                              <Text
+                                style={[
+                                  styles.goalName,
+                                  { color: colors.onSurface },
+                                  done && {
+                                    color: colors.onSurfaceVariant,
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {goal.name}
+                              </Text>
+                              {done && (
+                                <View
+                                  style={[
+                                    styles.doneBadge,
+                                    {
+                                      backgroundColor:
+                                        colors.tertiaryContainer,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.doneBadgeText,
+                                      { color: colors.onPrimary },
+                                    ]}
+                                  >
+                                    DONE
+                                  </Text>
+                                </View>
+                              )}
+                              {!done && formatReminderTime(goal) !== "" && (
+                                <Text
+                                  style={[
+                                    styles.timePillText,
+                                    { color: colors.onSurfaceVariant },
+                                  ]}
+                                >
+                                  {formatReminderTime(goal)}
+                                </Text>
+                              )}
+                            </View>
+                            {done ? (
+                              <Text
+                                style={[
+                                  styles.goalSub,
+                                  { color: colors.tertiary },
+                                ]}
+                              >
+                                {state?.status === "stepped_down"
+                                  ? MICROCOPY.STEP_DOWN
+                                  : MICROCOPY.DO_IT}
+                              </Text>
+                            ) : (
+                              <Text
+                                style={[
+                                  styles.goalDesc,
+                                  { color: colors.onSurfaceVariant },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {goal.tiers.primary}
+                              </Text>
+                            )}
                           </View>
-                        )}
-                      </View>
-                      {done ? (
-                        <Text
-                          style={[styles.goalSub, { color: colors.tertiary }]}
-                        >
-                          {state?.status === "stepped_down"
-                            ? MICROCOPY.STEP_DOWN
-                            : MICROCOPY.DO_IT}
-                        </Text>
-                      ) : (
-                        <>
-                          <Text
-                            style={[
-                              styles.goalDesc,
-                              { color: colors.onSurfaceVariant },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {goal.tiers.primary}
-                          </Text>
-                          <View
-                            style={[
-                              styles.timePill,
-                              { backgroundColor: colors.surfaceContainer },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.timePillText,
-                                { color: colors.onSurfaceVariant },
-                              ]}
-                            >
-                              {formatReminderTime(goal)}
-                            </Text>
-                          </View>
-                        </>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </Animated.View>
-              </Swipeable>
-            );
-          })
-        )}
+                        </TouchableOpacity>
+                      </Animated.View>
+                    </Swipeable>
+                  );
+                })}
+              </View>
+            ))}
 
-        {/* Pull to reflect dashed area */}
+            {renderHeatmap()}
+          </>
+        )}
+      </ScrollView>
+
+      {/* Tooltip bubble */}
+      {tooltip && (
         <View
-          style={[styles.reflectArea, { borderColor: colors.outlineVariant }]}
+          style={[
+            styles.tooltipBubble,
+            {
+              left: Math.max(8, Math.min(tooltip.x - 80, 220)),
+              top: tooltip.y,
+              backgroundColor: colors.inverseSurface,
+            },
+          ]}
         >
-          <Text style={[styles.reflectText, { color: colors.outlineVariant }]}>
-            Pull to reflect
+          <Text
+            style={[styles.tooltipText, { color: colors.inverseOnSurface }]}
+          >
+            {tooltip.text}
           </Text>
         </View>
-      </ScrollView>
+      )}
 
       {/* Swipe tutorial tooltip */}
       {showTutorial && (
@@ -353,20 +710,19 @@ export default function Home() {
         </View>
       )}
 
-      {/* FAB */}
+      {/* FAB — clean, minimal circle */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.surfaceContainerLowest,
+            borderColor: isDark ? colors.surfaceContainerHighest : colors.outlineVariant,
+          },
+        ]}
         onPress={() => setShowFabMenu(true)}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
       >
-        <LinearGradient
-          colors={[colors.primary, colors.primaryContainer]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fabGradient}
-        >
-          <Text style={[styles.fabText, { color: colors.onPrimary }]}>+</Text>
-        </LinearGradient>
+        <Text style={[styles.fabText, { color: colors.onSurface }]}>+</Text>
       </TouchableOpacity>
 
       {/* FAB Menu Modal */}
@@ -394,7 +750,9 @@ export default function Home() {
                 router.push("/create");
               }}
             >
-              <Text style={[styles.fabMenuText, { color: colors.onSurface }]}>
+              <Text
+                style={[styles.fabMenuText, { color: colors.onSurface }]}
+              >
                 Create
               </Text>
             </TouchableOpacity>
@@ -411,7 +769,9 @@ export default function Home() {
                 router.push("/templates");
               }}
             >
-              <Text style={[styles.fabMenuText, { color: colors.onSurface }]}>
+              <Text
+                style={[styles.fabMenuText, { color: colors.onSurface }]}
+              >
                 Template
               </Text>
             </TouchableOpacity>
@@ -426,52 +786,40 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   headerBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    paddingTop: 56,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingTop: 52,
     paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  journalLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  hubTitle: {
-    fontSize: 32,
-    fontFamily: fonts.headlineExtraBold,
-    letterSpacing: -0.5,
+    paddingBottom: 8,
   },
   profileBtn: { padding: 8 },
   profileIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   profileHead: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
     position: "absolute",
-    top: 4,
+    top: 3,
   },
   profileBody: {
-    width: 22,
-    height: 13,
-    borderRadius: 11,
+    width: 18,
+    height: 11,
+    borderRadius: 9,
     position: "absolute",
     bottom: -3,
   },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingTop: 4,
     paddingBottom: 100,
   },
   emptyState: { alignItems: "center", marginTop: 120 },
@@ -484,113 +832,173 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.bodyRegular,
   },
+  freqSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 12,
+    opacity: 0.5,
+  },
+  freqGroupLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
   goalCard: {
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    marginBottom: 8,
     flexDirection: "row",
     overflow: "hidden",
     elevation: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
   },
-  leftBar: {
-    width: 5,
-  },
+  leftBar: { width: 4 },
   goalContent: {
     flex: 1,
-    padding: 18,
-    paddingLeft: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   goalTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 4,
   },
   goalName: {
-    fontSize: 18,
+    fontSize: 15,
     fontFamily: fonts.headlineBold,
     flex: 1,
   },
   doneBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginLeft: 6,
   },
   doneBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: fonts.bodySemiBold,
     letterSpacing: 1,
   },
   goalDesc: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.bodyRegular,
-    marginBottom: 8,
+    marginTop: 2,
   },
   goalSub: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.bodyItalic,
     marginTop: 2,
   },
-  timePill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
   timePillText: {
-    fontSize: 12,
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
+    marginLeft: 6,
+  },
+  // Heatmap
+  heatmapWrap: {
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heatmapTitle: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    marginBottom: 10,
+  },
+  heatmapMonthRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  monthLabel: {
+    fontSize: 9,
     fontFamily: fonts.bodyMedium,
   },
-  reflectArea: {
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderRadius: 16,
-    paddingVertical: 24,
+  dayLabel: {
+    fontSize: 9,
+    fontFamily: fonts.bodyMedium,
+  },
+  heatmapGrid: {
+    flexDirection: "row",
+    gap: 3,
+  },
+  heatmapCol: {
+    gap: 3,
+  },
+  heatmapCell: {
+    width: 11,
+    height: 11,
+    borderRadius: 2,
+  },
+  legendRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
     marginTop: 8,
+    gap: 4,
   },
-  reflectText: {
-    fontSize: 14,
+  legendText: {
+    fontSize: 10,
     fontFamily: fonts.bodyMedium,
+  },
+  legendCell: {
+    width: 11,
+    height: 11,
+    borderRadius: 2,
+  },
+  // Tooltip
+  tooltipBubble: {
+    position: "absolute",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: 200,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    zIndex: 999,
+  },
+  tooltipText: {
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
+    textAlign: "center",
   },
   // Swipe actions
-  rightActions: { flexDirection: "row", marginBottom: 12 },
+  rightActions: { flexDirection: "row", marginBottom: 8 },
   doItAction: {
     justifyContent: "center",
     alignItems: "center",
-    width: 80,
-    paddingHorizontal: 8,
+    width: 70,
+    paddingHorizontal: 6,
   },
   stepDownAction: {
     justifyContent: "center",
     alignItems: "center",
-    width: 80,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 8,
+    width: 70,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+    paddingHorizontal: 6,
   },
   snoozeAction: {
     justifyContent: "center",
     alignItems: "center",
-    width: 80,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    marginBottom: 12,
-    paddingHorizontal: 8,
+    width: 70,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+    marginBottom: 8,
+    paddingHorizontal: 6,
   },
   actionLabel: {
     fontSize: 11,
     fontFamily: fonts.bodySemiBold,
     marginTop: 2,
   },
-  // Tutorial
   tutorialTooltip: {
     position: "absolute",
-    top: 180,
+    top: 140,
     alignSelf: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -600,29 +1008,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.bodySemiBold,
   },
-  // FAB
+  // FAB — clean minimal
   fab: {
     position: "absolute",
     bottom: 32,
     right: 24,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    borderRadius: 28,
-  },
-  fabGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
   fabText: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: fonts.bodyRegular,
-    marginTop: -2,
+    lineHeight: 28,
   },
   fabOverlay: {
     flex: 1,
@@ -646,9 +1052,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: "center",
   },
-  fabMenuDivider: {
-    height: 1,
-  },
+  fabMenuDivider: { height: 1 },
   fabMenuText: {
     fontSize: 16,
     fontFamily: fonts.bodySemiBold,

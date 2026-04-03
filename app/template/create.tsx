@@ -102,6 +102,7 @@ export default function EditGoal() {
         remindersPerDay: 1,
         activeDays: [],
         frequency: "daily",
+        notificationsEnabled: true,
       },
       createdAt: Date.now(),
     };

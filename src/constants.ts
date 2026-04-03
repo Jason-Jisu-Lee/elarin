@@ -50,6 +50,7 @@ export const PRE_BUILT_GOALS: Omit<Goal, "id" | "createdAt">[] = [
       remindersPerDay: 1,
       activeDays: [],
       frequency: "daily",
+      notificationsEnabled: true,
     },
   },
   {
@@ -66,6 +67,7 @@ export const PRE_BUILT_GOALS: Omit<Goal, "id" | "createdAt">[] = [
       remindersPerDay: 1,
       activeDays: [],
       frequency: "daily",
+      notificationsEnabled: true,
     },
   },
   {
@@ -82,6 +84,24 @@ export const PRE_BUILT_GOALS: Omit<Goal, "id" | "createdAt">[] = [
       remindersPerDay: 1,
       activeDays: [],
       frequency: "daily",
+      notificationsEnabled: true,
+    },
+  },
+  {
+    name: "Push Ups",
+    emoji: "",
+    tiers: {
+      primary: "20 push ups",
+      easier: "10 push ups",
+      easiest: "5 push ups",
+    },
+    reminder: {
+      type: "exact",
+      startTime: "08:00",
+      remindersPerDay: 1,
+      activeDays: [],
+      frequency: "daily",
+      notificationsEnabled: true,
     },
   },
 ];

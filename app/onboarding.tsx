@@ -12,9 +12,9 @@ import {
   UIManager,
   Dimensions,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Audio } from "expo-av";
-import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 import { setOnboarded, saveProfile } from "../src/storage";
 import { useTheme, fonts } from "../src/theme";
 
@@ -31,8 +31,7 @@ if (
 
 const PHASES = [
   "name",
-  "sage1",
-  "sage2",
+  "sage",
   "transition",
   "ladder_intro",
   "ladder_build",
@@ -52,6 +51,37 @@ const LADDER = [
 const EASE_OUT = Easing.out(Easing.cubic);
 const EASE_IN = Easing.in(Easing.cubic);
 const EASE_IO = Easing.inOut(Easing.cubic);
+
+// Loopy scribble arrow — swoops left then loops back right before pointing down
+// mirrors horizontally when flip=true
+function ScribbleArrow({
+  color,
+  flip,
+  opacity,
+}: {
+  color: string;
+  flip?: boolean;
+  opacity: Animated.AnimatedInterpolation<number> | Animated.Value;
+}) {
+  // Arrow path: starts top, curves left with a loop, ends pointing down at bottom-center
+  const path = flip
+    ? "M62 4 C72 8, 78 18, 70 28 C62 38, 52 32, 56 24 C60 16, 72 20, 74 30 L68 52 L74 48 M68 52 L64 46"
+    : "M38 4 C28 8, 22 18, 30 28 C38 38, 48 32, 44 24 C40 16, 28 20, 26 30 L32 52 L26 48 M32 52 L36 46";
+  return (
+    <Animated.View style={{ opacity, alignItems: "center" }}>
+      <Svg width={100} height={56} viewBox="0 0 100 56">
+        <Path
+          d={path}
+          stroke={color}
+          strokeWidth={2.2}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
 
 function useTypewriter(text: string, active: boolean, speed = 28) {
   const [out, setOut] = useState("");
@@ -74,23 +104,28 @@ function useTypewriter(text: string, active: boolean, speed = 28) {
 
 export default function Onboarding() {
   const router = useRouter();
+  const { replay } = useLocalSearchParams<{ replay?: string }>();
+  const isReplay = replay === "1";
   const { colors } = useTheme();
-  const [phase, setPhase] = useState<Phase>("name");
+  const [phase, setPhase] = useState<Phase>(isReplay ? "sage" : "name");
   const [name, setName] = useState("");
   const [visibleLines, setVisibleLines] = useState<number[]>([]);
   const [showFirst, setShowFirst] = useState(true);
   const [scribStep, setScribStep] = useState(0);
   const [stripped, setStripped] = useState<Set<number>>(new Set());
+  const [sageNextVisible, setSageNextVisible] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
 
   // Animated values
   const phOp = useRef(new Animated.Value(0)).current;
   const phTY = useRef(new Animated.Value(16)).current;
   const phSc = useRef(new Animated.Value(0.98)).current;
-  const progVal = useRef(new Animated.Value(0)).current;
   const bgVal = useRef(new Animated.Value(0)).current;
   const fieldOp = useRef(new Animated.Value(0)).current;
   const btnOp = useRef(new Animated.Value(0)).current;
+  const sage1Op = useRef(new Animated.Value(0)).current;
+  const sage2Op = useRef(new Animated.Value(0)).current;
+  const sageNextOp = useRef(new Animated.Value(0)).current;
   const introOp = useRef(new Animated.Value(0)).current;
   const introTY = useRef(new Animated.Value(12)).current;
   const goalOp = useRef(new Animated.Value(0)).current;
@@ -105,8 +140,8 @@ export default function Onboarding() {
   const allOp = useRef(new Animated.Value(1)).current;
 
   const pi = PHASES.indexOf(phase);
-  const isLadder = pi >= 4;
-  const isAutoLadder = pi >= 5;
+  const isLadder = pi >= 3;
+  const isAutoLadder = pi >= 4;
 
   const s1 = useTypewriter("You will try this first", scribStep >= 1, 22);
   const s2 = useTypewriter("If that's too much, try this", scribStep >= 2, 22);
@@ -161,16 +196,6 @@ export default function Onboarding() {
     [phOp, phSc],
   );
 
-  // Progress bar
-  useEffect(() => {
-    Animated.spring(progVal, {
-      toValue: (pi + 1) / PHASES.length,
-      tension: 40,
-      friction: 10,
-      useNativeDriver: false,
-    }).start();
-  }, [phase]);
-
   // NAME
   useEffect(() => {
     if (phase !== "name") return;
@@ -194,21 +219,67 @@ export default function Onboarding() {
     }).start();
   }, [name]);
 
-  // SAGE 1
+  // SAGE (combined) — both sentences on one screen
   useEffect(() => {
-    if (phase !== "sage1") return;
-    tIn();
-    const t = setTimeout(() => tOut(() => setPhase("sage2")), 3000);
-    return () => clearTimeout(t);
+    if (phase !== "sage") return;
+    sage1Op.setValue(0);
+    sage2Op.setValue(0);
+    sageNextOp.setValue(0);
+    setSageNextVisible(false);
+
+    // Fade in first sentence
+    Animated.timing(sage1Op, {
+      toValue: 1,
+      duration: 800,
+      easing: EASE_OUT,
+      useNativeDriver: true,
+    }).start();
+
+    // After delay, fade in second sentence
+    const t1 = setTimeout(() => {
+      Animated.timing(sage2Op, {
+        toValue: 1,
+        duration: 800,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start(() => {
+        // Show "Next" button after second sentence appears
+        setSageNextVisible(true);
+        Animated.timing(sageNextOp, {
+          toValue: 1,
+          duration: 400,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 2000);
+
+    return () => clearTimeout(t1);
   }, [phase]);
 
-  // SAGE 2
-  useEffect(() => {
-    if (phase !== "sage2") return;
-    tIn();
-    const t = setTimeout(() => tOut(() => setPhase("transition")), 4000);
-    return () => clearTimeout(t);
-  }, [phase]);
+  const handleSageNext = () => {
+    // Fade both sentences out together, then transition
+    Animated.parallel([
+      Animated.timing(sage1Op, {
+        toValue: 0,
+        duration: 450,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sage2Op, {
+        toValue: 0,
+        duration: 450,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sageNextOp, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setPhase("transition"));
+  };
 
   // TRANSITION
   useEffect(() => {
@@ -444,10 +515,14 @@ export default function Onboarding() {
   }, [phase]);
 
   const handleNameSubmit = () => {
-    if (name.trim()) tOut(() => setPhase("sage1"));
+    if (name.trim()) tOut(() => setPhase("sage"));
   };
 
   const handleFinish = async () => {
+    if (isReplay) {
+      router.back();
+      return;
+    }
     if (name.trim()) await saveProfile({ name: name.trim() });
     await setOnboarded(true);
     router.replace("/theme-select");
@@ -465,31 +540,8 @@ export default function Onboarding() {
         { backgroundColor: isLadder ? colors.surfaceContainerLow : bgColor },
       ]}
     >
-      {/* Progress bar */}
-      <Animated.View style={[styles.progWrap, { opacity: allOp }]}>
-        <View
-          style={[
-            styles.progTrack,
-            { backgroundColor: colors.surfaceContainer },
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.progFill,
-              {
-                backgroundColor: colors.primaryContainer,
-                width: progVal.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                }),
-              },
-            ]}
-          />
-        </View>
-      </Animated.View>
-
       {/* Non-ladder phases */}
-      {!isLadder && (
+      {!isLadder && phase !== "sage" && (
         <Animated.View
           style={[
             styles.body,
@@ -501,11 +553,8 @@ export default function Onboarding() {
         >
           {phase === "name" && (
             <View style={styles.center}>
-              <Text style={[styles.stepLabel, { color: colors.secondary }]}>
-                STEP 01 / 04
-              </Text>
               <Text style={[styles.question, { color: colors.onSurface }]}>
-                What is your{"\n"}name?
+                What is your name?
               </Text>
               <Animated.View
                 style={{
@@ -524,63 +573,70 @@ export default function Onboarding() {
                   ]}
                   value={name}
                   onChangeText={setName}
-                  placeholder="Type your name here..."
                   placeholderTextColor={colors.outlineVariant}
                   autoFocus
                   onSubmitEditing={handleNameSubmit}
                   returnKeyType="next"
                   maxLength={30}
                 />
-                <Text style={[styles.inputHint, { color: colors.secondary }]}>
-                  This is how we'll address you in your journal
-                </Text>
               </Animated.View>
-              <Animated.View style={[styles.btnWrap, { opacity: btnOp }]}>
+              <Animated.View style={[styles.plainBtnWrap, { opacity: btnOp }]}>
                 <TouchableOpacity
                   onPress={handleNameSubmit}
-                  activeOpacity={0.8}
+                  activeOpacity={0.5}
                 >
-                  <LinearGradient
-                    colors={[colors.primary, colors.primaryContainer]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.gradientBtn}
+                  <Text
+                    style={[styles.plainBtn, { color: colors.onSurface }]}
                   >
-                    <Text
-                      style={[styles.btnLabel, { color: colors.onPrimary }]}
-                    >
-                      Continue
-                    </Text>
-                    <Text
-                      style={[styles.btnArrow, { color: colors.onPrimary }]}
-                    >
-                      →
-                    </Text>
-                  </LinearGradient>
+                    Continue
+                  </Text>
                 </TouchableOpacity>
               </Animated.View>
             </View>
           )}
 
-          {phase === "sage1" && (
-            <View style={styles.center}>
-              <Text style={[styles.sage, { color: colors.onSurface }]}>
-                You already know where you want to be.
-              </Text>
-            </View>
-          )}
-
-          {phase === "sage2" && (
-            <View style={styles.center}>
-              <Text style={[styles.sage, { color: colors.onSurface }]}>
-                The path there is not a leap, or even a step{"\n"}— it's a
-                nudge.
-              </Text>
-            </View>
-          )}
-
           {phase === "transition" && <View />}
         </Animated.View>
+      )}
+
+      {/* Sage (combined) — both sentences on one screen */}
+      {phase === "sage" && (
+        <View style={styles.body}>
+          <View style={styles.center}>
+            <Animated.Text
+              style={[
+                styles.sage,
+                { color: colors.onSurface, opacity: sage1Op },
+              ]}
+            >
+              You already know where you want to be.
+            </Animated.Text>
+            <Animated.Text
+              style={[
+                styles.sage,
+                { color: colors.onSurface, opacity: sage2Op, marginTop: 24 },
+              ]}
+            >
+              The path there is not a leap, or even a step{"\n"}— it's a nudge.
+            </Animated.Text>
+            {sageNextVisible && (
+              <Animated.View
+                style={[styles.plainBtnWrap, { opacity: sageNextOp }]}
+              >
+                <TouchableOpacity
+                  onPress={handleSageNext}
+                  activeOpacity={0.5}
+                >
+                  <Text
+                    style={[styles.plainBtn, { color: colors.onSurface }]}
+                  >
+                    Next
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
+        </View>
       )}
 
       {/* Ladder phases */}
@@ -635,23 +691,28 @@ export default function Onboarding() {
                       },
                     ]}
                   >
-                    {/* Scribble annotation */}
                     {phase === "ladder_scribble" && li > 0 && (
-                      <Animated.Text
-                        style={[
-                          styles.scrib,
-                          {
-                            color: colors.scribbleYellow,
-                            opacity: Animated.multiply(scOp[li - 1], scGrpOp),
-                          },
-                        ]}
-                      >
-                        {li === 1 && s1}
-                        {li === 2 && s2}
-                        {li === 3 && s3}
-                      </Animated.Text>
+                      <View style={styles.scribbleGroup}>
+                        <Animated.Text
+                          style={[
+                            styles.scrib,
+                            {
+                              color: colors.scribbleYellow,
+                              opacity: Animated.multiply(scOp[li - 1], scGrpOp),
+                            },
+                          ]}
+                        >
+                          {li === 1 && s1}
+                          {li === 2 && s2}
+                          {li === 3 && s3}
+                        </Animated.Text>
+                        <ScribbleArrow
+                          color={colors.scribbleYellow}
+                          flip={li === 2}
+                          opacity={Animated.multiply(scOp[li - 1], scGrpOp)}
+                        />
+                      </View>
                     )}
-                    {/* Card or plain text for first line */}
                     {isF ? (
                       <View>
                         {hasAffix && !stripped.has(li) ? (
@@ -776,22 +837,14 @@ export default function Onboarding() {
                 );
               })}
 
-            {/* Build My Habit button — visible at scribble phase */}
             {phase === "ladder_scribble" && (
               <View style={styles.buildBtnWrap}>
-                <TouchableOpacity activeOpacity={0.8} onPress={handleFinish}>
-                  <LinearGradient
-                    colors={[colors.primary, colors.primaryContainer]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.gradientBtn}
+                <TouchableOpacity activeOpacity={0.5} onPress={handleFinish}>
+                  <Text
+                    style={[styles.plainBtn, { color: colors.onSurface }]}
                   >
-                    <Text
-                      style={[styles.btnLabel, { color: colors.onPrimary }]}
-                    >
-                      Build My Habit
-                    </Text>
-                  </LinearGradient>
+                    Build My Habit
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -804,25 +857,15 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  progWrap: { paddingTop: 56, paddingHorizontal: 32 },
-  progTrack: { height: 3, borderRadius: 2, overflow: "hidden" },
-  progFill: { height: "100%", borderRadius: 2 },
   body: { flex: 1, justifyContent: "center", paddingHorizontal: 32 },
   center: { alignItems: "center" },
-  stepLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginBottom: 24,
-  },
   question: {
-    fontSize: 36,
+    fontSize: 28,
     fontFamily: fonts.headlineExtraBold,
     textAlign: "center",
     marginBottom: 40,
     letterSpacing: -0.5,
-    lineHeight: 44,
+    lineHeight: 38,
   },
   input: {
     fontSize: 24,
@@ -834,31 +877,17 @@ const styles = StyleSheet.create({
     width: SCREEN_W * 0.75,
     marginBottom: 12,
   },
-  inputHint: {
-    fontSize: 13,
-    fontFamily: fonts.bodyMedium,
-    fontStyle: "italic",
-    opacity: 0.6,
-    alignSelf: "flex-start",
-    marginLeft: (SCREEN_W - SCREEN_W * 0.75) / 2 - 32,
+  plainBtnWrap: { marginTop: 40 },
+  plainBtn: {
+    fontSize: 20,
+    fontFamily: fonts.headlineExtraBold,
+    textAlign: "center",
   },
-  btnWrap: { marginTop: 48, width: "100%" },
-  gradientBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 32,
-    gap: 8,
-  },
-  btnLabel: { fontSize: 18, fontFamily: fonts.headlineBold },
-  btnArrow: { fontSize: 20 },
   sage: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: fonts.bodyMedium,
     textAlign: "center",
-    lineHeight: 36,
+    lineHeight: 34,
     letterSpacing: -0.2,
     paddingHorizontal: 8,
   },
@@ -910,7 +939,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: fonts.handwritten,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 0,
   },
-  buildBtnWrap: { marginTop: 40, width: "100%" },
+  scribbleGroup: {
+    alignItems: "center",
+    marginBottom: -4,
+  },
+  buildBtnWrap: { marginTop: 40, alignItems: "center" },
 });

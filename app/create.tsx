@@ -13,7 +13,6 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { PRE_BUILT_GOALS } from "../src/constants";
 import { Goal } from "../src/types";
 import { addGoal } from "../src/storage";
@@ -23,7 +22,16 @@ import {
 } from "../src/notifications";
 import { useTheme, fonts } from "../src/theme";
 
-type Step = "goal" | "easier" | "easiest" | "time" | "permission" | "done";
+type Step = "goal" | "easier" | "time" | "done";
+
+const FREQUENCY_OPTIONS = [
+  { value: "daily" as const, label: "Daily" },
+  { value: "every_other_day" as const, label: "Every 2 days" },
+  { value: "every_3_days" as const, label: "Every 3 days" },
+  { value: "weekly" as const, label: "Weekly" },
+  { value: "every_2_weeks" as const, label: "Biweekly" },
+  { value: "monthly" as const, label: "Monthly" },
+] as const;
 
 export default function CreateGoal() {
   const router = useRouter();
@@ -37,11 +45,23 @@ export default function CreateGoal() {
   const [primary, setPrimary] = useState(prebuiltGoal?.tiers.primary ?? "");
   const [easier, setEasier] = useState(prebuiltGoal?.tiers.easier ?? "");
   const [easiest, setEasiest] = useState(prebuiltGoal?.tiers.easiest ?? "");
+  const [showEasiest, setShowEasiest] = useState(
+    prebuiltGoal ? !!prebuiltGoal.tiers.easiest : false,
+  );
   const [startTime, setStartTime] = useState(
     prebuiltGoal?.reminder.startTime ?? "17:00",
   );
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [frequency, setFrequency] = useState<
+    | "daily"
+    | "every_other_day"
+    | "every_3_days"
+    | "weekly"
+    | "every_2_weeks"
+    | "monthly"
+  >(prebuiltGoal?.reminder.frequency ?? "daily");
 
-  const [step, setStep] = useState<Step>(prebuiltGoal ? "time" : "goal");
+  const [step, setStep] = useState<Step>("goal");
   const [fadeAnim] = useState(new Animated.Value(1));
   const [pickerVisible, setPickerVisible] = useState(false);
 
@@ -90,49 +110,49 @@ export default function CreateGoal() {
       tiers: {
         primary: primary.trim(),
         easier: easier.trim(),
-        easiest: easiest.trim(),
+        easiest: easiest.trim() || easier.trim(),
       },
       reminder: {
         type: "exact",
         startTime,
         remindersPerDay: 1,
         activeDays: [],
-        frequency: "daily",
+        frequency,
+        notificationsEnabled,
       },
       createdAt: Date.now(),
     };
     await addGoal(goal);
-    await scheduleGoalNotifications(goal);
+    if (notificationsEnabled) {
+      await setupNotifications();
+      await scheduleGoalNotifications(goal);
+    }
     router.replace("/home");
   };
 
-  const handlePermission = async () => {
-    await setupNotifications();
-    transition("done");
-  };
-
-  const GradientButton = ({
+  const PlainButton = ({
     label,
     onPress,
+    disabled,
   }: {
     label: string;
     onPress: () => void;
+    disabled?: boolean;
   }) => (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.8}
-      style={styles.btnWrap}
+      activeOpacity={0.5}
+      style={styles.plainBtnWrap}
+      disabled={disabled}
     >
-      <LinearGradient
-        colors={[colors.primary, colors.primaryContainer]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradientBtn}
+      <Text
+        style={[
+          styles.plainBtnText,
+          { color: disabled ? colors.outlineVariant : colors.onSurface },
+        ]}
       >
-        <Text style={[styles.btnText, { color: colors.onPrimary }]}>
-          {label}
-        </Text>
-      </LinearGradient>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -145,7 +165,7 @@ export default function CreateGoal() {
         {step === "goal" && (
           <View style={styles.stepContainer}>
             <Text style={[styles.question, { color: colors.onSurface }]}>
-              What do you want to do?
+              Your goal
             </Text>
             <TextInput
               style={[
@@ -157,7 +177,7 @@ export default function CreateGoal() {
               ]}
               value={name}
               onChangeText={setName}
-              placeholder="Give it a name"
+              placeholder="Name"
               placeholderTextColor={colors.outlineVariant}
               autoFocus
               maxLength={50}
@@ -173,26 +193,26 @@ export default function CreateGoal() {
               ]}
               value={primary}
               onChangeText={setPrimary}
-              placeholder="Your ideal goal"
+              placeholder="What you want to do"
               placeholderTextColor={colors.outlineVariant}
               maxLength={100}
             />
-            {name.trim() && primary.trim() && (
-              <GradientButton
+            {name.trim() && primary.trim() ? (
+              <PlainButton
                 label="Next"
                 onPress={() => transition("easier")}
               />
-            )}
+            ) : null}
           </View>
         )}
 
         {step === "easier" && (
           <View style={styles.stepContainer}>
             <Text style={[styles.question, { color: colors.onSurface }]}>
-              What's an easier version?
+              Easier version
             </Text>
-            <Text style={[styles.context, { color: colors.primary }]}>
-              Your goal: {primary}
+            <Text style={[styles.hint, { color: colors.onSurfaceVariant }]}>
+              If your goal feels too hard, what's a lighter version?
             </Text>
             <TextInput
               style={[
@@ -204,79 +224,130 @@ export default function CreateGoal() {
               ]}
               value={easier}
               onChangeText={setEasier}
-              placeholder="e.g., 1 min walk outside"
+              placeholder="e.g., 5 minutes instead of 30"
               placeholderTextColor={colors.outlineVariant}
               autoFocus
               maxLength={100}
             />
-            {easier.trim() && (
-              <GradientButton
-                label="Next"
-                onPress={() => transition("easiest")}
+            {easier.trim() && !showEasiest ? (
+              <TouchableOpacity
+                onPress={() => setShowEasiest(true)}
+                activeOpacity={0.5}
+                style={styles.addMoreWrap}
+              >
+                <Text
+                  style={[styles.addMoreText, { color: colors.primary }]}
+                >
+                  + Add an even easier version
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {showEasiest && (
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: colors.onSurface,
+                    borderBottomColor: colors.surfaceVariant,
+                    marginTop: 20,
+                  },
+                ]}
+                value={easiest}
+                onChangeText={setEasiest}
+                placeholder="The absolute easiest version"
+                placeholderTextColor={colors.outlineVariant}
+                autoFocus
+                maxLength={100}
               />
             )}
-          </View>
-        )}
-
-        {step === "easiest" && (
-          <View style={styles.stepContainer}>
-            <Text style={[styles.question, { color: colors.onSurface }]}>
-              What's the easiest version?
-            </Text>
-            <Text
-              style={[styles.subQuestion, { color: colors.onSurfaceVariant }]}
-            >
-              Something you'd do even on your worst day.
-            </Text>
-            <Text style={[styles.context, { color: colors.primary }]}>
-              Easier: {easier}
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.onSurface,
-                  borderBottomColor: colors.surfaceVariant,
-                },
-              ]}
-              value={easiest}
-              onChangeText={setEasiest}
-              placeholder="e.g., 1 min walk in your room"
-              placeholderTextColor={colors.outlineVariant}
-              autoFocus
-              maxLength={100}
-            />
-            {easiest.trim() && (
-              <GradientButton label="Next" onPress={() => transition("time")} />
-            )}
+            {easier.trim() ? (
+              <PlainButton
+                label="Next"
+                onPress={() => transition("time")}
+              />
+            ) : null}
           </View>
         )}
 
         {step === "time" && (
           <View style={styles.stepContainer}>
             <Text style={[styles.question, { color: colors.onSurface }]}>
-              When should we remind you?
+              Notification
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.timeBtn,
-                { backgroundColor: colors.surfaceContainerHigh },
-              ]}
-              onPress={() => setPickerVisible(true)}
-            >
-              <Text
+
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
                 style={[
-                  styles.timeBtnLabel,
-                  { color: colors.onSurfaceVariant },
+                  styles.toggleChip,
+                  {
+                    backgroundColor: notificationsEnabled
+                      ? colors.primary
+                      : colors.surfaceContainerHigh,
+                  },
                 ]}
+                onPress={() => setNotificationsEnabled(true)}
               >
-                At
-              </Text>
-              <Text style={[styles.timeBtnValue, { color: colors.primary }]}>
-                {formatTime(startTime)}
-              </Text>
-            </TouchableOpacity>
-            {pickerVisible && (
+                <Text
+                  style={[
+                    styles.toggleChipText,
+                    {
+                      color: notificationsEnabled
+                        ? colors.onPrimary
+                        : colors.onSurfaceVariant,
+                    },
+                  ]}
+                >
+                  Set Time
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleChip,
+                  {
+                    backgroundColor: !notificationsEnabled
+                      ? colors.primary
+                      : colors.surfaceContainerHigh,
+                  },
+                ]}
+                onPress={() => setNotificationsEnabled(false)}
+              >
+                <Text
+                  style={[
+                    styles.toggleChipText,
+                    {
+                      color: !notificationsEnabled
+                        ? colors.onPrimary
+                        : colors.onSurfaceVariant,
+                    },
+                  ]}
+                >
+                  None
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {notificationsEnabled && (
+              <TouchableOpacity
+                style={[
+                  styles.timeBtn,
+                  { backgroundColor: colors.surfaceContainerHigh },
+                ]}
+                onPress={() => setPickerVisible(true)}
+              >
+                <Text
+                  style={[
+                    styles.timeBtnLabel,
+                    { color: colors.onSurfaceVariant },
+                  ]}
+                >
+                  At
+                </Text>
+                <Text style={[styles.timeBtnValue, { color: colors.primary }]}>
+                  {formatTime(startTime)}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {notificationsEnabled && pickerVisible && (
               <DateTimePicker
                 mode="time"
                 value={timeToDate(startTime)}
@@ -285,31 +356,45 @@ export default function CreateGoal() {
                 display={Platform.OS === "ios" ? "spinner" : "default"}
               />
             )}
-            <GradientButton
-              label="Next"
-              onPress={() => transition("permission")}
-            />
-          </View>
-        )}
 
-        {step === "permission" && (
-          <View style={styles.stepContainer}>
-            <Text style={[styles.question, { color: colors.onSurface }]}>
-              One more thing
-            </Text>
             <Text
-              style={[
-                styles.permissionText,
-                { color: colors.onSurfaceVariant },
-              ]}
+              style={[styles.freqLabel, { color: colors.onSurfaceVariant }]}
             >
-              We'll send you a reminder at your chosen time. Once you've done
-              it, we stop for the day.
+              How often?
             </Text>
-            <GradientButton
-              label="Allow Notifications"
-              onPress={handlePermission}
-            />
+            <View style={styles.freqRow}>
+              {FREQUENCY_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.freqChip,
+                    {
+                      backgroundColor:
+                        frequency === opt.value
+                          ? colors.primary
+                          : colors.surfaceContainerHigh,
+                    },
+                  ]}
+                  onPress={() => setFrequency(opt.value)}
+                >
+                  <Text
+                    style={[
+                      styles.freqChipText,
+                      {
+                        color:
+                          frequency === opt.value
+                            ? colors.onPrimary
+                            : colors.onSurfaceVariant,
+                      },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <PlainButton label="Confirm" onPress={() => transition("done")} />
           </View>
         )}
 
@@ -335,16 +420,25 @@ export default function CreateGoal() {
               <Text style={[styles.summaryTier, { color: colors.onSurface }]}>
                 {easier}
               </Text>
-              <Text
-                style={[styles.summaryArrow, { color: colors.outlineVariant }]}
-              >
-                ↓
-              </Text>
-              <Text style={[styles.summaryTier, { color: colors.onSurface }]}>
-                {easiest}
-              </Text>
+              {easiest.trim() && easiest.trim() !== easier.trim() ? (
+                <>
+                  <Text
+                    style={[
+                      styles.summaryArrow,
+                      { color: colors.outlineVariant },
+                    ]}
+                  >
+                    ↓
+                  </Text>
+                  <Text
+                    style={[styles.summaryTier, { color: colors.onSurface }]}
+                  >
+                    {easiest}
+                  </Text>
+                </>
+              ) : null}
             </View>
-            <GradientButton label="Let's go" onPress={handleFinish} />
+            <PlainButton label="Let's go" onPress={handleFinish} />
           </View>
         )}
       </Animated.View>
@@ -363,15 +457,11 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     letterSpacing: -0.5,
   },
-  subQuestion: {
-    fontSize: 16,
+  hint: {
+    fontSize: 15,
     fontFamily: fonts.bodyRegular,
-    marginBottom: 12,
-  },
-  context: {
-    fontSize: 14,
-    fontFamily: fonts.bodyItalic,
-    marginBottom: 20,
+    marginBottom: 16,
+    lineHeight: 22,
   },
   input: {
     borderBottomWidth: 2,
@@ -380,13 +470,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: fonts.bodyRegular,
   },
-  btnWrap: { marginTop: 28 },
-  gradientBtn: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
+  plainBtnWrap: {
+    marginTop: 32,
+    alignSelf: "center",
   },
-  btnText: { fontSize: 18, fontFamily: fonts.headlineBold },
+  plainBtnText: {
+    fontSize: 20,
+    fontFamily: fonts.headlineExtraBold,
+  },
+  addMoreWrap: {
+    marginTop: 16,
+  },
+  addMoreText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
+  },
   timeBtn: {
     borderRadius: 14,
     padding: 16,
@@ -397,13 +495,27 @@ const styles = StyleSheet.create({
   },
   timeBtnLabel: { fontSize: 15, fontFamily: fonts.bodyRegular },
   timeBtnValue: { fontSize: 18, fontFamily: fonts.bodySemiBold },
-  permissionText: {
-    fontSize: 17,
-    fontFamily: fonts.bodyRegular,
-    lineHeight: 26,
-    marginTop: 8,
-    marginBottom: 8,
+  toggleRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  toggleChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
   },
+  toggleChipText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
+  freqLabel: {
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  freqRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  freqChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  freqChipText: { fontSize: 13, fontFamily: fonts.bodySemiBold },
   doneTitle: {
     fontSize: 28,
     fontFamily: fonts.headlineExtraBold,

@@ -95,7 +95,6 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    setupNotifications();
     registerNotificationCategories();
     registerBackgroundNotificationHandler();
 

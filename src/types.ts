@@ -25,8 +25,16 @@ export interface ReminderConfig {
   remindersPerDay: number;
   /** Days of week (0=Sun, 6=Sat). Empty = every day. */
   activeDays: number[];
+  /** Whether notifications are enabled for this goal */
+  notificationsEnabled: boolean;
   /** Goal frequency */
-  frequency: "daily" | "weekly" | "every_3_days";
+  frequency:
+    | "daily"
+    | "every_other_day"
+    | "every_3_days"
+    | "weekly"
+    | "every_2_weeks"
+    | "monthly";
 }
 
 export type GoalAction = "do_it" | "step_down" | "snooze";

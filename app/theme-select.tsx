@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -11,27 +12,28 @@ import {
 export default function ThemeSelect() {
   const router = useRouter();
   const { colors, setTheme } = useTheme();
+  const [selected, setSelected] = useState<"light" | "dark">("light");
 
-  const pick = async (choice: "light" | "dark") => {
-    setTheme(choice);
-    await storeTheme(choice);
+  // Preview: apply selected theme colors
+  const previewColors = selected === "dark" ? darkColors : lightColors;
+
+  const confirm = async () => {
+    setTheme(selected);
+    await storeTheme(selected);
     router.replace("/templates");
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface }]}>
-      <Text
-        style={[
-          styles.label,
-          { color: colors.onSurfaceVariant, fontFamily: fonts.bodySemiBold },
-        ]}
-      >
-        STEP 04 / 04
-      </Text>
+    <View
+      style={[styles.container, { backgroundColor: previewColors.surface }]}
+    >
       <Text
         style={[
           styles.title,
-          { color: colors.onSurface, fontFamily: fonts.headlineExtraBold },
+          {
+            color: previewColors.onSurface,
+            fontFamily: fonts.headlineExtraBold,
+          },
         ]}
       >
         Light or Dark?
@@ -43,10 +45,14 @@ export default function ThemeSelect() {
             styles.box,
             {
               backgroundColor: lightColors.surface,
-              borderColor: lightColors.outlineVariant,
+              borderColor:
+                selected === "light"
+                  ? lightColors.primary
+                  : lightColors.outlineVariant,
+              borderWidth: selected === "light" ? 2 : 1,
             },
           ]}
-          onPress={() => pick("light")}
+          onPress={() => setSelected("light")}
           activeOpacity={0.8}
         >
           <View
@@ -81,7 +87,10 @@ export default function ThemeSelect() {
           <Text
             style={[
               styles.boxLabel,
-              { color: colors.onSurface, fontFamily: fonts.bodySemiBold },
+              {
+                color: previewColors.onSurface,
+                fontFamily: fonts.bodySemiBold,
+              },
             ]}
           >
             Light
@@ -94,10 +103,14 @@ export default function ThemeSelect() {
             styles.box,
             {
               backgroundColor: darkColors.surface,
-              borderColor: darkColors.outlineVariant,
+              borderColor:
+                selected === "dark"
+                  ? darkColors.primary
+                  : darkColors.outlineVariant,
+              borderWidth: selected === "dark" ? 2 : 1,
             },
           ]}
-          onPress={() => pick("dark")}
+          onPress={() => setSelected("dark")}
           activeOpacity={0.8}
         >
           <View
@@ -132,13 +145,32 @@ export default function ThemeSelect() {
           <Text
             style={[
               styles.boxLabel,
-              { color: colors.onSurface, fontFamily: fonts.bodySemiBold },
+              {
+                color: previewColors.onSurface,
+                fontFamily: fonts.bodySemiBold,
+              },
             ]}
           >
             Dark
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Confirm button */}
+      <TouchableOpacity
+        onPress={confirm}
+        activeOpacity={0.6}
+        style={styles.confirmWrap}
+      >
+        <Text
+          style={[
+            styles.confirmText,
+            { color: previewColors.onSurface },
+          ]}
+        >
+          Confirm
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -149,12 +181,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
-  },
-  label: {
-    fontSize: 11,
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginBottom: 16,
   },
   title: {
     fontSize: 32,
@@ -194,5 +220,13 @@ const styles = StyleSheet.create({
   boxLabel: {
     fontSize: 15,
     marginTop: 12,
+  },
+  confirmWrap: {
+    marginTop: 40,
+    alignItems: "center",
+  },
+  confirmText: {
+    fontSize: 20,
+    fontFamily: fonts.headlineExtraBold,
   },
 });

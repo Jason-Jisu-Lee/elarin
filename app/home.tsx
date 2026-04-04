@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
-import { MICROCOPY } from "../src/constants";
 import {
   getGoals,
   getDailyStates,
@@ -20,8 +19,9 @@ import {
   setSwipeTutorialShown,
   getCompletionHistory,
   ensureHeatmapStartDate,
+  updateDailyGoalState,
 } from "../src/storage";
-import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
+import { recordDoIt, recordSnooze } from "../src/progression";
 import { Goal, DailyGoalState } from "../src/types";
 import { useTheme, fonts } from "../src/theme";
 
@@ -148,20 +148,17 @@ export default function Home() {
     dailyStates.find((s) => s.goalId === goalId);
 
   const handleDoIt = async (goalId: string) => {
-    swipeableRefs.current.get(goalId)?.close();
     await recordDoIt(goalId, "primary");
     await load();
   };
 
-  const handleStepDown = async (goalId: string) => {
-    swipeableRefs.current.get(goalId)?.close();
-    await recordStepDown(goalId, "easier");
+  const handleSnooze = async (goalId: string) => {
+    await recordSnooze(goalId);
     await load();
   };
 
-  const handleSnooze = async (goalId: string) => {
-    swipeableRefs.current.get(goalId)?.close();
-    await recordSnooze(goalId);
+  const handleUndoSnooze = async (goalId: string) => {
+    await updateDailyGoalState(goalId, "pending");
     await load();
   };
 
@@ -195,65 +192,63 @@ export default function Home() {
     (a, b) => (FREQ_ORDER[a] ?? 99) - (FREQ_ORDER[b] ?? 99),
   );
 
-  const renderLeftActions = (goalId: string) => (
-    <TouchableOpacity
-      style={[styles.snoozeAction, { backgroundColor: colors.outline }]}
-      onPress={() => handleSnooze(goalId)}
+  const renderSnoozeAction = () => (
+    <View
+      style={[
+        styles.snoozeAction,
+        { backgroundColor: colors.surfaceContainerHighest },
+      ]}
     >
-      <Text style={[styles.actionLabel, { color: colors.onPrimary }]}>
-        Snooze
+      <Text style={[styles.actionLabel, { color: colors.onSurfaceVariant }]}>
+        Snoozed
       </Text>
-    </TouchableOpacity>
-  );
-
-  const renderRightActions = (goalId: string) => (
-    <View style={styles.rightActions}>
-      <TouchableOpacity
-        style={[
-          styles.doItAction,
-          { backgroundColor: colors.tertiaryContainer },
-        ]}
-        onPress={() => handleDoIt(goalId)}
-      >
-        <Text style={[styles.actionLabel, { color: colors.onPrimary }]}>
-          Done
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[
-          styles.stepDownAction,
-          { backgroundColor: colors.secondaryContainer },
-        ]}
-        onPress={() => handleStepDown(goalId)}
-      >
-        <Text
-          style={[styles.actionLabel, { color: colors.onSecondaryContainer }]}
-        >
-          Step Down
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 
-  // Heatmap color scale using theme-appropriate greens
+  const renderUndoAction = () => (
+    <View
+      style={[
+        styles.snoozeAction,
+        { backgroundColor: colors.secondaryContainer },
+      ]}
+    >
+      <Text
+        style={[styles.actionLabel, { color: colors.onSecondaryContainer }]}
+      >
+        Undo
+      </Text>
+    </View>
+  );
+
+  const renderDoneAction = () => (
+    <View
+      style={[styles.doneAction, { backgroundColor: colors.tertiaryContainer }]}
+    >
+      <Text style={[styles.actionLabel, { color: colors.onSurface }]}>
+        Done
+      </Text>
+    </View>
+  );
+
+  // Heatmap color scale — light green (few) → dark green (many)
   const getHeatColor = (ratio: number): string => {
     if (ratio < 0) return "transparent";
     if (ratio === 0)
       return isDark
         ? colors.surfaceContainerHigh
         : colors.surfaceContainerHighest;
-    if (ratio <= 0.25) return isDark ? "#0e4429" : "#9be9a8";
-    if (ratio <= 0.5) return isDark ? "#006d32" : "#40c463";
-    if (ratio <= 0.75) return isDark ? "#26a641" : "#30a14e";
-    return isDark ? "#39d353" : "#216e39";
+    if (ratio <= 0.25) return isDark ? "#14532d" : "#dcfce7";
+    if (ratio <= 0.5) return isDark ? "#166534" : "#86efac";
+    if (ratio <= 0.75) return isDark ? "#16a34a" : "#22c55e";
+    return isDark ? "#4ade80" : "#15803d";
   };
 
   const legendColors = [
     isDark ? colors.surfaceContainerHigh : colors.surfaceContainerHighest,
-    isDark ? "#0e4429" : "#9be9a8",
-    isDark ? "#006d32" : "#40c463",
-    isDark ? "#26a641" : "#30a14e",
-    isDark ? "#39d353" : "#216e39",
+    isDark ? "#14532d" : "#dcfce7",
+    isDark ? "#166534" : "#86efac",
+    isDark ? "#16a34a" : "#22c55e",
+    isDark ? "#4ade80" : "#15803d",
   ];
 
   const formatDateLabel = (dateStr: string): string => {
@@ -544,6 +539,7 @@ export default function Home() {
                 {groupedGoals[freq].map((goal) => {
                   const state = getGoalState(goal.id);
                   const done = isDone(state);
+                  const isSnoozed = state?.status === "snoozed";
                   return (
                     <Swipeable
                       key={goal.id}
@@ -551,14 +547,29 @@ export default function Home() {
                         if (ref) swipeableRefs.current.set(goal.id, ref);
                       }}
                       renderLeftActions={
-                        done ? undefined : () => renderLeftActions(goal.id)
+                        done
+                          ? undefined
+                          : isSnoozed
+                            ? () => renderUndoAction()
+                            : () => renderSnoozeAction()
                       }
                       renderRightActions={
-                        done ? undefined : () => renderRightActions(goal.id)
+                        done || isSnoozed
+                          ? undefined
+                          : () => renderDoneAction()
                       }
                       enabled={!done}
                       overshootLeft={false}
                       overshootRight={false}
+                      onSwipeableOpen={(direction, swipeable) => {
+                        swipeable.close();
+                        if (isSnoozed) {
+                          if (direction === "left") handleUndoSnooze(goal.id);
+                        } else if (!done) {
+                          if (direction === "right") handleDoIt(goal.id);
+                          else if (direction === "left") handleSnooze(goal.id);
+                        }
+                      }}
                     >
                       <Animated.View
                         style={
@@ -583,7 +594,9 @@ export default function Home() {
                               {
                                 backgroundColor: done
                                   ? colors.tertiaryContainer
-                                  : colors.secondaryContainer,
+                                  : isSnoozed
+                                    ? colors.surfaceContainerHighest
+                                    : colors.secondaryContainer,
                               },
                             ]}
                           />
@@ -593,7 +606,7 @@ export default function Home() {
                                 style={[
                                   styles.goalName,
                                   { color: colors.onSurface },
-                                  done && {
+                                  (done || isSnoozed) && {
                                     color: colors.onSurfaceVariant,
                                   },
                                 ]}
@@ -620,39 +633,39 @@ export default function Home() {
                                   </Text>
                                 </View>
                               )}
-                              {!done && formatReminderTime(goal) !== "" && (
-                                <Text
+                              {isSnoozed && (
+                                <View
                                   style={[
-                                    styles.timePillText,
-                                    { color: colors.onSurfaceVariant },
+                                    styles.snoozeBadge,
+                                    {
+                                      backgroundColor:
+                                        colors.surfaceContainerHigh,
+                                    },
                                   ]}
                                 >
-                                  {formatReminderTime(goal)}
-                                </Text>
+                                  <Text
+                                    style={[
+                                      styles.snoozeBadgeText,
+                                      { color: colors.onSurfaceVariant },
+                                    ]}
+                                  >
+                                    SNOOZED
+                                  </Text>
+                                </View>
                               )}
+                              {!done &&
+                                !isSnoozed &&
+                                formatReminderTime(goal) !== "" && (
+                                  <Text
+                                    style={[
+                                      styles.timePillText,
+                                      { color: colors.onSurfaceVariant },
+                                    ]}
+                                  >
+                                    {formatReminderTime(goal)}
+                                  </Text>
+                                )}
                             </View>
-                            {done ? (
-                              <Text
-                                style={[
-                                  styles.goalSub,
-                                  { color: colors.tertiary },
-                                ]}
-                              >
-                                {state?.status === "stepped_down"
-                                  ? MICROCOPY.STEP_DOWN
-                                  : MICROCOPY.DO_IT}
-                              </Text>
-                            ) : (
-                              <Text
-                                style={[
-                                  styles.goalDesc,
-                                  { color: colors.onSurfaceVariant },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {goal.tiers.primary}
-                              </Text>
-                            )}
                           </View>
                         </TouchableOpacity>
                       </Animated.View>
@@ -661,11 +674,19 @@ export default function Home() {
                 })}
               </View>
             ))}
-
-            {renderHeatmap()}
           </>
         )}
       </ScrollView>
+
+      {/* Fixed heatmap at the bottom of the screen */}
+      <View
+        style={[
+          styles.heatmapFixed,
+          { backgroundColor: colors.surface, borderTopColor: colors.outlineVariant },
+        ]}
+      >
+        {renderHeatmap()}
+      </View>
 
       {/* Tooltip bubble */}
       {tooltip && (
@@ -810,8 +831,8 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 4,
-    paddingBottom: 100,
+    paddingTop: 10,
+    paddingBottom: 220,
   },
   emptyState: { alignItems: "center", marginTop: 120 },
   emptyTitle: {
@@ -873,15 +894,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     letterSpacing: 1,
   },
-  goalDesc: {
-    fontSize: 13,
-    fontFamily: fonts.bodyRegular,
-    marginTop: 2,
+  snoozeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginLeft: 6,
   },
-  goalSub: {
-    fontSize: 13,
-    fontFamily: fonts.bodyItalic,
-    marginTop: 2,
+  snoozeBadgeText: {
+    fontSize: 9,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 1,
   },
   timePillText: {
     fontSize: 11,
@@ -889,9 +911,14 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   // Heatmap
+  heatmapFixed: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
   heatmapWrap: {
-    marginTop: 24,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   heatmapTitle: {
     fontSize: 13,
@@ -959,34 +986,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   // Swipe actions
-  rightActions: { flexDirection: "row", marginBottom: 8 },
-  doItAction: {
+  doneAction: {
     justifyContent: "center",
     alignItems: "center",
-    width: 70,
-    paddingHorizontal: 6,
-  },
-  stepDownAction: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: 70,
+    width: 80,
     borderTopRightRadius: 14,
     borderBottomRightRadius: 14,
-    paddingHorizontal: 6,
+    marginBottom: 8,
   },
   snoozeAction: {
     justifyContent: "center",
     alignItems: "center",
-    width: 70,
+    width: 80,
     borderTopLeftRadius: 14,
     borderBottomLeftRadius: 14,
     marginBottom: 8,
-    paddingHorizontal: 6,
   },
   actionLabel: {
     fontSize: 11,
     fontFamily: fonts.bodySemiBold,
-    marginTop: 2,
   },
   tutorialTooltip: {
     position: "absolute",
@@ -1000,11 +1018,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.bodySemiBold,
   },
-  // FAB — clean minimal
+  // FAB — top-left
   fab: {
     position: "absolute",
-    bottom: 88,
-    right: 24,
+    top: 44,
+    left: 20,
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -1018,17 +1036,19 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   fabText: {
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: fonts.bodyRegular,
-    lineHeight: 28,
+    lineHeight: 30,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   fabOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "flex-end",
-    alignItems: "flex-end",
-    padding: 24,
-    paddingBottom: 100,
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+    paddingTop: 110,
+    paddingLeft: 20,
   },
   fabMenu: {
     borderRadius: 14,

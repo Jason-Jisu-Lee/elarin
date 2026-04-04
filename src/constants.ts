@@ -37,7 +37,7 @@ export const MICROCOPY = {
 // ─── Pre-Built Goals ───
 export const PRE_BUILT_GOALS: Omit<Goal, "id" | "createdAt">[] = [
   {
-    name: "Daily Walk",
+    name: "Walk",
     emoji: "",
     tiers: {
       primary: "15 min walk outside",

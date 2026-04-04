@@ -13,7 +13,7 @@ import { useTheme, fonts, storeTheme } from "../src/theme";
 
 export default function Profile() {
   const router = useRouter();
-  const { colors, theme, setTheme, isDark } = useTheme();
+  const { colors, setTheme, isDark } = useTheme();
   const [name, setName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
@@ -211,7 +211,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: -6,
   },
-  name: { fontSize: 24, fontFamily: fonts.headlineExtraBold, textAlign: "center" },
+  name: {
+    fontSize: 24,
+    fontFamily: fonts.headlineExtraBold,
+    textAlign: "center",
+  },
   nameInput: {
     fontSize: 24,
     fontFamily: fonts.headlineExtraBold,

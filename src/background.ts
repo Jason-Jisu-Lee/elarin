@@ -1,25 +1,11 @@
 import * as TaskManager from "expo-task-manager";
 import * as Notifications from "expo-notifications";
-import { Goal } from "./types";
 import { getGoals } from "./storage";
 import { recordDoIt, recordStepDown, recordSnooze } from "./progression";
+import { buildNotificationContent } from "./notifications";
 import { NOTIFICATION_CHANNEL_ID, SNOOZE_DURATION_MINUTES } from "./constants";
 
 const BACKGROUND_NOTIFICATION_TASK = "ELARIN_BACKGROUND_NOTIFICATION";
-
-function buildNotificationContent(
-  goal: Goal,
-): Notifications.NotificationContentInput {
-  return {
-    title: goal.name,
-    body: goal.tiers.primary,
-    data: {
-      goalId: goal.id,
-    },
-    categoryIdentifier: "elarin-goal",
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  };
-}
 
 TaskManager.defineTask(
   BACKGROUND_NOTIFICATION_TASK,

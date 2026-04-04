@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
@@ -144,7 +145,7 @@ export default function Onboarding() {
 
   const s1 = useTypewriter("You will try this first", scribStep >= 1, 22);
   const s2 = useTypewriter("If that's too much, try this", scribStep >= 2, 22);
-  const s3 = useTypewriter("And if that's too much", scribStep >= 3, 22);
+  const s3 = useTypewriter("And if THAT is too much", scribStep >= 3, 22);
 
   const tIn = useCallback(
     (cb?: () => void) => {
@@ -255,7 +256,10 @@ export default function Onboarding() {
       }).start();
     }, 3800);
 
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [phase]);
 
   const handleSageNext = () => {
@@ -473,7 +477,9 @@ export default function Onboarding() {
         sound.setOnPlaybackStatusUpdate((s) => {
           if ("didJustFinish" in s && s.didJustFinish) sound.unloadAsync();
         });
-      } catch {}
+      } catch {
+        /* sound load failure is non-fatal */
+      }
     };
     const show = (i: number, d: number) =>
       setTimeout(() => {
@@ -509,7 +515,11 @@ export default function Onboarding() {
   }, [phase]);
 
   const handleNameSubmit = () => {
-    if (name.trim()) tOut(() => setPhase("sage"));
+    const trimmed = name.trim();
+    if (trimmed) {
+      setName(trimmed);
+      tOut(() => setPhase("sage"));
+    }
   };
 
   const handleScribbleNext = () => {
@@ -571,44 +581,43 @@ export default function Onboarding() {
           ]}
         >
           {phase === "name" && (
-            <View style={[styles.center, { flex: 1 }]}>
-              <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text style={[styles.question, { color: colors.onSurface }]}>
-                  What is your name?
-                </Text>
-                <Animated.View
-                  style={{
-                    opacity: fieldOp,
-                    alignItems: "center",
+            <View style={styles.center}>
+              <Text style={[styles.question, { color: colors.onSurface }]}>
+                What is your name?
+              </Text>
+              <Animated.View
+                style={{
+                  opacity: fieldOp,
+                  alignItems: "center",
+                }}
+              >
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: colors.onSurface,
+                      borderBottomColor: colors.surfaceVariant,
+                    },
+                  ]}
+                  value={name}
+                  onChangeText={(t) => {
+                    const filtered = t.replace(/[^a-zA-Z ]/g, "").slice(0, 20);
+                    setName(filtered);
                   }}
-                >
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: colors.onSurface,
-                        borderBottomColor: colors.surfaceVariant,
-                      },
-                    ]}
-                    value={name}
-                    onChangeText={(t) => setName(t.replace(/[^a-zA-Z]/g, "").slice(0, 12))}
-                    placeholderTextColor={colors.outlineVariant}
-                    autoFocus
-                    onSubmitEditing={handleNameSubmit}
-                    returnKeyType="next"
-                    maxLength={12}
-                  />
-                </Animated.View>
-              </View>
-              <Animated.View style={[styles.bottomBtnWrap, { opacity: btnOp }]}>
+                  placeholderTextColor={colors.outlineVariant}
+                  autoFocus
+                  onSubmitEditing={handleNameSubmit}
+                  returnKeyType="next"
+                  maxLength={20}
+                />
+              </Animated.View>
+              <Animated.View style={[styles.btnWrap, { opacity: btnOp }]}>
                 <TouchableOpacity
                   onPress={handleNameSubmit}
-                  activeOpacity={0.5}
-                  style={[styles.borderedBtn, { borderColor: colors.outlineVariant }]}
+                  activeOpacity={0.3}
+                  style={styles.ghostBtn}
                 >
-                  <Text
-                    style={[styles.plainBtn, { color: colors.onSurface }]}
-                  >
+                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
                     Continue
                   </Text>
                 </TouchableOpacity>
@@ -623,37 +632,31 @@ export default function Onboarding() {
       {/* Sage (combined) — both sentences on one screen */}
       {phase === "sage" && (
         <View style={styles.body}>
-          <View style={[styles.center, { flex: 1 }]}>
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-              <Animated.Text
-                style={[
-                  styles.sage,
-                  { color: colors.onSurface, opacity: sage1Op },
-                ]}
-              >
-                You already know where you want to be.
-              </Animated.Text>
-              <Animated.Text
-                style={[
-                  styles.sage,
-                  { color: colors.onSurface, opacity: sage2Op, marginTop: 24 },
-                ]}
-              >
-                The path there is not a leap, or even a step{"\n"}— it's a nudge.
-              </Animated.Text>
-            </View>
+          <View style={styles.center}>
+            <Animated.Text
+              style={[
+                styles.sage,
+                { color: colors.onSurface, opacity: sage1Op },
+              ]}
+            >
+              You already know where you want to be.
+            </Animated.Text>
+            <Animated.Text
+              style={[
+                styles.sage,
+                { color: colors.onSurface, opacity: sage2Op, marginTop: 24 },
+              ]}
+            >
+              The path there is not a leap, or even a step{"\n"}— it's a nudge.
+            </Animated.Text>
             {sageNextVisible && (
-              <Animated.View
-                style={[styles.bottomBtnWrap, { opacity: sageNextOp }]}
-              >
+              <Animated.View style={[styles.btnWrap, { opacity: sageNextOp }]}>
                 <TouchableOpacity
                   onPress={handleSageNext}
-                  activeOpacity={0.5}
-                  style={[styles.borderedBtn, { borderColor: colors.outlineVariant }]}
+                  activeOpacity={0.3}
+                  style={styles.ghostBtn}
                 >
-                  <Text
-                    style={[styles.plainBtn, { color: colors.onSurface }]}
-                  >
+                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
                     Next
                   </Text>
                 </TouchableOpacity>
@@ -716,7 +719,16 @@ export default function Onboarding() {
                     ]}
                   >
                     {phase === "ladder_scribble" && li > 0 && (
-                      <View style={styles.scribbleGroup}>
+                      <View
+                        style={[
+                          styles.scribbleGroup,
+                          li === 1
+                            ? styles.scribLeft
+                            : li === 2
+                              ? styles.scribRight
+                              : styles.scribSlightLeft,
+                        ]}
+                      >
                         <Animated.Text
                           style={[
                             styles.scrib,
@@ -802,12 +814,7 @@ export default function Onboarding() {
                         )}
                       </View>
                     ) : (
-                      <View
-                        style={[
-                          styles.ladderCard,
-                          { backgroundColor: colors.surfaceContainerLowest },
-                        ]}
-                      >
+                      <View style={styles.ladderCard}>
                         {hasAffix && !stripped.has(li) ? (
                           <View style={styles.lineInner}>
                             {d.prefix !== "" && (
@@ -862,15 +869,15 @@ export default function Onboarding() {
               })}
 
             {phase === "ladder_scribble" && scribbleNextVisible && (
-              <Animated.View style={[styles.buildBtnWrap, { opacity: scribNextOp }]}>
+              <Animated.View
+                style={[styles.buildBtnWrap, { opacity: scribNextOp }]}
+              >
                 <TouchableOpacity
-                  activeOpacity={0.5}
+                  activeOpacity={0.3}
                   onPress={handleScribbleNext}
-                  style={[styles.borderedBtn, { borderColor: colors.outlineVariant }]}
+                  style={styles.ghostBtn}
                 >
-                  <Text
-                    style={[styles.plainBtn, { color: colors.onSurface }]}
-                  >
+                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
                     Next
                   </Text>
                 </TouchableOpacity>
@@ -905,15 +912,13 @@ const styles = StyleSheet.create({
     minWidth: 60,
     marginBottom: 12,
   },
-  bottomBtnWrap: { marginBottom: 60 },
-  borderedBtn: {
-    borderWidth: 1,
-    borderRadius: 12,
+  btnWrap: { marginTop: 48 },
+  ghostBtn: {
     paddingVertical: 12,
     paddingHorizontal: 32,
   },
   plainBtn: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: fonts.headlineExtraBold,
     textAlign: "center",
   },
@@ -958,6 +963,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: "100%",
     alignItems: "center",
+    backgroundColor: "transparent",
   },
   cardText: {
     fontSize: 22,
@@ -974,5 +980,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: -4,
   },
+  scribLeft: { alignSelf: "flex-start", marginLeft: 24 },
+  scribRight: { alignSelf: "flex-end", marginRight: 24 },
+  scribSlightLeft: { alignSelf: "flex-start", marginLeft: 40 },
   buildBtnWrap: { marginTop: 40, alignItems: "center" },
 });

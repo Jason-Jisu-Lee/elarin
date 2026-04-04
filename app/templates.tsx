@@ -1,9 +1,4 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme, fonts } from "../src/theme";
 
@@ -34,7 +29,11 @@ export default function TemplateSelection() {
               styles.card,
               { backgroundColor: colors.surfaceContainerLowest },
             ]}
-            onPress={() => router.push(`/create?prebuilt=${t.prebuilt}${isOnboarding ? "&onboarding=1" : ""}`)}
+            onPress={() =>
+              router.push(
+                `/create?prebuilt=${t.prebuilt}${isOnboarding ? "&onboarding=1" : ""}`,
+              )
+            }
             activeOpacity={0.7}
           >
             <Text style={[styles.cardLabel, { color: colors.onSurface }]}>
@@ -43,11 +42,16 @@ export default function TemplateSelection() {
           </TouchableOpacity>
         ))}
         <TouchableOpacity
-          style={[styles.card, { borderColor: colors.outlineVariant, borderWidth: 1, backgroundColor: "transparent" }]}
-          onPress={() => router.push(`/create${isOnboarding ? "?onboarding=1" : ""}`)}
+          style={[
+            styles.card,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
+          onPress={() =>
+            router.push(`/create${isOnboarding ? "?onboarding=1" : ""}`)
+          }
           activeOpacity={0.7}
         >
-          <Text style={[styles.cardLabel, { color: colors.primary }]}>
+          <Text style={[styles.cardLabel, { color: colors.onSurface }]}>
             Create Your Own
           </Text>
         </TouchableOpacity>

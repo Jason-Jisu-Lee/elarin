@@ -23,6 +23,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.elarin.app",
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",

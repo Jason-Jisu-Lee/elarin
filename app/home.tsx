@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
@@ -18,7 +19,6 @@ import {
   hasShownSwipeTutorial,
   setSwipeTutorialShown,
   getCompletionHistory,
-  getHeatmapStartDate,
   ensureHeatmapStartDate,
 } from "../src/storage";
 import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
@@ -29,33 +29,39 @@ const FREQ_ORDER: Record<string, number> = {
   daily: 0,
   every_other_day: 1,
   every_3_days: 2,
-  weekly: 3,
-  every_2_weeks: 4,
-  monthly: 5,
+  every_4_days: 3,
+  every_5_days: 4,
+  every_6_days: 5,
+  weekly: 6,
+  every_2_weeks: 7,
+  monthly: 8,
 };
 
 const FREQ_LABELS: Record<string, string> = {
   daily: "Daily",
   every_other_day: "Every 2 Days",
   every_3_days: "Every 3 Days",
+  every_4_days: "Every 4 Days",
+  every_5_days: "Every 5 Days",
+  every_6_days: "Every 6 Days",
   weekly: "Weekly",
   every_2_weeks: "Biweekly",
   monthly: "Monthly",
 };
 
 const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "J",
+  "F",
+  "M",
+  "A",
+  "M",
+  "J",
+  "J",
+  "A",
+  "S",
+  "O",
+  "N",
+  "D",
 ];
 
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
@@ -90,18 +96,14 @@ export default function Home() {
     setDailyStates(ds);
     if (g.length > 0) {
       await ensureHeatmapStartDate();
-      const startStr = await getHeatmapStartDate();
-      if (startStr) {
-        const start = new Date(startStr);
-        const now = new Date();
-        const diffDays =
-          Math.floor(
-            (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-          ) + 1;
-        const days = Math.min(Math.max(diffDays, 7), 365);
-        const history = await getCompletionHistory(days);
-        setHeatmapData(history);
-      }
+      const now = new Date();
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const daysFromJan1 =
+        Math.floor(
+          (now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24),
+        ) + 1;
+      const history = await getCompletionHistory(daysFromJan1);
+      setHeatmapData(history);
     }
   }, []);
 
@@ -237,7 +239,9 @@ export default function Home() {
   const getHeatColor = (ratio: number): string => {
     if (ratio < 0) return "transparent";
     if (ratio === 0)
-      return isDark ? colors.surfaceContainerHigh : colors.surfaceContainerHighest;
+      return isDark
+        ? colors.surfaceContainerHigh
+        : colors.surfaceContainerHighest;
     if (ratio <= 0.25) return isDark ? "#0e4429" : "#9be9a8";
     if (ratio <= 0.5) return isDark ? "#006d32" : "#40c463";
     if (ratio <= 0.75) return isDark ? "#26a641" : "#30a14e";
@@ -253,7 +257,7 @@ export default function Home() {
   ];
 
   const formatDateLabel = (dateStr: string): string => {
-    const [y, m, d] = dateStr.split("-").map(Number);
+    const [_y, m, d] = dateStr.split("-").map(Number);
     const months = [
       "Jan",
       "Feb",
@@ -341,10 +345,8 @@ export default function Home() {
 
     return (
       <View style={styles.heatmapWrap}>
-        <Text
-          style={[styles.heatmapTitle, { color: colors.onSurfaceVariant }]}
-        >
-          2026 Activity
+        <Text style={[styles.heatmapTitle, { color: colors.onSurfaceVariant }]}>
+          {new Date().getFullYear()} Activity
         </Text>
 
         {/* Month labels row */}
@@ -365,6 +367,7 @@ export default function Home() {
                   >
                     {marker && (
                       <Text
+                        numberOfLines={1}
                         style={[
                           styles.monthLabel,
                           { color: colors.onSurfaceVariant },
@@ -390,10 +393,7 @@ export default function Home() {
                 style={{ height: CELL + GAP, justifyContent: "center" }}
               >
                 <Text
-                  style={[
-                    styles.dayLabel,
-                    { color: colors.onSurfaceVariant },
-                  ]}
+                  style={[styles.dayLabel, { color: colors.onSurfaceVariant }]}
                 >
                   {lbl}
                 </Text>
@@ -442,9 +442,7 @@ export default function Home() {
 
         {/* Legend row */}
         <View style={styles.legendRow}>
-          <Text
-            style={[styles.legendText, { color: colors.onSurfaceVariant }]}
-          >
+          <Text style={[styles.legendText, { color: colors.onSurfaceVariant }]}>
             Less
           </Text>
           {legendColors.map((c, i) => (
@@ -465,9 +463,7 @@ export default function Home() {
               ]}
             />
           ))}
-          <Text
-            style={[styles.legendText, { color: colors.onSurfaceVariant }]}
-          >
+          <Text style={[styles.legendText, { color: colors.onSurfaceVariant }]}>
             More
           </Text>
         </View>
@@ -484,9 +480,7 @@ export default function Home() {
           style={styles.profileBtn}
           onPress={() => router.push("/profile")}
         >
-          <View
-            style={[styles.profileIcon, { borderColor: colors.onSurface }]}
-          >
+          <View style={[styles.profileIcon, { borderColor: colors.onSurface }]}>
             <View
               style={[
                 styles.profileHead,
@@ -612,8 +606,7 @@ export default function Home() {
                                   style={[
                                     styles.doneBadge,
                                     {
-                                      backgroundColor:
-                                        colors.tertiaryContainer,
+                                      backgroundColor: colors.tertiaryContainer,
                                     },
                                   ]}
                                 >
@@ -716,7 +709,9 @@ export default function Home() {
           styles.fab,
           {
             backgroundColor: colors.surfaceContainerLowest,
-            borderColor: isDark ? colors.surfaceContainerHighest : colors.outlineVariant,
+            borderColor: isDark
+              ? colors.surfaceContainerHighest
+              : colors.outlineVariant,
           },
         ]}
         onPress={() => setShowFabMenu(true)}
@@ -750,9 +745,7 @@ export default function Home() {
                 router.push("/create");
               }}
             >
-              <Text
-                style={[styles.fabMenuText, { color: colors.onSurface }]}
-              >
+              <Text style={[styles.fabMenuText, { color: colors.onSurface }]}>
                 Create
               </Text>
             </TouchableOpacity>
@@ -769,9 +762,7 @@ export default function Home() {
                 router.push("/templates");
               }}
             >
-              <Text
-                style={[styles.fabMenuText, { color: colors.onSurface }]}
-              >
+              <Text style={[styles.fabMenuText, { color: colors.onSurface }]}>
                 Template
               </Text>
             </TouchableOpacity>
@@ -912,8 +903,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   monthLabel: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: fonts.bodyMedium,
+    includeFontPadding: false,
   },
   dayLabel: {
     fontSize: 9,
@@ -1011,7 +1003,7 @@ const styles = StyleSheet.create({
   // FAB — clean minimal
   fab: {
     position: "absolute",
-    bottom: 32,
+    bottom: 88,
     right: 24,
     width: 52,
     height: 52,

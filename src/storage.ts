@@ -143,10 +143,6 @@ export async function setSwipeTutorialShown(): Promise<void> {
 
 // ─── Heatmap ───
 
-export async function getHeatmapStartDate(): Promise<string | null> {
-  return AsyncStorage.getItem("elarin:heatmap_start");
-}
-
 export async function ensureHeatmapStartDate(): Promise<void> {
   const existing = await AsyncStorage.getItem("elarin:heatmap_start");
   if (!existing) {
@@ -156,29 +152,37 @@ export async function ensureHeatmapStartDate(): Promise<void> {
 
 export async function getCompletionHistory(
   days: number,
-): Promise<{ date: string; ratio: number; completed: number; total: number }[]> {
+): Promise<
+  { date: string; ratio: number; completed: number; total: number }[]
+> {
   const goals = await getGoals();
   const totalGoals = goals.length;
   if (totalGoals === 0) return [];
 
-  const result: { date: string; ratio: number; completed: number; total: number }[] = [];
   const today = new Date();
+  const keys: string[] = [];
+  const dates: string[] = [];
 
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const raw = await AsyncStorage.getItem(`${KEYS.DAILY_STATE}:${key}`);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    dates.push(dateStr);
+    keys.push(`${KEYS.DAILY_STATE}:${dateStr}`);
+  }
+
+  const pairs = await AsyncStorage.multiGet(keys);
+
+  return pairs.map(([, raw], idx) => {
     const states: DailyGoalState[] = raw ? JSON.parse(raw) : [];
     const completed = states.filter(
       (s) => s.status === "done" || s.status === "stepped_down",
     ).length;
-    result.push({
-      date: key,
+    return {
+      date: dates[idx],
       ratio: totalGoals > 0 ? completed / totalGoals : 0,
       completed,
       total: totalGoals,
-    });
-  }
-  return result;
+    };
+  });
 }

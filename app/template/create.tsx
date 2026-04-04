@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  View,
   Text,
   StyleSheet,
   TextInput,
@@ -15,7 +14,6 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { PRE_BUILT_GOALS } from "../../src/constants";
 import { Goal } from "../../src/types";
 import { addGoal, updateGoal, deleteGoal, getGoals } from "../../src/storage";
 import {

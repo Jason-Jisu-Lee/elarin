@@ -22,7 +22,9 @@ export function getConsecutiveDays(completions: CompletionRecord[]): number {
   for (const c of completions) {
     if (c.action === "do_it" || c.action === "step_down") {
       const d = new Date(c.timestamp);
-      daySet.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      daySet.add(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      );
     }
   }
 
@@ -31,7 +33,7 @@ export function getConsecutiveDays(completions: CompletionRecord[]): number {
   const check = new Date(today);
 
   while (true) {
-    const key = `${check.getFullYear()}-${check.getMonth()}-${check.getDate()}`;
+    const key = `${check.getFullYear()}-${String(check.getMonth() + 1).padStart(2, "0")}-${String(check.getDate()).padStart(2, "0")}`;
     if (daySet.has(key)) {
       count++;
       check.setDate(check.getDate() - 1);
@@ -56,7 +58,9 @@ function calculateSelfTrustMeter(completions: CompletionRecord[]): number {
   const daySet = new Set<string>();
   for (const c of recent) {
     const d = new Date(c.timestamp);
-    daySet.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    daySet.add(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+    );
   }
 
   // Percentage of last 30 days with activity, scaled to 0-100

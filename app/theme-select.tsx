@@ -11,7 +11,7 @@ import {
 
 export default function ThemeSelect() {
   const router = useRouter();
-  const { colors, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [selected, setSelected] = useState<"light" | "dark">("light");
 
   // Preview: apply selected theme colors
@@ -162,12 +162,7 @@ export default function ThemeSelect() {
         activeOpacity={0.6}
         style={styles.confirmWrap}
       >
-        <Text
-          style={[
-            styles.confirmText,
-            { color: previewColors.onSurface },
-          ]}
-        >
+        <Text style={[styles.confirmText, { color: previewColors.onSurface }]}>
           Confirm
         </Text>
       </TouchableOpacity>

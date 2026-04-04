@@ -32,6 +32,9 @@ export interface ReminderConfig {
     | "daily"
     | "every_other_day"
     | "every_3_days"
+    | "every_4_days"
+    | "every_5_days"
+    | "every_6_days"
     | "weekly"
     | "every_2_weeks"
     | "monthly";

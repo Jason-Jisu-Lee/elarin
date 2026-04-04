@@ -1,17 +1,21 @@
-import { useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   Animated,
   Platform,
   KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
+import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { PRE_BUILT_GOALS } from "../src/constants";
 import { Goal } from "../src/types";
@@ -22,21 +26,31 @@ import {
 } from "../src/notifications";
 import { useTheme, fonts } from "../src/theme";
 
-type Step = "goal" | "easier" | "time" | "done";
+type Step = "goal" | "frequency" | "time" | "done";
 
 const FREQUENCY_OPTIONS = [
   { value: "daily" as const, label: "Daily" },
   { value: "every_other_day" as const, label: "Every 2 days" },
   { value: "every_3_days" as const, label: "Every 3 days" },
+  { value: "every_4_days" as const, label: "Every 4 days" },
+  { value: "every_5_days" as const, label: "Every 5 days" },
+  { value: "every_6_days" as const, label: "Every 6 days" },
   { value: "weekly" as const, label: "Weekly" },
-  { value: "every_2_weeks" as const, label: "Biweekly" },
-  { value: "monthly" as const, label: "Monthly" },
 ] as const;
+
+type FreqValue = (typeof FREQUENCY_OPTIONS)[number]["value"];
+
+const ITEM_HEIGHT = 32;
+const VISIBLE_ITEMS = 5;
+const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 
 export default function CreateGoal() {
   const router = useRouter();
-  const { colors } = useTheme();
-  const { prebuilt, onboarding } = useLocalSearchParams<{ prebuilt?: string; onboarding?: string }>();
+  const { colors, isDark } = useTheme();
+  const { prebuilt, onboarding } = useLocalSearchParams<{
+    prebuilt?: string;
+    onboarding?: string;
+  }>();
   const isOnboarding = onboarding === "1";
 
   const prebuiltGoal =
@@ -44,27 +58,30 @@ export default function CreateGoal() {
 
   const [name, setName] = useState(prebuiltGoal?.name ?? "");
   const [primary, setPrimary] = useState(prebuiltGoal?.tiers.primary ?? "");
-  const [easier, setEasier] = useState(prebuiltGoal?.tiers.easier ?? "");
-  const [easiest, setEasiest] = useState(prebuiltGoal?.tiers.easiest ?? "");
-  const [showEasiest, setShowEasiest] = useState(
-    prebuiltGoal ? !!prebuiltGoal.tiers.easiest : false,
-  );
+  const [micro, setMicro] = useState(prebuiltGoal?.tiers.easier ?? "");
   const [startTime, setStartTime] = useState(
     prebuiltGoal?.reminder.startTime ?? "17:00",
   );
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [frequency, setFrequency] = useState<
-    | "daily"
-    | "every_other_day"
-    | "every_3_days"
-    | "weekly"
-    | "every_2_weeks"
-    | "monthly"
-  >(prebuiltGoal?.reminder.frequency ?? "daily");
+  const [frequency, setFrequency] = useState<FreqValue>(
+    (prebuiltGoal?.reminder.frequency as FreqValue) ?? "daily",
+  );
 
   const [step, setStep] = useState<Step>("goal");
   const [fadeAnim] = useState(new Animated.Value(1));
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [permError, setPermError] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Scroll wheel initial position
+  useEffect(() => {
+    if (step === "frequency") {
+      const idx = FREQUENCY_OPTIONS.findIndex((f) => f.value === frequency);
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: false });
+      }, 50);
+    }
+  }, [step]);
 
   const transition = (next: Step) => {
     Animated.timing(fadeAnim, {
@@ -110,8 +127,8 @@ export default function CreateGoal() {
       emoji: "",
       tiers: {
         primary: primary.trim(),
-        easier: easier.trim(),
-        easiest: easiest.trim() || easier.trim(),
+        easier: micro.trim() || primary.trim(),
+        easiest: micro.trim() || primary.trim(),
       },
       reminder: {
         type: "exact",
@@ -125,37 +142,48 @@ export default function CreateGoal() {
     };
     await addGoal(goal);
     if (notificationsEnabled) {
-      await setupNotifications();
       await scheduleGoalNotifications(goal);
     }
     router.replace(isOnboarding ? "/theme-select" : "/home");
   };
 
-  const PlainButton = ({
-    label,
-    onPress,
-    disabled,
-  }: {
-    label: string;
-    onPress: () => void;
-    disabled?: boolean;
-  }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.5}
-      style={styles.plainBtnWrap}
-      disabled={disabled}
-    >
-      <Text
-        style={[
-          styles.plainBtnText,
-          { color: disabled ? colors.outlineVariant : colors.onSurface },
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+  // Request notification permission; proceed to "done" only if granted (or not needed)
+  const handleTimeNext = async () => {
+    if (notificationsEnabled) {
+      // Always re-request — on Android 13+ this shows the system dialog every time
+      // if permanently denied, canAskAgain is false so we open Settings instead
+      const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        if (!canAskAgain) {
+          // Permanently denied — send user to app settings
+          await Notifications.getPermissionsAsync(); // no-op, just keeps import used
+          const { openSettings } = await import("expo-linking");
+          openSettings();
+        }
+        setPermError(true);
+        return;
+      }
+      await setupNotifications();
+    }
+    setPermError(false);
+    transition("done");
+  };
+
+  // ── Scroll wheel handlers ──
+  const onWheelScrollEnd = (e: {
+    nativeEvent: { contentOffset: { y: number } };
+  }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.max(
+      0,
+      Math.min(Math.round(y / ITEM_HEIGHT), FREQUENCY_OPTIONS.length - 1),
+    );
+    const newFreq = FREQUENCY_OPTIONS[idx].value;
+    if (newFreq !== frequency) {
+      setFrequency(newFreq);
+      Haptics.selectionAsync();
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -163,10 +191,11 @@ export default function CreateGoal() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        {/* ── Goal step ── */}
         {step === "goal" && (
           <View style={styles.stepContainer}>
-            <Text style={[styles.question, { color: colors.onSurface }]}>
-              Your goal
+            <Text style={[styles.label, { color: colors.onSurface }]}>
+              Title
             </Text>
             <TextInput
               style={[
@@ -178,42 +207,40 @@ export default function CreateGoal() {
               ]}
               value={name}
               onChangeText={setName}
-              placeholder="Name"
+              placeholder="Title of your action e.g. Push Ups"
               placeholderTextColor={colors.outlineVariant}
               autoFocus
               maxLength={50}
+              textAlign="center"
+              multiline
             />
+
+            <Text
+              style={[styles.label, { color: colors.onSurface, marginTop: 24 }]}
+            >
+              Action
+            </Text>
             <TextInput
               style={[
                 styles.input,
                 {
                   color: colors.onSurface,
                   borderBottomColor: colors.surfaceVariant,
-                  marginTop: 24,
                 },
               ]}
               value={primary}
               onChangeText={setPrimary}
-              placeholder="What you want to do"
+              placeholder={"What do you want to do?\ne.g. 20 Push Ups"}
               placeholderTextColor={colors.outlineVariant}
-              maxLength={100}
+              maxLength={50}
+              textAlign="center"
+              multiline
             />
-            {name.trim() && primary.trim() ? (
-              <PlainButton
-                label="Next"
-                onPress={() => transition("easier")}
-              />
-            ) : null}
-          </View>
-        )}
 
-        {step === "easier" && (
-          <View style={styles.stepContainer}>
-            <Text style={[styles.question, { color: colors.onSurface }]}>
-              Easier version
-            </Text>
-            <Text style={[styles.hint, { color: colors.onSurfaceVariant }]}>
-              If your goal feels too hard, what's a lighter version?
+            <Text
+              style={[styles.label, { color: colors.onSurface, marginTop: 24 }]}
+            >
+              Micro Action
             </Text>
             <TextInput
               style={[
@@ -223,131 +250,197 @@ export default function CreateGoal() {
                   borderBottomColor: colors.surfaceVariant,
                 },
               ]}
-              value={easier}
-              onChangeText={setEasier}
-              placeholder="e.g., 5 minutes instead of 30"
+              value={micro}
+              onChangeText={setMicro}
+              placeholder="An easy version e.g. 1 Push Up"
               placeholderTextColor={colors.outlineVariant}
-              autoFocus
-              maxLength={100}
+              maxLength={50}
+              textAlign="center"
+              multiline
             />
-            {easier.trim() && !showEasiest ? (
-              <TouchableOpacity
-                onPress={() => setShowEasiest(true)}
-                activeOpacity={0.5}
-                style={styles.addMoreWrap}
-              >
-                <Text
-                  style={[styles.addMoreText, { color: colors.primary }]}
-                >
-                  + Add an even easier version
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-            {showEasiest && (
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: colors.onSurface,
-                    borderBottomColor: colors.surfaceVariant,
-                    marginTop: 20,
-                  },
+
+            {name.trim() && primary.trim() ? (
+              <Pressable
+                onPress={() => transition("frequency")}
+                style={({ pressed }) => [
+                  styles.ghostBtn,
+                  pressed && styles.ghostBtnPressed,
                 ]}
-                value={easiest}
-                onChangeText={setEasiest}
-                placeholder="The absolute easiest version"
-                placeholderTextColor={colors.outlineVariant}
-                autoFocus
-                maxLength={100}
-              />
-            )}
-            {easier.trim() ? (
-              <PlainButton
-                label="Next"
-                onPress={() => transition("time")}
-              />
+              >
+                <Text style={[styles.btnText, { color: colors.onSurface }]}>
+                  Next
+                </Text>
+              </Pressable>
             ) : null}
           </View>
         )}
 
+        {/* ── Frequency step ── */}
+        {step === "frequency" && (
+          <View style={styles.stepContainer}>
+            <Text style={[styles.question, { color: colors.onSurface }]}>
+              Frequency
+            </Text>
+            <Text
+              style={[styles.freqExplain, { color: colors.onSurfaceVariant }]}
+            >
+              How often would you like to perform this action?{"\n"}
+              Goals are grouped by frequency on your home screen.
+            </Text>
+
+            <View style={[styles.wheelContainer, { height: WHEEL_HEIGHT }]}>
+              {/* Center highlight bar */}
+              <View
+                style={[
+                  styles.wheelHighlight,
+                  {
+                    top: ITEM_HEIGHT * 2,
+                    height: ITEM_HEIGHT,
+                    backgroundColor: isDark
+                      ? colors.surfaceContainerHigh
+                      : colors.surfaceContainerHighest,
+                  },
+                ]}
+              />
+              <ScrollView
+                ref={scrollRef}
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
+                snapToInterval={ITEM_HEIGHT}
+                decelerationRate="fast"
+                showsVerticalScrollIndicator={false}
+                onMomentumScrollEnd={onWheelScrollEnd}
+                onScrollEndDrag={onWheelScrollEnd}
+              >
+                {FREQUENCY_OPTIONS.map((opt) => {
+                  const selected = opt.value === frequency;
+                  return (
+                    <View
+                      key={opt.value}
+                      style={[styles.wheelItem, { height: ITEM_HEIGHT }]}
+                    >
+                      <Text
+                        style={[
+                          styles.wheelText,
+                          {
+                            color: colors.onSurface,
+                            opacity: selected ? 1 : 0.25,
+                            fontSize: selected ? 17 : 13,
+                          },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <Pressable
+              onPress={() => transition("time")}
+              style={({ pressed }) => [
+                styles.ghostBtn,
+                pressed && styles.ghostBtnPressed,
+              ]}
+            >
+              <Text style={[styles.btnText, { color: colors.onSurface }]}>
+                Next
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* ── Time / Notification step ── */}
         {step === "time" && (
           <View style={styles.stepContainer}>
             <Text style={[styles.question, { color: colors.onSurface }]}>
               Notification
             </Text>
 
-            <View style={styles.toggleRow}>
-              <TouchableOpacity
+            {/* Vertical toggle */}
+            <Pressable
+              style={[
+                styles.toggleChip,
+                {
+                  backgroundColor: notificationsEnabled
+                    ? colors.primary
+                    : colors.surfaceContainerHigh,
+                  marginBottom: 10,
+                },
+              ]}
+              onPress={() => {
+                setNotificationsEnabled(true);
+                setPermError(false);
+              }}
+            >
+              <Text
                 style={[
-                  styles.toggleChip,
+                  styles.toggleChipText,
                   {
-                    backgroundColor: notificationsEnabled
-                      ? colors.primary
-                      : colors.surfaceContainerHigh,
+                    color: notificationsEnabled
+                      ? colors.onPrimary
+                      : colors.onSurfaceVariant,
                   },
                 ]}
-                onPress={() => setNotificationsEnabled(true)}
               >
-                <Text
-                  style={[
-                    styles.toggleChipText,
-                    {
-                      color: notificationsEnabled
-                        ? colors.onPrimary
-                        : colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  Set Time
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                Set Time
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.toggleChip,
+                {
+                  backgroundColor: !notificationsEnabled
+                    ? colors.primary
+                    : colors.surfaceContainerHigh,
+                  marginBottom: 16,
+                },
+              ]}
+              onPress={() => {
+                setNotificationsEnabled(false);
+                setPermError(false);
+              }}
+            >
+              <Text
                 style={[
-                  styles.toggleChip,
+                  styles.toggleChipText,
                   {
-                    backgroundColor: !notificationsEnabled
-                      ? colors.primary
-                      : colors.surfaceContainerHigh,
+                    color: !notificationsEnabled
+                      ? colors.onPrimary
+                      : colors.onSurfaceVariant,
                   },
                 ]}
-                onPress={() => setNotificationsEnabled(false)}
               >
-                <Text
-                  style={[
-                    styles.toggleChipText,
-                    {
-                      color: !notificationsEnabled
-                        ? colors.onPrimary
-                        : colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  None
-                </Text>
-              </TouchableOpacity>
-            </View>
+                None
+              </Text>
+            </Pressable>
 
-            {notificationsEnabled && (
-              <TouchableOpacity
+            {/* Time button — greyed out when None is selected */}
+            <Pressable
+              style={[
+                styles.timeBtn,
+                {
+                  backgroundColor: colors.surfaceContainerHigh,
+                  opacity: notificationsEnabled ? 1 : 0.35,
+                },
+              ]}
+              onPress={() => notificationsEnabled && setPickerVisible(true)}
+              disabled={!notificationsEnabled}
+            >
+              <Text
                 style={[
-                  styles.timeBtn,
-                  { backgroundColor: colors.surfaceContainerHigh },
+                  styles.timeBtnLabel,
+                  { color: colors.onSurfaceVariant },
                 ]}
-                onPress={() => setPickerVisible(true)}
               >
-                <Text
-                  style={[
-                    styles.timeBtnLabel,
-                    { color: colors.onSurfaceVariant },
-                  ]}
-                >
-                  At
-                </Text>
-                <Text style={[styles.timeBtnValue, { color: colors.primary }]}>
-                  {formatTime(startTime)}
-                </Text>
-              </TouchableOpacity>
-            )}
+                At
+              </Text>
+              <Text style={[styles.timeBtnValue, { color: colors.primary }]}>
+                {formatTime(startTime)}
+              </Text>
+            </Pressable>
+
             {notificationsEnabled && pickerVisible && (
               <DateTimePicker
                 mode="time"
@@ -358,47 +451,41 @@ export default function CreateGoal() {
               />
             )}
 
-            <Text
-              style={[styles.freqLabel, { color: colors.onSurfaceVariant }]}
-            >
-              How often?
-            </Text>
-            <View style={styles.freqRow}>
-              {FREQUENCY_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.freqChip,
-                    {
-                      backgroundColor:
-                        frequency === opt.value
-                          ? colors.primary
-                          : colors.surfaceContainerHigh,
-                    },
-                  ]}
-                  onPress={() => setFrequency(opt.value)}
+            {/* Permission error warning */}
+            {permError && (
+              <View
+                style={[
+                  styles.permWarning,
+                  { backgroundColor: colors.surfaceContainerHigh },
+                ]}
+              >
+                <Text
+                  style={[styles.permWarningText, { color: colors.onSurface }]}
                 >
-                  <Text
-                    style={[
-                      styles.freqChipText,
-                      {
-                        color:
-                          frequency === opt.value
-                            ? colors.onPrimary
-                            : colors.onSurfaceVariant,
-                      },
-                    ]}
-                  >
-                    {opt.label}
+                  Please grant notification permission for this app, or set reminder to{" "}
+                  <Text style={{ fontFamily: fonts.bodySemiBold }}>
+                    "None"
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  .
+                </Text>
+              </View>
+            )}
 
-            <PlainButton label="Confirm" onPress={() => transition("done")} />
+            <Pressable
+              onPress={handleTimeNext}
+              style={({ pressed }) => [
+                styles.ghostBtn,
+                pressed && styles.ghostBtnPressed,
+              ]}
+            >
+              <Text style={[styles.btnText, { color: colors.onSurface }]}>
+                Next
+              </Text>
+            </Pressable>
           </View>
         )}
 
+        {/* ── Done step ── */}
         {step === "done" && (
           <View style={styles.stepContainer}>
             <Text style={[styles.doneTitle, { color: colors.onSurface }]}>
@@ -413,15 +500,7 @@ export default function CreateGoal() {
               <Text style={[styles.summaryTier, { color: colors.onSurface }]}>
                 {primary}
               </Text>
-              <Text
-                style={[styles.summaryArrow, { color: colors.outlineVariant }]}
-              >
-                ↓
-              </Text>
-              <Text style={[styles.summaryTier, { color: colors.onSurface }]}>
-                {easier}
-              </Text>
-              {easiest.trim() && easiest.trim() !== easier.trim() ? (
+              {micro.trim() && micro.trim() !== primary.trim() ? (
                 <>
                   <Text
                     style={[
@@ -434,12 +513,22 @@ export default function CreateGoal() {
                   <Text
                     style={[styles.summaryTier, { color: colors.onSurface }]}
                   >
-                    {easiest}
+                    {micro}
                   </Text>
                 </>
               ) : null}
             </View>
-            <PlainButton label="Let's go" onPress={handleFinish} />
+            <Pressable
+              onPress={handleFinish}
+              style={({ pressed }) => [
+                styles.ghostBtn,
+                pressed && styles.ghostBtnPressed,
+              ]}
+            >
+              <Text style={[styles.btnText, { color: colors.onSurface }]}>
+                Let's Go
+              </Text>
+            </Pressable>
           </View>
         )}
       </Animated.View>
@@ -451,6 +540,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, justifyContent: "center", paddingHorizontal: 28 },
   stepContainer: { alignItems: "stretch" },
+  label: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 4,
+    textAlign: "center",
+  },
   question: {
     fontSize: 28,
     fontFamily: fonts.headlineExtraBold,
@@ -458,34 +555,56 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     letterSpacing: -0.5,
   },
-  hint: {
-    fontSize: 15,
+  freqExplain: {
+    fontSize: 14,
     fontFamily: fonts.bodyRegular,
-    marginBottom: 16,
-    lineHeight: 22,
+    lineHeight: 21,
+    marginBottom: 12,
+    textAlign: "center",
   },
   input: {
     borderBottomWidth: 2,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 4,
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: fonts.bodyRegular,
+    minHeight: 56,
+    textAlignVertical: "center",
   },
-  plainBtnWrap: {
+  ghostBtn: {
     marginTop: 32,
     alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
   },
-  plainBtnText: {
-    fontSize: 20,
+  ghostBtnPressed: {
+    backgroundColor: "rgba(128,128,128,0.18)",
+  },
+  btnText: {
+    fontSize: 22,
     fontFamily: fonts.headlineExtraBold,
   },
-  addMoreWrap: {
-    marginTop: 16,
+  // Scroll wheel
+  wheelContainer: {
+    overflow: "hidden",
+    marginVertical: 8,
   },
-  addMoreText: {
-    fontSize: 14,
-    fontFamily: fonts.bodyMedium,
+  wheelHighlight: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderRadius: 10,
+    zIndex: 0,
   },
+  wheelItem: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  wheelText: {
+    fontFamily: fonts.bodySemiBold,
+  },
+  // Time
   timeBtn: {
     borderRadius: 14,
     padding: 16,
@@ -496,27 +615,25 @@ const styles = StyleSheet.create({
   },
   timeBtnLabel: { fontSize: 15, fontFamily: fonts.bodyRegular },
   timeBtnValue: { fontSize: 18, fontFamily: fonts.bodySemiBold },
-  toggleRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   toggleChip: {
-    flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
   toggleChipText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
-  freqLabel: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemiBold,
-    marginTop: 20,
-    marginBottom: 10,
+  // Permission warning
+  permWarning: {
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
   },
-  freqRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  freqChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+  permWarningText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    lineHeight: 20,
+    textAlign: "center",
   },
-  freqChipText: { fontSize: 13, fontFamily: fonts.bodySemiBold },
+  // Done
   doneTitle: {
     fontSize: 28,
     fontFamily: fonts.headlineExtraBold,
@@ -538,6 +655,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: fonts.bodyMedium,
     paddingVertical: 4,
+    textAlign: "center",
   },
   summaryArrow: {
     fontSize: 16,

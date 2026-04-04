@@ -158,13 +158,14 @@ export default function GoalDetail() {
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity
+            style={styles.backBtn}
             onPress={() => {
               setEditing(false);
               populateEdit(goal);
             }}
           >
-            <Text style={[styles.cancelBtn, { color: colors.primary }]}>
-              Cancel
+            <Text style={[styles.backBtnText, { color: colors.primary }]}>
+              ← Back
             </Text>
           </TouchableOpacity>
 
@@ -541,6 +542,7 @@ const styles = StyleSheet.create({
   },
   // Edit mode
   editContent: { padding: 24, paddingTop: 56, paddingBottom: 40 },
+  backBtnText: { fontSize: 16, fontFamily: fonts.bodySemiBold },
   cancelBtn: { fontSize: 16, fontFamily: fonts.bodySemiBold, marginBottom: 24 },
   bellRow: {
     flexDirection: "row",

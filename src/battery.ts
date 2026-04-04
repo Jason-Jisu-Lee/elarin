@@ -1,4 +1,4 @@
-import { Platform, NativeModules, Linking } from "react-native";
+import { Platform, Linking } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 

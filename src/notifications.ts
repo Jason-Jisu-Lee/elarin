@@ -86,7 +86,7 @@ export async function scheduleGoalNotifications(goal: Goal): Promise<void> {
   }
 }
 
-function buildNotificationContent(
+export function buildNotificationContent(
   goal: Goal,
 ): Notifications.NotificationContentInput {
   return {

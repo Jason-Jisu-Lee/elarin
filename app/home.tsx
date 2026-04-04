@@ -582,7 +582,11 @@ export default function Home() {
                           style={[
                             styles.goalCard,
                             {
-                              backgroundColor: colors.surfaceContainerLowest,
+                              backgroundColor: done
+                                ? isDark ? "#14532d" : "#dcfce7"
+                                : isSnoozed
+                                  ? colors.surfaceContainerHigh
+                                  : colors.surfaceContainerLowest,
                             },
                           ]}
                           onPress={() => router.push(`/goal/${goal.id}`)}
@@ -593,7 +597,7 @@ export default function Home() {
                               styles.leftBar,
                               {
                                 backgroundColor: done
-                                  ? colors.tertiaryContainer
+                                  ? isDark ? "#4ade80" : "#15803d"
                                   : isSnoozed
                                     ? colors.surfaceContainerHighest
                                     : colors.secondaryContainer,
@@ -601,71 +605,18 @@ export default function Home() {
                             ]}
                           />
                           <View style={styles.goalContent}>
-                            <View style={styles.goalTop}>
-                              <Text
-                                style={[
-                                  styles.goalName,
-                                  { color: colors.onSurface },
-                                  (done || isSnoozed) && {
-                                    color: colors.onSurfaceVariant,
-                                  },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {goal.name}
-                              </Text>
-                              {done && (
-                                <View
-                                  style={[
-                                    styles.doneBadge,
-                                    {
-                                      backgroundColor: colors.tertiaryContainer,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.doneBadgeText,
-                                      { color: colors.onPrimary },
-                                    ]}
-                                  >
-                                    DONE
-                                  </Text>
-                                </View>
-                              )}
-                              {isSnoozed && (
-                                <View
-                                  style={[
-                                    styles.snoozeBadge,
-                                    {
-                                      backgroundColor:
-                                        colors.surfaceContainerHigh,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.snoozeBadgeText,
-                                      { color: colors.onSurfaceVariant },
-                                    ]}
-                                  >
-                                    SNOOZED
-                                  </Text>
-                                </View>
-                              )}
-                              {!done &&
-                                !isSnoozed &&
-                                formatReminderTime(goal) !== "" && (
-                                  <Text
-                                    style={[
-                                      styles.timePillText,
-                                      { color: colors.onSurfaceVariant },
-                                    ]}
-                                  >
-                                    {formatReminderTime(goal)}
-                                  </Text>
-                                )}
-                            </View>
+                            <Text
+                              style={[
+                                styles.goalName,
+                                { color: colors.onSurface },
+                                (done || isSnoozed) && {
+                                  color: colors.onSurfaceVariant,
+                                },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {goal.name}
+                            </Text>
                           </View>
                         </TouchableOpacity>
                       </Animated.View>
@@ -832,7 +783,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 10,
-    paddingBottom: 220,
+    paddingBottom: 40,
   },
   emptyState: { alignItems: "center", marginTop: 120 },
   emptyTitle: {
@@ -866,56 +817,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
+    width: "60%",
   },
   leftBar: { width: 4 },
   goalContent: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 14,
   },
-  goalTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   goalName: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: fonts.headlineBold,
-    flex: 1,
-  },
-  doneBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 5,
-    marginLeft: 6,
-  },
-  doneBadgeText: {
-    fontSize: 9,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 1,
-  },
-  snoozeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 5,
-    marginLeft: 6,
-  },
-  snoozeBadgeText: {
-    fontSize: 9,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 1,
-  },
-  timePillText: {
-    fontSize: 11,
-    fontFamily: fonts.bodyMedium,
-    marginLeft: 6,
   },
   // Heatmap
   heatmapFixed: {
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
   heatmapWrap: {
     marginBottom: 4,

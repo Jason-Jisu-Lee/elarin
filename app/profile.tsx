@@ -8,7 +8,7 @@ import {
   Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getProfile, saveProfile } from "../src/storage";
+import { getProfile, saveProfile, getAccountId } from "../src/storage";
 import { useTheme, fonts, storeTheme } from "../src/theme";
 
 export default function Profile() {
@@ -18,11 +18,13 @@ export default function Profile() {
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
   const [showIntroDialog, setShowIntroDialog] = useState(false);
+  const [hasAccount, setHasAccount] = useState(false);
 
   useEffect(() => {
     getProfile().then((p) => {
       if (p) setName(p.name);
     });
+    getAccountId().then((id) => setHasAccount(!!id));
   }, []);
 
   const handleSaveName = async () => {
@@ -87,17 +89,20 @@ export default function Profile() {
 
       {/* Menu items */}
       <View style={styles.menu}>
-        {/* Account (non-tappable) */}
-        <View
+        {/* Account */}
+        <TouchableOpacity
           style={[
             styles.menuItem,
             { backgroundColor: colors.surfaceContainerLowest },
           ]}
+          onPress={() =>
+            router.push(hasAccount ? "/account" : "/account/create")
+          }
         >
-          <Text style={[styles.menuText, { color: colors.onSurfaceVariant }]}>
+          <Text style={[styles.menuText, { color: colors.onSurface }]}>
             Account
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Theme Toggle */}
         <TouchableOpacity

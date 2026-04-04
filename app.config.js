@@ -1,0 +1,71 @@
+// app.config.js — dynamic config, reads from .env via process.env
+// The anon key is safe to ship in the app (it's public).
+// NEVER put SUPABASE_SERVICE_ROLE_KEY here.
+
+module.exports = ({ config }) => ({
+  ...config,
+  name: "Elarin",
+  slug: "elarin",
+  version: "0.1.0",
+  orientation: "portrait",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "dark",
+  scheme: "elarin",
+  splash: {
+    image: "./assets/splash-icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#0D0D0D",
+  },
+  ios: {
+    supportsTablet: false,
+  },
+  android: {
+    adaptiveIcon: {
+      backgroundColor: "#0D0D0D",
+      foregroundImage: "./assets/android-icon-foreground.png",
+      backgroundImage: "./assets/android-icon-background.png",
+      monochromeImage: "./assets/android-icon-monochrome.png",
+    },
+    package: "com.elarin.app",
+    softwareKeyboardLayoutMode: "pan",
+    permissions: [
+      "RECEIVE_BOOT_COMPLETED",
+      "VIBRATE",
+      "SCHEDULE_EXACT_ALARM",
+      "POST_NOTIFICATIONS",
+      "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      "FOREGROUND_SERVICE",
+      "WAKE_LOCK",
+      "USE_EXACT_ALARM",
+    ],
+    predictiveBackGestureEnabled: false,
+  },
+  web: {
+    favicon: "./assets/favicon.png",
+  },
+  plugins: [
+    "expo-router",
+    [
+      "expo-notifications",
+      {
+        icon: "./assets/icon.png",
+        color: "#7C5CFC",
+      },
+    ],
+    [
+      "expo-build-properties",
+      {
+        android: {
+          compileSdkVersion: 36,
+          targetSdkVersion: 34,
+          minSdkVersion: 26,
+        },
+      },
+    ],
+    "./plugins/withElarinAlarmManager",
+  ],
+  extra: {
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+  },
+});

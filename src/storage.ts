@@ -14,6 +14,7 @@ const KEYS = {
   PROFILE: "elarin:profile",
   DAILY_STATE: "elarin:daily_state",
   SWIPE_TUTORIAL_SHOWN: "elarin:swipe_tutorial_shown",
+  ACCOUNT_ID: "elarin:account_id",
 };
 
 // ─── Goals ───
@@ -185,4 +186,18 @@ export async function getCompletionHistory(
       total: totalGoals,
     };
   });
+}
+
+// ─── Account ───
+
+export async function getAccountId(): Promise<string | null> {
+  return AsyncStorage.getItem(KEYS.ACCOUNT_ID);
+}
+
+export async function setAccountId(id: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.ACCOUNT_ID, id);
+}
+
+export async function clearAccountId(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.ACCOUNT_ID);
 }

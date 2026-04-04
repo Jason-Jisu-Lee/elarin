@@ -107,6 +107,7 @@ export default function Onboarding() {
   const { colors } = useTheme();
   const [phase, setPhase] = useState<Phase>(isReplay ? "sage" : "name");
   const [name, setName] = useState("");
+  const [charWarning, setCharWarning] = useState(false);
   const [visibleLines, setVisibleLines] = useState<number[]>([]);
   const [showFirst, setShowFirst] = useState(true);
   const [scribStep, setScribStep] = useState(0);
@@ -212,7 +213,7 @@ export default function Onboarding() {
 
   useEffect(() => {
     Animated.timing(btnOp, {
-      toValue: name.trim().length > 0 ? 1 : 0,
+      toValue: name.trim().length >= 3 ? 1 : 0,
       duration: 280,
       easing: EASE_OUT,
       useNativeDriver: true,
@@ -516,10 +517,9 @@ export default function Onboarding() {
 
   const handleNameSubmit = () => {
     const trimmed = name.trim();
-    if (trimmed) {
-      setName(trimmed);
-      tOut(() => setPhase("sage"));
-    }
+    if (trimmed.length < 3) return;
+    setName(trimmed);
+    tOut(() => setPhase("sage"));
   };
 
   const handleScribbleNext = () => {
@@ -552,7 +552,7 @@ export default function Onboarding() {
       router.back();
       return;
     }
-    if (name.trim()) await saveProfile({ name: name.trim() });
+    if (name.trim()) await saveProfile({ username: name.trim() });
     await setOnboarded(true);
     router.replace("/templates?onboarding=1");
   };
@@ -583,7 +583,7 @@ export default function Onboarding() {
           {phase === "name" && (
             <View style={styles.center}>
               <Text style={[styles.question, { color: colors.onSurface }]}>
-                What is your name?
+                Choose a username
               </Text>
               <Animated.View
                 style={{
@@ -601,15 +601,31 @@ export default function Onboarding() {
                   ]}
                   value={name}
                   onChangeText={(t) => {
-                    const filtered = t.replace(/[^a-zA-Z ]/g, "").slice(0, 20);
+                    const filtered = t.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15);
+                    if (filtered !== t.slice(0, 15)) {
+                      setCharWarning(true);
+                      setTimeout(() => setCharWarning(false), 2000);
+                    }
                     setName(filtered);
                   }}
                   placeholderTextColor={colors.outlineVariant}
                   autoFocus
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   onSubmitEditing={handleNameSubmit}
                   returnKeyType="next"
-                  maxLength={20}
+                  maxLength={15}
                 />
+                {charWarning && (
+                  <Text
+                    style={[
+                      styles.charHint,
+                      { color: colors.onSurfaceVariant },
+                    ]}
+                  >
+                    Letters and numbers only
+                  </Text>
+                )}
               </Animated.View>
               <Animated.View style={[styles.btnWrap, { opacity: btnOp }]}>
                 <TouchableOpacity
@@ -910,7 +926,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     textAlign: "center",
     minWidth: 60,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  charHint: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    marginBottom: 8,
   },
   btnWrap: { marginTop: 48 },
   ghostBtn: {

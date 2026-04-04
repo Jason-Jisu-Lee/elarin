@@ -78,5 +78,5 @@ export interface DailyGoalState {
 // ─── User Profile ───
 
 export interface UserProfile {
-  name: string;
+  username: string;
 }

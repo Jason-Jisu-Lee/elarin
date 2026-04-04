@@ -8,8 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getAccountId as getAccountIdFromAuth } from "../../src/auth";
-import { signOut } from "../../src/auth";
+import { getAccountId as getAccountIdFromAuth, signOut, getAccountEmail } from "../../src/auth";
 import { clearAccountId } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 import { supabase } from "../../src/supabase";
@@ -25,6 +24,7 @@ export default function AccountIndex() {
   const { colors } = useTheme();
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
@@ -35,12 +35,16 @@ export default function AccountIndex() {
         router.replace("/account/create");
         return;
       }
-      const { data } = await supabase
-        .from("profiles")
-        .select("username, birthday, created_at")
-        .eq("id", userId)
-        .single();
+      const [{ data }, accountEmail] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("username, birthday, created_at")
+          .eq("id", userId)
+          .single(),
+        getAccountEmail(),
+      ]);
       setProfile(data ?? null);
+      setEmail(accountEmail);
       setLoading(false);
     })();
   }, []);
@@ -89,6 +93,24 @@ export default function AccountIndex() {
               {profile.username}
             </Text>
           </View>
+
+          {joinYear && (
+            <View
+              style={[
+                styles.infoRow,
+                { backgroundColor: colors.surfaceContainerLowest },
+              ]}
+            >
+              <Text
+                style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}
+              >
+                Email
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.onSurface }]}>
+                {email ?? "—"}
+              </Text>
+            </View>
+          )}
 
           {joinYear && (
             <View
@@ -167,9 +189,7 @@ export default function AccountIndex() {
                 style={styles.dialogBtn}
                 onPress={handleSignOut}
               >
-                <Text
-                  style={[styles.dialogBtnText, { color: colors.error }]}
-                >
+                <Text style={[styles.dialogBtnText, { color: colors.error }]}>
                   Sign Out
                 </Text>
               </TouchableOpacity>
@@ -220,8 +240,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
   },
-  dialogTitle: { fontSize: 18, fontFamily: fonts.headlineBold, marginBottom: 8 },
-  dialogBody: { fontSize: 14, fontFamily: fonts.bodyRegular, marginBottom: 20, lineHeight: 20 },
+  dialogTitle: {
+    fontSize: 18,
+    fontFamily: fonts.headlineBold,
+    marginBottom: 8,
+  },
+  dialogBody: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
   dialogActions: { flexDirection: "row", justifyContent: "flex-end", gap: 24 },
   dialogBtn: { paddingVertical: 4 },
   dialogBtnText: { fontSize: 15, fontFamily: fonts.bodySemiBold },

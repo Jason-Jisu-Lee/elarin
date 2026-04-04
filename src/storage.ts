@@ -90,7 +90,15 @@ export async function setOnboarded(value: boolean): Promise<void> {
 
 export async function getProfile(): Promise<UserProfile | null> {
   const raw = await AsyncStorage.getItem(KEYS.PROFILE);
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as Record<string, string>;
+  // Backward compat: migrate { name } → { username }
+  if (parsed.name && !parsed.username) {
+    parsed.username = parsed.name;
+    delete parsed.name;
+    await AsyncStorage.setItem(KEYS.PROFILE, JSON.stringify(parsed));
+  }
+  return parsed as unknown as UserProfile;
 }
 
 export async function saveProfile(profile: UserProfile): Promise<void> {

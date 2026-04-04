@@ -6,8 +6,7 @@ import Constants from "expo-constants";
 // ─── SecureStore adapter for Supabase session persistence ───
 const SecureStoreAdapter = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) =>
-    SecureStore.setItemAsync(key, value),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
   removeItem: (key: string) => SecureStore.deleteItemAsync(key),
 };
 

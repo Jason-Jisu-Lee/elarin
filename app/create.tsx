@@ -152,7 +152,8 @@ export default function CreateGoal() {
     if (notificationsEnabled) {
       // Always re-request — on Android 13+ this shows the system dialog every time
       // if permanently denied, canAskAgain is false so we open Settings instead
-      const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+      const { status, canAskAgain } =
+        await Notifications.requestPermissionsAsync();
       if (status !== "granted") {
         if (!canAskAgain) {
           // Permanently denied — send user to app settings
@@ -462,10 +463,9 @@ export default function CreateGoal() {
                 <Text
                   style={[styles.permWarningText, { color: colors.onSurface }]}
                 >
-                  Please grant notification permission for this app, or set reminder to{" "}
-                  <Text style={{ fontFamily: fonts.bodySemiBold }}>
-                    "None"
-                  </Text>
+                  Please grant notification permission for this app, or set
+                  reminder to{" "}
+                  <Text style={{ fontFamily: fonts.bodySemiBold }}>"None"</Text>
                   .
                 </Text>
               </View>

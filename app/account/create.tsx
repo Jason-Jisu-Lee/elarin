@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,12 @@ import {
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { signUp, isUsernameTaken } from "../../src/auth";
-import { setAccountId } from "../../src/storage";
+import { setAccountId, getProfile } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 
 const USERNAME_RE = /^[a-zA-Z0-9]{3,15}$/;
 const PASSWORD_RE = /^[a-zA-Z0-9!@#$%^&*]{6,18}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -36,17 +37,26 @@ export default function AccountCreate() {
   const { colors } = useTheme();
 
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthday, setBirthday] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    getProfile().then((p) => {
+      if (p?.username) setUsername(p.username);
+    });
+  }, []);
+
   const validate = (): string | null => {
     if (!USERNAME_RE.test(username))
-      return "Username must be 3–15 letters or numbers.";
+      return "Username must be 3â€“15 letters or numbers.";
+    if (!EMAIL_RE.test(email.trim()))
+      return "Please enter a valid email address.";
     if (!PASSWORD_RE.test(password))
-      return "Password must be 6–18 chars: letters, numbers, or !@#$%^&*";
+      return "Password must be 6â€“18 chars: letters, numbers, or !@#$%^&*";
     if (!birthday) return "Please select your birthday.";
     const age =
       (Date.now() - birthday.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
@@ -73,6 +83,7 @@ export default function AccountCreate() {
 
       const result = await signUp({
         username,
+        email: email.trim(),
         password,
         birthday: formatDate(birthday!),
       });
@@ -105,7 +116,8 @@ export default function AccountCreate() {
           Create Account
         </Text>
         <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
-          Your username is visible to no one — it's just how you log in.
+          Your progress stays on this device. An account lets you restore it if
+          you switch phones.
         </Text>
 
         {/* Username */}
@@ -122,11 +134,36 @@ export default function AccountCreate() {
             },
           ]}
           value={username}
-          onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-zA-Z0-9]/g, ""))}
+          onChangeText={(t) =>
+            setUsername(t.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15))
+          }
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={15}
-          placeholder="e.g. alex42"
+          placeholder="e.g. Alex42"
+          placeholderTextColor={colors.outlineVariant}
+          returnKeyType="next"
+        />
+
+        {/* Email */}
+        <Text style={[styles.label, { color: colors.onSurfaceVariant }]}>
+          Email
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              color: colors.onSurface,
+              borderColor: colors.outlineVariant,
+              backgroundColor: colors.surfaceContainerLowest,
+            },
+          ]}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          placeholder="you@example.com"
           placeholderTextColor={colors.outlineVariant}
           returnKeyType="next"
         />
@@ -148,7 +185,7 @@ export default function AccountCreate() {
           onChangeText={setPassword}
           secureTextEntry
           maxLength={18}
-          placeholder="6–18 characters"
+          placeholder="6â€“18 characters"
           placeholderTextColor={colors.outlineVariant}
           returnKeyType="done"
         />
@@ -192,12 +229,10 @@ export default function AccountCreate() {
           />
         )}
 
-        {/* Error */}
         {error !== "" && (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         )}
 
-        {/* Submit */}
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.primary }]}
           onPress={handleCreate}
@@ -229,8 +264,18 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 28, paddingTop: 72, paddingBottom: 40 },
   title: { fontSize: 28, fontFamily: fonts.headlineBold, marginBottom: 8 },
-  subtitle: { fontSize: 14, fontFamily: fonts.bodyRegular, marginBottom: 32, lineHeight: 20 },
-  label: { fontSize: 13, fontFamily: fonts.bodySemiBold, marginBottom: 6, marginTop: 16 },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  label: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    marginBottom: 6,
+    marginTop: 16,
+  },
   input: {
     height: 48,
     borderWidth: 1,
@@ -239,9 +284,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.bodyRegular,
   },
-  dateBtn: {
-    justifyContent: "center",
-  },
+  dateBtn: { justifyContent: "center" },
   error: { fontSize: 13, fontFamily: fonts.bodyRegular, marginTop: 12 },
   btn: {
     height: 52,

@@ -37,6 +37,8 @@ import { registerBackgroundNotificationHandler } from "../src/background";
 
 import { processPendingNativeActions } from "../src/alarms";
 import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
+import { getAccountId as getSupabaseAccountId } from "../src/auth";
+import { setAccountId } from "../src/storage";
 import {
   ThemeContext,
   lightColors,
@@ -74,6 +76,10 @@ export default function RootLayout() {
     getStoredTheme().then((t) => {
       setThemeName(t);
       setThemeReady(true);
+    });
+    // Restore Supabase session into AsyncStorage on every launch
+    getSupabaseAccountId().then((id) => {
+      if (id) setAccountId(id);
     });
   }, []);
 
@@ -152,6 +158,9 @@ export default function RootLayout() {
           <Stack.Screen name="create" options={{ headerShown: false }} />
           <Stack.Screen name="goal/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="account" options={{ headerShown: false }} />
+          <Stack.Screen name="account/create" options={{ headerShown: false }} />
+          <Stack.Screen name="account/signin" options={{ headerShown: false }} />
           <Stack.Screen
             name="template/create"
             options={{ title: "Edit Goal", presentation: "modal" }}

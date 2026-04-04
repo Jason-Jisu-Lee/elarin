@@ -1,7 +1,8 @@
-import { supabase } from "./supabase";
+﻿import { supabase } from "./supabase";
 
 export interface SignUpParams {
   username: string;
+  email: string;
   password: string;
   birthday: string; // "YYYY-MM-DD"
 }
@@ -14,11 +15,8 @@ export interface AuthError {
 export async function signUp(
   params: SignUpParams,
 ): Promise<{ userId: string } | AuthError> {
-  // Derive a stable email from username (Supabase auth requires email)
-  const email = `${params.username.toLowerCase()}@elarin.user`;
-
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: params.email,
     password: params.password,
     options: {
       data: {
@@ -29,7 +27,7 @@ export async function signUp(
   });
 
   if (error) return { message: error.message };
-  if (!data.user) return { message: "Sign up failed — no user returned." };
+  if (!data.user) return { message: "Sign up failed â€” no user returned." };
 
   // Insert profile row (upsert in case trigger already created it)
   const { error: profileError } = await supabase.from("profiles").upsert({
@@ -44,13 +42,11 @@ export async function signUp(
   return { userId: data.user.id };
 }
 
-/** Sign in with username + password. Returns userId or error. */
+/** Sign in with email + password. Returns userId or error. */
 export async function signIn(
-  username: string,
+  email: string,
   password: string,
 ): Promise<{ userId: string } | AuthError> {
-  const email = `${username.toLowerCase()}@elarin.user`;
-
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -70,19 +66,53 @@ export async function getAccountId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
+/** Get the current session's email, or null if not signed in. */
+export async function getAccountEmail(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user.email ?? null;
+}
+
 /** Sign out the current user. */
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
-/** Check whether a username is taken. */
+/** Check whether a username is taken (case-insensitive). */
 export async function isUsernameTaken(username: string): Promise<boolean> {
   const { data } = await supabase
     .from("profiles")
     .select("id")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
   return data !== null;
+}
+
+/**
+ * Update a user's username. Checks uniqueness (case-insensitive, excluding self).
+ * Returns null on success or an AuthError on failure.
+ */
+export async function updateUsername(
+  userId: string,
+  newUsername: string,
+): Promise<AuthError | null> {
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("username", newUsername)
+    .neq("id", userId)
+    .maybeSingle();
+
+  if (existing) return { message: "That username is already taken." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ username: newUsername })
+    .eq("id", userId);
+
+  if (error) return { message: error.message };
+  return null;
 }
 
 /** Record a goal action event in the events table. */
@@ -100,3 +130,5 @@ export async function recordEvent(params: {
     occurred_at: new Date().toISOString(),
   });
 }
+
+

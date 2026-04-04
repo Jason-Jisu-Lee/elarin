@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,30 +8,56 @@ import {
   Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getProfile, saveProfile, getAccountId } from "../src/storage";
+import { getProfile, saveProfile, getAccountId, clearAccountId } from "../src/storage";
+import { signOut, updateUsername, isUsernameTaken } from "../src/auth";
 import { useTheme, fonts, storeTheme } from "../src/theme";
+
+const USERNAME_RE = /^[a-zA-Z0-9]{3,15}$/;
 
 export default function Profile() {
   const router = useRouter();
   const { colors, setTheme, isDark } = useTheme();
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [showIntroDialog, setShowIntroDialog] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [hasAccount, setHasAccount] = useState(false);
+  const [accountId, setCurrentAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     getProfile().then((p) => {
-      if (p) setName(p.name);
+      if (p) setUsername(p.username ?? "");
     });
-    getAccountId().then((id) => setHasAccount(!!id));
+    getAccountId().then((id) => {
+      setHasAccount(!!id);
+      setCurrentAccountId(id);
+    });
   }, []);
 
-  const handleSaveName = async () => {
-    if (!newName.trim()) return;
-    await saveProfile({ name: newName.trim() });
-    setName(newName.trim());
+  const handleSaveUsername = async () => {
+    const trimmed = newName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15);
+    if (!USERNAME_RE.test(trimmed)) {
+      setNameError("3â€“15 letters or numbers only.");
+      return;
+    }
+    if (hasAccount && accountId) {
+      const taken = await isUsernameTaken(trimmed);
+      if (taken && trimmed.toLowerCase() !== username.toLowerCase()) {
+        setNameError("That username is already taken.");
+        return;
+      }
+      const err = await updateUsername(accountId, trimmed);
+      if (err) {
+        setNameError(err.message);
+        return;
+      }
+    }
+    await saveProfile({ username: trimmed });
+    setUsername(trimmed);
     setEditingName(false);
+    setNameError("");
   };
 
   const handleToggleTheme = async () => {
@@ -40,14 +66,22 @@ export default function Profile() {
     await storeTheme(next);
   };
 
+  const handleSignOut = async () => {
+    setShowSignOutDialog(false);
+    await signOut();
+    await clearAccountId();
+    setHasAccount(false);
+    setCurrentAccountId(null);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Back */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={[styles.backText, { color: colors.primary }]}>←</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>â†</Text>
       </TouchableOpacity>
 
-      {/* Profile icon + name (tap to edit) */}
+      {/* Avatar + username (tap to edit) */}
       <View style={styles.header}>
         <View style={[styles.avatarCircle, { borderColor: colors.onSurface }]}>
           <View
@@ -58,30 +92,42 @@ export default function Profile() {
           />
         </View>
         {editingName ? (
-          <TextInput
-            style={[
-              styles.nameInput,
-              { color: colors.onSurface, borderBottomColor: colors.primary },
-            ]}
-            value={newName}
-            onChangeText={setNewName}
-            autoFocus
-            maxLength={30}
-            returnKeyType="done"
-            onSubmitEditing={handleSaveName}
-            onBlur={handleSaveName}
-            placeholder="Your name"
-            placeholderTextColor={colors.outlineVariant}
-          />
+          <View style={styles.editBlock}>
+            <TextInput
+              style={[
+                styles.nameInput,
+                { color: colors.onSurface, borderBottomColor: colors.primary },
+              ]}
+              value={newName}
+              onChangeText={(t) =>
+                setNewName(t.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15))
+              }
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={15}
+              returnKeyType="done"
+              onSubmitEditing={handleSaveUsername}
+              onBlur={handleSaveUsername}
+              placeholder="username"
+              placeholderTextColor={colors.outlineVariant}
+            />
+            {nameError !== "" && (
+              <Text style={[styles.nameError, { color: colors.error }]}>
+                {nameError}
+              </Text>
+            )}
+          </View>
         ) : (
           <TouchableOpacity
             onPress={() => {
-              setNewName(name);
+              setNewName(username);
+              setNameError("");
               setEditingName(true);
             }}
           >
             <Text style={[styles.name, { color: colors.onSurface }]}>
-              {name || "Tap to set name"}
+              {username || "Tap to set username"}
             </Text>
           </TouchableOpacity>
         )}
@@ -129,6 +175,21 @@ export default function Profile() {
             Play Intro
           </Text>
         </TouchableOpacity>
+
+        {/* Sign Out â€” only shown when logged in */}
+        {hasAccount && (
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              { backgroundColor: colors.surfaceContainerLowest },
+            ]}
+            onPress={() => setShowSignOutDialog(true)}
+          >
+            <Text style={[styles.menuText, { color: colors.error }]}>
+              Sign Out
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Play Intro confirmation modal */}
@@ -183,6 +244,61 @@ export default function Profile() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Sign Out confirmation modal */}
+      <Modal
+        visible={showSignOutDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSignOutDialog(false)}
+      >
+        <TouchableOpacity
+          style={styles.dialogOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSignOutDialog(false)}
+        >
+          <View
+            style={[
+              styles.dialogCard,
+              { backgroundColor: colors.surfaceContainerHigh },
+            ]}
+          >
+            <Text style={[styles.dialogTitle, { color: colors.onSurface }]}>
+              Sign out?
+            </Text>
+            <Text
+              style={[styles.dialogBody, { color: colors.onSurfaceVariant }]}
+            >
+              Your goals stay on this device.
+            </Text>
+            <View style={styles.dialogActions}>
+              <TouchableOpacity
+                style={styles.dialogBtn}
+                onPress={() => setShowSignOutDialog(false)}
+              >
+                <Text
+                  style={[
+                    styles.dialogBtnText,
+                    { color: colors.onSurfaceVariant },
+                  ]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dialogBtn}
+                onPress={handleSignOut}
+              >
+                <Text
+                  style={[styles.dialogBtnText, { color: colors.error }]}
+                >
+                  Sign Out
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -221,6 +337,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.headlineExtraBold,
     textAlign: "center",
   },
+  editBlock: { alignItems: "center" },
   nameInput: {
     fontSize: 24,
     fontFamily: fonts.headlineExtraBold,
@@ -228,6 +345,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     paddingBottom: 4,
     minWidth: 120,
+  },
+  nameError: {
+    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    marginTop: 4,
+    textAlign: "center",
   },
   menu: { gap: 0 },
   menuItem: {
@@ -239,7 +362,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   menuText: { fontSize: 15, fontFamily: fonts.bodyMedium },
-  // Dialog
   dialogOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
@@ -261,18 +383,17 @@ const styles = StyleSheet.create({
   dialogTitle: {
     fontSize: 18,
     fontFamily: fonts.headlineBold,
-    marginBottom: 24,
+    marginBottom: 8,
+    textAlign: "center",
   },
-  dialogActions: {
-    flexDirection: "row",
-    gap: 32,
+  dialogBody: {
+    fontSize: 14,
+    fontFamily: fonts.bodyRegular,
+    marginBottom: 20,
+    textAlign: "center",
   },
-  dialogBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  dialogBtnText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemiBold,
-  },
+  dialogActions: { flexDirection: "row", gap: 24 },
+  dialogBtn: { paddingVertical: 4 },
+  dialogBtnText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
 });
+

@@ -18,14 +18,14 @@ export default function AccountSignIn() {
   const router = useRouter();
   const { colors } = useTheme();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!username.trim() || !password) {
-      setError("Please enter your username and password.");
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
       return;
     }
 
@@ -33,7 +33,7 @@ export default function AccountSignIn() {
     setLoading(true);
 
     try {
-      const result = await signIn(username.trim(), password);
+      const result = await signIn(email.trim(), password);
       if ("message" in result) {
         setError(result.message);
         return;
@@ -55,12 +55,10 @@ export default function AccountSignIn() {
           <Text style={[styles.backText, { color: colors.primary }]}>←</Text>
         </TouchableOpacity>
 
-        <Text style={[styles.title, { color: colors.onSurface }]}>
-          Sign In
-        </Text>
+        <Text style={[styles.title, { color: colors.onSurface }]}>Sign In</Text>
 
         <Text style={[styles.label, { color: colors.onSurfaceVariant }]}>
-          Username
+          Email
         </Text>
         <TextInput
           style={[
@@ -71,11 +69,12 @@ export default function AccountSignIn() {
               backgroundColor: colors.surfaceContainerLowest,
             },
           ]}
-          value={username}
-          onChangeText={(t) => setUsername(t.toLowerCase())}
+          value={email}
+          onChangeText={setEmail}
           autoCapitalize="none"
           autoCorrect={false}
-          placeholder="your username"
+          keyboardType="email-address"
+          placeholder="you@example.com"
           placeholderTextColor={colors.outlineVariant}
           returnKeyType="next"
         />
@@ -138,7 +137,12 @@ const styles = StyleSheet.create({
   backBtn: { marginBottom: 24 },
   backText: { fontSize: 22, fontFamily: fonts.headlineBold },
   title: { fontSize: 28, fontFamily: fonts.headlineBold, marginBottom: 32 },
-  label: { fontSize: 13, fontFamily: fonts.bodySemiBold, marginBottom: 6, marginTop: 16 },
+  label: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    marginBottom: 6,
+    marginTop: 16,
+  },
   input: {
     height: 48,
     borderWidth: 1,

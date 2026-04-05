@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Animated,
   Modal,
-  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -269,30 +268,40 @@ export default function Home() {
     return `${months[m - 1]} ${d}${suffix}`;
   };
 
-  // Heatmap renderer — 3-month window, dynamic cell sizing
+  // Heatmap renderer — 3-month window, fixed 11px cells spread across full width
   const renderHeatmap = () => {
     if (heatmapData.length === 0) return null;
 
-    // Filter to 3-month rolling window ending in current month
+    // 3-month rolling window ending in current month
     const now = new Date();
-    const endMonth = now.getMonth(); // 0-indexed
+    const endMonth = now.getMonth();
     const windowStart = new Date(now.getFullYear(), endMonth - 2, 1);
     const windowEnd = new Date(now.getFullYear(), endMonth + 1, 0);
-    const filtered = heatmapData.filter((e) => {
-      if (!e.date) return false;
-      const d = new Date(e.date);
-      return d >= windowStart && d <= windowEnd;
-    });
-    if (filtered.length === 0) return null;
 
-    // Build week columns from filtered data
+    // Build complete day-by-day list for the window (fill gaps with no-data cells)
+    const dataMap = new Map(heatmapData.map((e) => [e.date, e]));
+    const windowDays: HeatmapEntry[] = [];
+    const cursor = new Date(windowStart);
+    while (cursor <= windowEnd) {
+      const dateStr = cursor.toISOString().split("T")[0];
+      windowDays.push(
+        dataMap.get(dateStr) ?? {
+          date: dateStr,
+          ratio: -1,
+          completed: 0,
+          total: 0,
+        },
+      );
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    // Build week columns
     const weeks: HeatmapEntry[][] = [];
     let currentWeek: HeatmapEntry[] = [];
-    const firstDate = new Date(filtered[0].date);
-    const startDay = firstDate.getDay();
+    const startDay = windowStart.getDay();
     for (let i = 0; i < startDay; i++)
       currentWeek.push({ date: "", ratio: -1, completed: 0, total: 0 });
-    for (const entry of filtered) {
+    for (const entry of windowDays) {
       currentWeek.push(entry);
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
@@ -319,17 +328,9 @@ export default function Home() {
       }
     });
 
-    // Dynamic sizing to fill full width
-    const H_PAD = 20;
     const DAY_LABEL_W = 24;
-    const GAP = 3;
-    const screenW = Dimensions.get("window").width;
-    const availW = screenW - H_PAD * 2 - DAY_LABEL_W;
-    const CELL = Math.max(
-      10,
-      Math.floor((availW - GAP * (weeks.length - 1)) / weeks.length),
-    );
-    const colWidth = CELL + GAP;
+    const CELL = 11;
+    const CELL_GAP = 3;
 
     const handleCellPress = (
       entry: HeatmapEntry,
@@ -352,28 +353,28 @@ export default function Home() {
           Activity
         </Text>
 
-        {/* Month labels row */}
-        <View style={[styles.heatmapMonthRow, { marginLeft: DAY_LABEL_W }]}>
-          {weeks.map((_, wi) => {
-            const marker = monthMarkers.find((m) => m.weekIndex === wi);
-            return (
-              <View
-                key={wi}
-                style={{ width: colWidth, alignItems: "flex-start", overflow: "visible" }}
-              >
-                {marker && (
-                  <Text
-                    style={[
-                      styles.monthLabel,
-                      { color: colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {marker.label}
-                  </Text>
-                )}
-              </View>
-            );
-          })}
+        {/* Month labels — spread to fill full width */}
+        <View style={{ flexDirection: "row", marginBottom: 4 }}>
+          <View style={{ width: DAY_LABEL_W }} />
+          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
+            {weeks.map((_, wi) => {
+              const marker = monthMarkers.find((m) => m.weekIndex === wi);
+              return (
+                <View key={wi} style={{ width: CELL }}>
+                  {marker && (
+                    <Text
+                      style={[
+                        styles.monthLabel,
+                        { color: colors.onSurfaceVariant },
+                      ]}
+                    >
+                      {marker.label}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         </View>
 
         {/* Grid: day labels + cells */}
@@ -383,7 +384,7 @@ export default function Home() {
             {DAY_LABELS.map((lbl, i) => (
               <View
                 key={i}
-                style={{ height: CELL + GAP, justifyContent: "center" }}
+                style={{ height: CELL + CELL_GAP, justifyContent: "center" }}
               >
                 <Text
                   style={[styles.dayLabel, { color: colors.onSurfaceVariant }]}
@@ -394,10 +395,10 @@ export default function Home() {
             ))}
           </View>
 
-          {/* Cell grid — no ScrollView, fills width */}
-          <View style={{ flexDirection: "row", gap: GAP }}>
+          {/* Cell columns — spread to fill full width */}
+          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
             {weeks.map((week, wi) => (
-              <View key={wi} style={{ gap: GAP }}>
+              <View key={wi} style={{ gap: CELL_GAP }}>
                 {week.map((day, di) => (
                   <TouchableOpacity
                     key={`${wi}-${di}`}
@@ -409,21 +410,19 @@ export default function Home() {
                         e.nativeEvent.pageY,
                       )
                     }
-                    style={[
-                      {
-                        width: CELL,
-                        height: CELL,
-                        borderRadius: 2,
-                        backgroundColor: getHeatColor(day.ratio),
-                        borderWidth: day.ratio === 0 ? 1 : 0,
-                        borderColor:
-                          day.ratio === 0
-                            ? isDark
-                              ? colors.surfaceContainerHighest
-                              : colors.outlineVariant
-                            : "transparent",
-                      },
-                    ]}
+                    style={{
+                      width: CELL,
+                      height: CELL,
+                      borderRadius: 2,
+                      backgroundColor: getHeatColor(day.ratio),
+                      borderWidth: day.ratio === 0 ? 1 : 0,
+                      borderColor:
+                        day.ratio === 0
+                          ? isDark
+                            ? colors.surfaceContainerHighest
+                            : colors.outlineVariant
+                          : "transparent",
+                    }}
                   />
                 ))}
               </View>

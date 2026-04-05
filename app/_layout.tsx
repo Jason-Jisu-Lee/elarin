@@ -153,6 +153,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="theme-select" options={{ headerShown: false }} />
+          <Stack.Screen name="account-setup" options={{ headerShown: false }} />
           <Stack.Screen name="home" options={{ headerShown: false }} />
           <Stack.Screen name="templates" options={{ headerShown: false }} />
           <Stack.Screen name="create" options={{ headerShown: false }} />

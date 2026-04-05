@@ -20,7 +20,7 @@ export default function ThemeSelect() {
   const confirm = async () => {
     setTheme(selected);
     await storeTheme(selected);
-    router.replace("/home");
+    router.replace("/account-setup");
   };
 
   return (

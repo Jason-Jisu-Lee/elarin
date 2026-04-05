@@ -39,7 +39,7 @@ export default function Profile() {
   const handleSaveUsername = async () => {
     const trimmed = newName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15);
     if (!USERNAME_RE.test(trimmed)) {
-      setNameError("3â€“15 letters or numbers only.");
+      setNameError("3-15 letters or numbers only.");
       return;
     }
     if (hasAccount && accountId) {
@@ -78,7 +78,7 @@ export default function Profile() {
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Back */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={[styles.backText, { color: colors.primary }]}>â†</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>{"\u2190"}</Text>
       </TouchableOpacity>
 
       {/* Avatar + username (tap to edit) */}
@@ -176,7 +176,7 @@ export default function Profile() {
           </Text>
         </TouchableOpacity>
 
-        {/* Sign Out â€” only shown when logged in */}
+        {/* Sign Out - only shown when logged in */}
         {hasAccount && (
           <TouchableOpacity
             style={[

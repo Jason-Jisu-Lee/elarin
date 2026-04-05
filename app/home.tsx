@@ -548,26 +548,36 @@ export default function Home() {
                       }}
                       renderLeftActions={
                         done
-                          ? undefined
+                          ? () => renderUndoAction()
                           : isSnoozed
                             ? () => renderUndoAction()
                             : () => renderSnoozeAction()
                       }
                       renderRightActions={
-                        done || isSnoozed
-                          ? undefined
-                          : () => renderDoneAction()
+                        done
+                          ? () => renderUndoAction()
+                          : isSnoozed
+                            ? () => renderDoneAction()
+                            : () => renderDoneAction()
                       }
-                      enabled={!done}
                       overshootLeft={false}
                       overshootRight={false}
                       onSwipeableOpen={(direction, swipeable) => {
                         swipeable.close();
-                        if (isSnoozed) {
-                          if (direction === "left") handleUndoSnooze(goal.id);
-                        } else if (!done) {
+                        if (done) {
+                          // Undo done — either swipe direction
+                          handleUndoSnooze(goal.id);
+                        } else if (isSnoozed) {
+                          if (direction === "left") {
+                            // Swipe right on snoozed → undo
+                            handleUndoSnooze(goal.id);
+                          } else {
+                            // Swipe left on snoozed → mark done
+                            handleDoIt(goal.id);
+                          }
+                        } else {
                           if (direction === "right") handleDoIt(goal.id);
-                          else if (direction === "left") handleSnooze(goal.id);
+                          else handleSnooze(goal.id);
                         }
                       }}
                     >
@@ -809,7 +819,7 @@ const styles = StyleSheet.create({
   },
   goalCard: {
     borderRadius: 14,
-    marginBottom: 8,
+    marginBottom: 12,
     flexDirection: "row",
     overflow: "hidden",
     elevation: 1,
@@ -956,10 +966,11 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 28,
-    fontFamily: fonts.bodyRegular,
-    lineHeight: 30,
     includeFontPadding: false,
+    textAlign: "center",
     textAlignVertical: "center",
+    lineHeight: 32,
+    marginTop: -1,
   },
   fabOverlay: {
     flex: 1,

@@ -27,7 +27,13 @@ export async function signUp(
   });
 
   if (error) return { message: error.message };
-  if (!data.user) return { message: "Sign up failed â€” no user returned." };
+  if (!data.user) return { message: "Sign up failed - no user returned." };
+
+  // If no session (email confirmation enabled), we can't insert the profile
+  // because RLS requires auth.uid(). Tell the user to confirm email first.
+  if (!data.session) {
+    return { message: "Check your email to confirm your account, then sign in." };
+  }
 
   // Insert profile row (upsert in case trigger already created it)
   const { error: profileError } = await supabase.from("profiles").upsert({

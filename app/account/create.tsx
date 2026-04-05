@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import { signUp, isUsernameTaken } from "../../src/auth";
 import { setAccountId, getProfile } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 
-const USERNAME_RE = /^[a-zA-Z0-9]{3,15}$/;
 const PASSWORD_RE = /^[a-zA-Z0-9!@#$%^&*]{6,18}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,6 +38,7 @@ export default function AccountCreate() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [birthday, setBirthday] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState("");
@@ -51,12 +51,11 @@ export default function AccountCreate() {
   }, []);
 
   const validate = (): string | null => {
-    if (!USERNAME_RE.test(username))
-      return "Username must be 3â€“15 letters or numbers.";
     if (!EMAIL_RE.test(email.trim()))
       return "Please enter a valid email address.";
     if (!PASSWORD_RE.test(password))
-      return "Password must be 6â€“18 chars: letters, numbers, or !@#$%^&*";
+      return "Password must be 6-18 chars: letters, numbers, or !@#$%^&*";
+    if (password !== confirmPassword) return "Passwords do not match.";
     if (!birthday) return "Please select your birthday.";
     const age =
       (Date.now() - birthday.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
@@ -120,31 +119,6 @@ export default function AccountCreate() {
           you switch phones.
         </Text>
 
-        {/* Username */}
-        <Text style={[styles.label, { color: colors.onSurfaceVariant }]}>
-          Username
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              color: colors.onSurface,
-              borderColor: colors.outlineVariant,
-              backgroundColor: colors.surfaceContainerLowest,
-            },
-          ]}
-          value={username}
-          onChangeText={(t) =>
-            setUsername(t.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15))
-          }
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={15}
-          placeholder="e.g. Alex42"
-          placeholderTextColor={colors.outlineVariant}
-          returnKeyType="next"
-        />
-
         {/* Email */}
         <Text style={[styles.label, { color: colors.onSurfaceVariant }]}>
           Email
@@ -185,7 +159,29 @@ export default function AccountCreate() {
           onChangeText={setPassword}
           secureTextEntry
           maxLength={18}
-          placeholder="6â€“18 characters"
+          placeholder="6-18 characters"
+          placeholderTextColor={colors.outlineVariant}
+          returnKeyType="next"
+        />
+
+        {/* Confirm Password */}
+        <Text style={[styles.label, { color: colors.onSurfaceVariant }]}>
+          Confirm Password
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              color: colors.onSurface,
+              borderColor: colors.outlineVariant,
+              backgroundColor: colors.surfaceContainerLowest,
+            },
+          ]}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          maxLength={18}
+          placeholder="Re-enter password"
           placeholderTextColor={colors.outlineVariant}
           returnKeyType="done"
         />

@@ -4,23 +4,20 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
   getAccountId as getAccountIdFromAuth,
-  signOut,
   getAccountEmail,
+  resetPassword,
 } from "../../src/auth";
-import { clearAccountId } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 import { supabase } from "../../src/supabase";
 
 interface ProfileRow {
   username: string;
   birthday: string;
-  created_at: string;
 }
 
 export default function AccountIndex() {
@@ -30,19 +27,21 @@ export default function AccountIndex() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetErr, setResetErr] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     (async () => {
       const userId = await getAccountIdFromAuth();
       if (!userId) {
-        router.replace("/account/create");
+        router.replace("/profile");
         return;
       }
       const [{ data }, accountEmail] = await Promise.all([
         supabase
           .from("profiles")
-          .select("username, birthday, created_at")
+          .select("username, birthday")
           .eq("id", userId)
           .single(),
         getAccountEmail(),
@@ -53,11 +52,18 @@ export default function AccountIndex() {
     })();
   }, []);
 
-  const handleSignOut = async () => {
-    setShowSignOutDialog(false);
-    await signOut();
-    await clearAccountId();
-    router.replace("/profile");
+  const handleResetPassword = async () => {
+    if (!email) return;
+    setResetting(true);
+    setResetMsg("");
+    setResetErr("");
+    const err = await resetPassword(email);
+    if (err) {
+      setResetErr(err.message);
+    } else {
+      setResetMsg("Password reset email sent!");
+    }
+    setResetting(false);
   };
 
   if (loading) {
@@ -68,19 +74,17 @@ export default function AccountIndex() {
     );
   }
 
-  const joinYear = profile?.created_at
-    ? new Date(profile.created_at).getFullYear()
-    : null;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={[styles.backText, { color: colors.primary }]}>←</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>
+          {"\u2190"}
+        </Text>
       </TouchableOpacity>
 
       <Text style={[styles.title, { color: colors.onSurface }]}>Account</Text>
 
-      {profile ? (
+      {profile && (
         <View style={styles.infoBlock}>
           <View
             style={[
@@ -88,119 +92,68 @@ export default function AccountIndex() {
               { backgroundColor: colors.surfaceContainerLowest },
             ]}
           >
-            <Text
-              style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}
-            >
+            <Text style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}>
               Username
             </Text>
             <Text style={[styles.infoValue, { color: colors.onSurface }]}>
-              {profile.username}
+              {profile.username || "\u2014"}
             </Text>
           </View>
 
-          {joinYear && (
-            <View
-              style={[
-                styles.infoRow,
-                { backgroundColor: colors.surfaceContainerLowest },
-              ]}
-            >
-              <Text
-                style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}
-              >
-                Email
-              </Text>
-              <Text style={[styles.infoValue, { color: colors.onSurface }]}>
-                {email ?? "—"}
-              </Text>
-            </View>
-          )}
+          <View
+            style={[
+              styles.infoRow,
+              { backgroundColor: colors.surfaceContainerLowest },
+            ]}
+          >
+            <Text style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}>
+              Email
+            </Text>
+            <Text style={[styles.infoValue, { color: colors.onSurface }]}>
+              {email ?? "\u2014"}
+            </Text>
+          </View>
 
-          {joinYear && (
-            <View
-              style={[
-                styles.infoRow,
-                { backgroundColor: colors.surfaceContainerLowest },
-              ]}
-            >
-              <Text
-                style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}
-              >
-                Member since
-              </Text>
-              <Text style={[styles.infoValue, { color: colors.onSurface }]}>
-                {joinYear}
-              </Text>
-            </View>
-          )}
+          <View
+            style={[
+              styles.infoRow,
+              { backgroundColor: colors.surfaceContainerLowest },
+            ]}
+          >
+            <Text style={[styles.infoLabel, { color: colors.onSurfaceVariant }]}>
+              Birthday
+            </Text>
+            <Text style={[styles.infoValue, { color: colors.onSurface }]}>
+              {profile.birthday || "Not set"}
+            </Text>
+          </View>
         </View>
-      ) : (
-        <Text style={[styles.noProfile, { color: colors.onSurfaceVariant }]}>
-          Could not load profile.
-        </Text>
       )}
 
       <TouchableOpacity
-        style={[styles.signOutBtn, { borderColor: colors.error }]}
-        onPress={() => setShowSignOutDialog(true)}
+        style={[
+          styles.resetBtn,
+          { backgroundColor: colors.surfaceContainerLowest },
+        ]}
+        onPress={handleResetPassword}
+        disabled={resetting}
+        activeOpacity={0.7}
       >
-        <Text style={[styles.signOutText, { color: colors.error }]}>
-          Sign Out
-        </Text>
+        {resetting ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : (
+          <Text style={[styles.resetBtnText, { color: colors.primary }]}>
+            Reset Password
+          </Text>
+        )}
       </TouchableOpacity>
 
-      {/* Sign out confirmation */}
-      <Modal
-        visible={showSignOutDialog}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSignOutDialog(false)}
-      >
-        <TouchableOpacity
-          style={styles.dialogOverlay}
-          activeOpacity={1}
-          onPress={() => setShowSignOutDialog(false)}
-        >
-          <View
-            style={[
-              styles.dialogCard,
-              { backgroundColor: colors.surfaceContainerHigh },
-            ]}
-          >
-            <Text style={[styles.dialogTitle, { color: colors.onSurface }]}>
-              Sign out?
-            </Text>
-            <Text
-              style={[styles.dialogBody, { color: colors.onSurfaceVariant }]}
-            >
-              Your goals and progress stay on this device.
-            </Text>
-            <View style={styles.dialogActions}>
-              <TouchableOpacity
-                style={styles.dialogBtn}
-                onPress={() => setShowSignOutDialog(false)}
-              >
-                <Text
-                  style={[
-                    styles.dialogBtnText,
-                    { color: colors.onSurfaceVariant },
-                  ]}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.dialogBtn}
-                onPress={handleSignOut}
-              >
-                <Text style={[styles.dialogBtnText, { color: colors.error }]}>
-                  Sign Out
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {resetMsg !== "" && (
+        <Text style={[styles.msg, { color: colors.primary }]}>{resetMsg}</Text>
+      )}
+      {resetErr !== "" && (
+        <Text style={[styles.msg, { color: colors.error }]}>{resetErr}</Text>
+      )}
     </View>
   );
 }
@@ -222,40 +175,17 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 14, fontFamily: fonts.bodyRegular },
   infoValue: { fontSize: 14, fontFamily: fonts.bodySemiBold },
-  noProfile: { fontSize: 14, fontFamily: fonts.bodyRegular },
-  signOutBtn: {
-    marginTop: 40,
-    height: 48,
+  resetBtn: {
+    marginTop: 24,
+    paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1,
     alignItems: "center",
-    justifyContent: "center",
   },
-  signOutText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
-  dialogOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
+  resetBtnText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
+  msg: {
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
+    marginTop: 10,
+    textAlign: "center",
   },
-  dialogCard: {
-    width: "100%",
-    borderRadius: 16,
-    padding: 24,
-  },
-  dialogTitle: {
-    fontSize: 18,
-    fontFamily: fonts.headlineBold,
-    marginBottom: 8,
-  },
-  dialogBody: {
-    fontSize: 14,
-    fontFamily: fonts.bodyRegular,
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  dialogActions: { flexDirection: "row", justifyContent: "flex-end", gap: 24 },
-  dialogBtn: { paddingVertical: 4 },
-  dialogBtnText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
 });

@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signUp } from "../src/auth";
+import { signUp, resendVerification } from "../src/auth";
 import { setAccountId, getProfile } from "../src/storage";
 import { useTheme, fonts } from "../src/theme";
 
@@ -26,7 +26,9 @@ export default function AccountSetup() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [awaitingVerification, setAwaitingVerification] = useState(false);
 
   const handleCreate = async () => {
     if (!EMAIL_RE.test(email.trim())) {
@@ -43,6 +45,7 @@ export default function AccountSetup() {
     }
 
     setError("");
+    setInfo("");
     setLoading(true);
     try {
       const profile = await getProfile();
@@ -56,12 +59,36 @@ export default function AccountSetup() {
       });
 
       if ("message" in result) {
-        setError(result.message);
+        // If Supabase says check email, show verification UI
+        if (result.message.toLowerCase().includes("check your email")) {
+          setAwaitingVerification(true);
+          setInfo("Verification email sent! Check your inbox.");
+          setError("");
+        } else {
+          setError(result.message);
+        }
         return;
       }
 
       await setAccountId(result.userId);
       router.replace("/home");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email.trim()) return;
+    setLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const err = await resendVerification(email.trim());
+      if (err) {
+        setError(err.message);
+      } else {
+        setInfo("Verification email resent! Check your inbox.");
+      }
     } finally {
       setLoading(false);
     }
@@ -142,31 +169,65 @@ export default function AccountSetup() {
         {error !== "" && (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         )}
+        {info !== "" && (
+          <Text style={[styles.info, { color: colors.primary }]}>{info}</Text>
+        )}
 
-        <TouchableOpacity
-          style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-          onPress={handleCreate}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <Text style={[styles.primaryBtnText, { color: colors.onPrimary }]}>
-              Create and Verify
-            </Text>
-          )}
-        </TouchableOpacity>
+        {awaitingVerification ? (
+          <>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+              onPress={handleResend}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={[styles.primaryBtnText, { color: colors.onPrimary }]}>
+                  Resend Verification Email
+                </Text>
+              )}
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.laterBtn}
-          onPress={() => router.replace("/home")}
-          activeOpacity={0.6}
-        >
-          <Text style={[styles.laterBtnText, { color: colors.onSurfaceVariant }]}>
-            Later
-          </Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.laterBtn}
+              onPress={() => router.replace("/home")}
+              activeOpacity={0.6}
+            >
+              <Text style={[styles.laterBtnText, { color: colors.onSurfaceVariant }]}>
+                Continue without verifying
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+              onPress={handleCreate}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={[styles.primaryBtnText, { color: colors.onPrimary }]}>
+                  Create and Verify
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.laterBtn}
+              onPress={() => router.replace("/home")}
+              activeOpacity={0.6}
+            >
+              <Text style={[styles.laterBtnText, { color: colors.onSurfaceVariant }]}>
+                Later
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -201,6 +262,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   error: {
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
+    marginBottom: 12,
+  },
+  info: {
     fontSize: 13,
     fontFamily: fonts.bodyMedium,
     marginBottom: 12,

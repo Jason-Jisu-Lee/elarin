@@ -142,15 +142,17 @@ export default function Profile() {
 
       {/* Menu items */}
       <View style={styles.menu}>
-        {/* Account */}
+        {/* Account — disabled when not logged in */}
         <TouchableOpacity
           style={[
             styles.menuItem,
-            { backgroundColor: colors.surfaceContainerLowest },
+            {
+              backgroundColor: colors.surfaceContainerLowest,
+              opacity: hasAccount ? 1 : 0.4,
+            },
           ]}
-          onPress={() =>
-            router.push(hasAccount ? "/account" : "/account/create")
-          }
+          onPress={() => hasAccount && router.push("/account")}
+          disabled={!hasAccount}
         >
           <Text style={[styles.menuText, { color: colors.onSurface }]}>
             Account
@@ -182,22 +184,37 @@ export default function Profile() {
             Play Intro
           </Text>
         </TouchableOpacity>
-
-        {/* Sign Out - only shown when logged in */}
-        {hasAccount && (
-          <TouchableOpacity
-            style={[
-              styles.menuItem,
-              { backgroundColor: colors.surfaceContainerLowest },
-            ]}
-            onPress={() => setShowSignOutDialog(true)}
-          >
-            <Text style={[styles.menuText, { color: colors.error }]}>
-              Sign Out
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
+
+      {/* Spacer to push login/logout to bottom */}
+      <View style={{ flex: 1 }} />
+
+      {/* Log In / Log Out at the bottom */}
+      {hasAccount ? (
+        <TouchableOpacity
+          style={[
+            styles.bottomBtn,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
+          onPress={() => setShowSignOutDialog(true)}
+        >
+          <Text style={[styles.menuText, { color: colors.error }]}>
+            Log Out
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.bottomBtn,
+            { backgroundColor: colors.surfaceContainerLowest },
+          ]}
+          onPress={() => router.push("/account/signin")}
+        >
+          <Text style={[styles.menuText, { color: colors.primary }]}>
+            Log In
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Play Intro confirmation modal */}
       <Modal
@@ -367,6 +384,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   menuText: { fontSize: 15, fontFamily: fonts.bodyMedium },
+  bottomBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 40,
+  },
   dialogOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",

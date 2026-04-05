@@ -87,6 +87,27 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/** Resend the confirmation email for an unverified account. */
+export async function resendVerification(
+  email: string,
+): Promise<AuthError | null> {
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+  });
+  if (error) return { message: error.message };
+  return null;
+}
+
+/** Send a password-reset email. */
+export async function resetPassword(
+  email: string,
+): Promise<AuthError | null> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) return { message: error.message };
+  return null;
+}
+
 /** Check whether a username is taken (case-insensitive). */
 export async function isUsernameTaken(username: string): Promise<boolean> {
   const { data } = await supabase

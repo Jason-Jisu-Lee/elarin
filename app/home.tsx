@@ -268,7 +268,7 @@ export default function Home() {
     return `${months[m - 1]} ${d}${suffix}`;
   };
 
-  // Heatmap renderer — 3-month window, fixed 11px cells spread across full width
+  // Heatmap renderer — 3-month window, original cell size, horizontal scroll
   const renderHeatmap = () => {
     if (heatmapData.length === 0) return null;
 
@@ -278,7 +278,7 @@ export default function Home() {
     const windowStart = new Date(now.getFullYear(), endMonth - 2, 1);
     const windowEnd = new Date(now.getFullYear(), endMonth + 1, 0);
 
-    // Build complete day-by-day list for the window (fill gaps with no-data cells)
+    // Build complete day-by-day list for the window
     const dataMap = new Map(heatmapData.map((e) => [e.date, e]));
     const windowDays: HeatmapEntry[] = [];
     const cursor = new Date(windowStart);
@@ -328,9 +328,9 @@ export default function Home() {
       }
     });
 
-    const DAY_LABEL_W = 24;
     const CELL = 11;
-    const CELL_GAP = 3;
+    const GAP = 3;
+    const DAY_LABEL_W = 28;
 
     const handleCellPress = (
       entry: HeatmapEntry,
@@ -353,38 +353,48 @@ export default function Home() {
           Activity
         </Text>
 
-        {/* Month labels — spread to fill full width */}
-        <View style={{ flexDirection: "row", marginBottom: 4 }}>
+        {/* Month labels row */}
+        <View style={styles.heatmapMonthRow}>
           <View style={{ width: DAY_LABEL_W }} />
-          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
-            {weeks.map((_, wi) => {
-              const marker = monthMarkers.find((m) => m.weekIndex === wi);
-              return (
-                <View key={wi} style={{ width: CELL }}>
-                  {marker && (
-                    <Text
-                      style={[
-                        styles.monthLabel,
-                        { color: colors.onSurfaceVariant },
-                      ]}
-                    >
-                      {marker.label}
-                    </Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={false}
+          >
+            <View style={{ flexDirection: "row" }}>
+              {weeks.map((_, wi) => {
+                const marker = monthMarkers.find((m) => m.weekIndex === wi);
+                return (
+                  <View
+                    key={wi}
+                    style={{ width: CELL + GAP, alignItems: "flex-start" }}
+                  >
+                    {marker && (
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.monthLabel,
+                          { color: colors.onSurfaceVariant },
+                        ]}
+                      >
+                        {marker.label}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
         </View>
 
         {/* Grid: day labels + cells */}
         <View style={{ flexDirection: "row" }}>
-          {/* Day labels */}
+          {/* Day labels column */}
           <View style={{ width: DAY_LABEL_W }}>
             {DAY_LABELS.map((lbl, i) => (
               <View
                 key={i}
-                style={{ height: CELL + CELL_GAP, justifyContent: "center" }}
+                style={{ height: CELL + GAP, justifyContent: "center" }}
               >
                 <Text
                   style={[styles.dayLabel, { color: colors.onSurfaceVariant }]}
@@ -395,10 +405,14 @@ export default function Home() {
             ))}
           </View>
 
-          {/* Cell columns — spread to fill full width */}
-          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
+          {/* Scrollable grid */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.heatmapGrid}
+          >
             {weeks.map((week, wi) => (
-              <View key={wi} style={{ gap: CELL_GAP }}>
+              <View key={wi} style={styles.heatmapCol}>
                 {week.map((day, di) => (
                   <TouchableOpacity
                     key={`${wi}-${di}`}
@@ -410,27 +424,27 @@ export default function Home() {
                         e.nativeEvent.pageY,
                       )
                     }
-                    style={{
-                      width: CELL,
-                      height: CELL,
-                      borderRadius: 2,
-                      backgroundColor: getHeatColor(day.ratio),
-                      borderWidth: day.ratio === 0 ? 1 : 0,
-                      borderColor:
-                        day.ratio === 0
-                          ? isDark
-                            ? colors.surfaceContainerHighest
-                            : colors.outlineVariant
-                          : "transparent",
-                    }}
+                    style={[
+                      styles.heatmapCell,
+                      {
+                        backgroundColor: getHeatColor(day.ratio),
+                        borderWidth: day.ratio === 0 ? 1 : 0,
+                        borderColor:
+                          day.ratio === 0
+                            ? isDark
+                              ? colors.surfaceContainerHighest
+                              : colors.outlineVariant
+                            : "transparent",
+                      },
+                    ]}
                   />
                 ))}
               </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
-        {/* Legend */}
+        {/* Legend row */}
         <View style={styles.legendRow}>
           <Text style={[styles.legendText, { color: colors.onSurfaceVariant }]}>
             Less
@@ -858,6 +872,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: fonts.bodyMedium,
     includeFontPadding: false,
+    width: 24,
   },
   dayLabel: {
     fontSize: 9,

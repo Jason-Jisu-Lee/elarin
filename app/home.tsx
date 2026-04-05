@@ -21,7 +21,7 @@ import {
   ensureHeatmapStartDate,
   updateDailyGoalState,
 } from "../src/storage";
-import { recordDoIt, recordSnooze } from "../src/progression";
+import { recordDoIt } from "../src/progression";
 import { Goal, DailyGoalState } from "../src/types";
 import { useTheme, fonts } from "../src/theme";
 
@@ -152,14 +152,22 @@ export default function Home() {
     await load();
   };
 
-  const handleSnooze = async (goalId: string) => {
-    await recordSnooze(goalId);
+  const handleReset = async (goalId: string) => {
+    await updateDailyGoalState(goalId, "pending");
     await load();
   };
 
-  const handleUndoSnooze = async (goalId: string) => {
-    await updateDailyGoalState(goalId, "pending");
-    await load();
+  const isOverdue = (goal: Goal): boolean => {
+    if (goal.reminder.notificationsEnabled === false) return false;
+    const now = new Date();
+    const timeStr =
+      goal.reminder.type === "window"
+        ? goal.reminder.endTime || goal.reminder.startTime
+        : goal.reminder.startTime;
+    const [h, m] = timeStr.split(":").map(Number);
+    const scheduled = new Date(now);
+    scheduled.setHours(h, m, 0, 0);
+    return now > scheduled;
   };
 
   const formatReminderTime = (goal: Goal): string => {
@@ -192,42 +200,22 @@ export default function Home() {
     (a, b) => (FREQ_ORDER[a] ?? 99) - (FREQ_ORDER[b] ?? 99),
   );
 
-  const renderSnoozeAction = () => (
+  const renderCompleteAction = () => (
     <View
       style={[
-        styles.snoozeAction,
+        styles.completeAction,
+        { backgroundColor: isDark ? "#14532d" : "#bbf7d0" },
+      ]}
+    />
+  );
+
+  const renderResetAction = () => (
+    <View
+      style={[
+        styles.resetAction,
         { backgroundColor: colors.surfaceContainerHighest },
       ]}
-    >
-      <Text style={[styles.actionLabel, { color: colors.onSurfaceVariant }]}>
-        Snoozed
-      </Text>
-    </View>
-  );
-
-  const renderUndoAction = () => (
-    <View
-      style={[
-        styles.snoozeAction,
-        { backgroundColor: colors.secondaryContainer },
-      ]}
-    >
-      <Text
-        style={[styles.actionLabel, { color: colors.onSecondaryContainer }]}
-      >
-        Undo
-      </Text>
-    </View>
-  );
-
-  const renderDoneAction = () => (
-    <View
-      style={[styles.doneAction, { backgroundColor: colors.tertiaryContainer }]}
-    >
-      <Text style={[styles.actionLabel, { color: colors.onSurface }]}>
-        Done
-      </Text>
-    </View>
+    />
   );
 
   // Heatmap color scale — light green (few) → dark green (many)
@@ -539,46 +527,35 @@ export default function Home() {
                 {groupedGoals[freq].map((goal) => {
                   const state = getGoalState(goal.id);
                   const done = isDone(state);
-                  const isSnoozed = state?.status === "snoozed";
+                  const overdue = !done && isOverdue(goal);
+                  const time = formatReminderTime(goal);
+
+                  const cardBg = done
+                    ? isDark ? "#14532d" : "#dcfce7"
+                    : overdue
+                      ? isDark ? "#3b2200" : "#fef9c3"
+                      : colors.surfaceContainerHigh;
+
+                  const barColor = done
+                    ? isDark ? "#4ade80" : "#15803d"
+                    : overdue
+                      ? isDark ? "#d97706" : "#f59e0b"
+                      : colors.outlineVariant;
+
                   return (
                     <Swipeable
                       key={goal.id}
                       ref={(ref) => {
                         if (ref) swipeableRefs.current.set(goal.id, ref);
                       }}
-                      renderLeftActions={
-                        done
-                          ? () => renderUndoAction()
-                          : isSnoozed
-                            ? () => renderUndoAction()
-                            : () => renderSnoozeAction()
-                      }
-                      renderRightActions={
-                        done
-                          ? () => renderUndoAction()
-                          : isSnoozed
-                            ? () => renderDoneAction()
-                            : () => renderDoneAction()
-                      }
+                      renderLeftActions={() => renderCompleteAction()}
+                      renderRightActions={() => renderResetAction()}
                       overshootLeft={false}
                       overshootRight={false}
                       onSwipeableOpen={(direction, swipeable) => {
                         swipeable.close();
-                        if (done) {
-                          // Undo done — either swipe direction
-                          handleUndoSnooze(goal.id);
-                        } else if (isSnoozed) {
-                          if (direction === "left") {
-                            // Swipe right on snoozed → undo
-                            handleUndoSnooze(goal.id);
-                          } else {
-                            // Swipe left on snoozed → mark done
-                            handleDoIt(goal.id);
-                          }
-                        } else {
-                          if (direction === "right") handleDoIt(goal.id);
-                          else handleSnooze(goal.id);
-                        }
+                        if (direction === "right") handleDoIt(goal.id);
+                        else handleReset(goal.id);
                       }}
                     >
                       <Animated.View
@@ -588,47 +565,46 @@ export default function Home() {
                             : {}
                         }
                       >
-                        <TouchableOpacity
-                          style={[
-                            styles.goalCard,
-                            {
-                              backgroundColor: done
-                                ? isDark ? "#14532d" : "#dcfce7"
-                                : isSnoozed
-                                  ? colors.surfaceContainerHigh
-                                  : colors.surfaceContainerLowest,
-                            },
-                          ]}
-                          onPress={() => router.push(`/goal/${goal.id}`)}
-                          activeOpacity={0.7}
-                        >
-                          <View
-                            style={[
-                              styles.leftBar,
-                              {
-                                backgroundColor: done
-                                  ? isDark ? "#4ade80" : "#15803d"
-                                  : isSnoozed
-                                    ? colors.surfaceContainerHighest
-                                    : colors.secondaryContainer,
-                              },
-                            ]}
-                          />
-                          <View style={styles.goalContent}>
+                        <View style={styles.goalRow}>
+                          <TouchableOpacity
+                            style={[styles.goalCard, { backgroundColor: cardBg }]}
+                            onPress={() => router.push(`/goal/${goal.id}`)}
+                            activeOpacity={0.7}
+                          >
+                            <View
+                              style={[styles.leftBar, { backgroundColor: barColor }]}
+                            />
+                            <View style={styles.goalContent}>
+                              <Text
+                                style={[
+                                  styles.goalName,
+                                  {
+                                    color: done
+                                      ? colors.onSurfaceVariant
+                                      : colors.onSurface,
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {goal.name}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                          {!done && time !== "" && (
                             <Text
                               style={[
-                                styles.goalName,
-                                { color: colors.onSurface },
-                                (done || isSnoozed) && {
-                                  color: colors.onSurfaceVariant,
+                                styles.goalTime,
+                                {
+                                  color: overdue
+                                    ? isDark ? "#fbbf24" : "#d97706"
+                                    : colors.onSurfaceVariant,
                                 },
                               ]}
-                              numberOfLines={1}
                             >
-                              {goal.name}
+                              {time}
                             </Text>
-                          </View>
-                        </TouchableOpacity>
+                          )}
+                        </View>
                       </Animated.View>
                     </Swipeable>
                   );
@@ -643,7 +619,10 @@ export default function Home() {
       <View
         style={[
           styles.heatmapFixed,
-          { backgroundColor: colors.surface, borderTopColor: colors.outlineVariant },
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.outlineVariant,
+          },
         ]}
       >
         {renderHeatmap()}
@@ -817,9 +796,13 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 8,
   },
+  goalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   goalCard: {
     borderRadius: 14,
-    marginBottom: 12,
     flexDirection: "row",
     overflow: "hidden",
     elevation: 1,
@@ -828,6 +811,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 4,
     width: "60%",
+  },
+  goalTime: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 12,
+    fontFamily: fonts.bodyMedium,
   },
   leftBar: { width: 4 },
   goalContent: {
@@ -915,25 +904,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   // Swipe actions
-  doneAction: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: 80,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-    marginBottom: 8,
-  },
-  snoozeAction: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: 80,
+  completeAction: {
+    width: 70,
     borderTopLeftRadius: 14,
     borderBottomLeftRadius: 14,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  actionLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
+  resetAction: {
+    width: 70,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
+    marginBottom: 12,
   },
   tutorialTooltip: {
     position: "absolute",

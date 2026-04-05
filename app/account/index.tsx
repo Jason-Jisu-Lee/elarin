@@ -8,7 +8,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getAccountId as getAccountIdFromAuth, signOut, getAccountEmail } from "../../src/auth";
+import {
+  getAccountId as getAccountIdFromAuth,
+  signOut,
+  getAccountEmail,
+} from "../../src/auth";
 import { clearAccountId } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 import { supabase } from "../../src/supabase";

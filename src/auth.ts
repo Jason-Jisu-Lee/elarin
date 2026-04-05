@@ -32,7 +32,9 @@ export async function signUp(
   // If no session (email confirmation enabled), we can't insert the profile
   // because RLS requires auth.uid(). Tell the user to confirm email first.
   if (!data.session) {
-    return { message: "Check your email to confirm your account, then sign in." };
+    return {
+      message: "Check your email to confirm your account, then sign in.",
+    };
   }
 
   // Insert profile row (upsert in case trigger already created it)
@@ -136,5 +138,3 @@ export async function recordEvent(params: {
     occurred_at: new Date().toISOString(),
   });
 }
-
-

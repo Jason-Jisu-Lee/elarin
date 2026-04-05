@@ -159,8 +159,14 @@ export default function RootLayout() {
           <Stack.Screen name="goal/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ headerShown: false }} />
-          <Stack.Screen name="account/create" options={{ headerShown: false }} />
-          <Stack.Screen name="account/signin" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="account/create"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="account/signin"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="template/create"
             options={{ title: "Edit Goal", presentation: "modal" }}

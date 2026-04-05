@@ -8,7 +8,12 @@ import {
   Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getProfile, saveProfile, getAccountId, clearAccountId } from "../src/storage";
+import {
+  getProfile,
+  saveProfile,
+  getAccountId,
+  clearAccountId,
+} from "../src/storage";
 import { signOut, updateUsername, isUsernameTaken } from "../src/auth";
 import { useTheme, fonts, storeTheme } from "../src/theme";
 
@@ -78,7 +83,9 @@ export default function Profile() {
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Back */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={[styles.backText, { color: colors.primary }]}>{"\u2190"}</Text>
+        <Text style={[styles.backText, { color: colors.primary }]}>
+          {"\u2190"}
+        </Text>
       </TouchableOpacity>
 
       {/* Avatar + username (tap to edit) */}
@@ -289,9 +296,7 @@ export default function Profile() {
                 style={styles.dialogBtn}
                 onPress={handleSignOut}
               >
-                <Text
-                  style={[styles.dialogBtnText, { color: colors.error }]}
-                >
+                <Text style={[styles.dialogBtnText, { color: colors.error }]}>
                   Sign Out
                 </Text>
               </TouchableOpacity>
@@ -396,4 +401,3 @@ const styles = StyleSheet.create({
   dialogBtn: { paddingVertical: 4 },
   dialogBtnText: { fontSize: 15, fontFamily: fonts.bodySemiBold },
 });
-

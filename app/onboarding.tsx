@@ -601,7 +601,9 @@ export default function Onboarding() {
                   ]}
                   value={name}
                   onChangeText={(t) => {
-                    const filtered = t.replace(/[^a-zA-Z0-9]/g, "").slice(0, 15);
+                    const filtered = t
+                      .replace(/[^a-zA-Z0-9]/g, "")
+                      .slice(0, 15);
                     if (filtered !== t.slice(0, 15)) {
                       setCharWarning(true);
                       setTimeout(() => setCharWarning(false), 2000);

@@ -210,7 +210,6 @@ export default function CreateGoal() {
               onChangeText={setName}
               placeholder="Title of your action e.g. Push Ups"
               placeholderTextColor={colors.outlineVariant}
-              autoFocus
               maxLength={50}
               textAlign="center"
               multiline
@@ -279,6 +278,14 @@ export default function CreateGoal() {
         {/* ── Frequency step ── */}
         {step === "frequency" && (
           <View style={styles.stepContainer}>
+            <Pressable
+              onPress={() => transition("goal")}
+              style={styles.backArrow}
+            >
+              <Text style={[styles.backArrowText, { color: colors.onSurface }]}>
+                ←
+              </Text>
+            </Pressable>
             <Text style={[styles.question, { color: colors.onSurface }]}>
               Frequency
             </Text>
@@ -355,6 +362,14 @@ export default function CreateGoal() {
         {/* ── Time / Notification step ── */}
         {step === "time" && (
           <View style={styles.stepContainer}>
+            <Pressable
+              onPress={() => transition("frequency")}
+              style={styles.backArrow}
+            >
+              <Text style={[styles.backArrowText, { color: colors.onSurface }]}>
+                ←
+              </Text>
+            </Pressable>
             <Text style={[styles.question, { color: colors.onSurface }]}>
               Notification
             </Text>
@@ -540,6 +555,16 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, justifyContent: "center", paddingHorizontal: 28 },
   stepContainer: { alignItems: "stretch" },
+  backArrow: {
+    alignSelf: "flex-start",
+    padding: 8,
+    marginBottom: 8,
+    marginLeft: -8,
+  },
+  backArrowText: {
+    fontSize: 22,
+    fontFamily: fonts.headlineBold,
+  },
   label: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,

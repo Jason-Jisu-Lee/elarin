@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { signUp, isUsernameTaken } from "../../src/auth";
+import { signUp, isUsernameTaken, resendVerification } from "../../src/auth";
 import { setAccountId, getProfile } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 
@@ -43,6 +43,8 @@ export default function AccountCreate() {
   const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [awaitingVerification, setAwaitingVerification] = useState(false);
+  const [info, setInfo] = useState("");
 
   useEffect(() => {
     getProfile().then((p) => {
@@ -88,7 +90,13 @@ export default function AccountCreate() {
       });
 
       if ("message" in result) {
-        setError(result.message);
+        if (result.message.toLowerCase().includes("check your email")) {
+          setAwaitingVerification(true);
+          setInfo("Verification email sent! Check your inbox, then sign in.");
+          setError("");
+        } else {
+          setError(result.message);
+        }
         return;
       }
 
@@ -101,6 +109,23 @@ export default function AccountCreate() {
 
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() - 13);
+
+  const handleResend = async () => {
+    if (!email.trim()) return;
+    setLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const err = await resendVerification(email.trim());
+      if (err) {
+        setError(err.message);
+      } else {
+        setInfo("Verification email resent! Check your inbox.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -217,6 +242,7 @@ export default function AccountCreate() {
             mode="date"
             display="spinner"
             value={birthday ?? maxDate}
+            minimumDate={new Date(1900, 0, 1)}
             maximumDate={maxDate}
             onChange={(_, date) => {
               setShowPicker(Platform.OS === "ios");
@@ -228,29 +254,61 @@ export default function AccountCreate() {
         {error !== "" && (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         )}
+        {info !== "" && (
+          <Text style={[styles.info, { color: colors.primary }]}>{info}</Text>
+        )}
 
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.primary }]}
-          onPress={handleCreate}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <Text style={[styles.btnText, { color: colors.onPrimary }]}>
-              Create Account
-            </Text>
-          )}
-        </TouchableOpacity>
+        {awaitingVerification ? (
+          <>
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: colors.primary }]}
+              onPress={handleResend}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={[styles.btnText, { color: colors.onPrimary }]}>
+                  Resend Verification Email
+                </Text>
+              )}
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.signinLink}
-          onPress={() => router.replace("/account/signin")}
-        >
-          <Text style={[styles.signinText, { color: colors.primary }]}>
-            Already have an account? Sign in
-          </Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.signinLink}
+              onPress={() => router.replace("/account/signin")}
+            >
+              <Text style={[styles.signinText, { color: colors.primary }]}>
+                Go to Sign In
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: colors.primary }]}
+              onPress={handleCreate}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={[styles.btnText, { color: colors.onPrimary }]}>
+                  Create Account
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.signinLink}
+              onPress={() => router.replace("/account/signin")}
+            >
+              <Text style={[styles.signinText, { color: colors.primary }]}>
+                Already have an account? Sign in
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -282,6 +340,7 @@ const styles = StyleSheet.create({
   },
   dateBtn: { justifyContent: "center" },
   error: { fontSize: 13, fontFamily: fonts.bodyRegular, marginTop: 12 },
+  info: { fontSize: 13, fontFamily: fonts.bodyRegular, marginTop: 12 },
   btn: {
     height: 52,
     borderRadius: 12,

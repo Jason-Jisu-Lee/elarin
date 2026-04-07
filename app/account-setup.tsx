@@ -107,7 +107,8 @@ export default function AccountSetup() {
           Account creation
         </Text>
         <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
-          This is required to sync your data online, generate analytics, and interact with the community.
+          This is required to sync your data online, generate analytics, and
+          interact with the community.
         </Text>
 
         <TextInput
@@ -184,7 +185,9 @@ export default function AccountSetup() {
               {loading ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[styles.primaryBtnText, { color: colors.onPrimary }]}>
+                <Text
+                  style={[styles.primaryBtnText, { color: colors.onPrimary }]}
+                >
                   Resend Verification Email
                 </Text>
               )}
@@ -195,7 +198,12 @@ export default function AccountSetup() {
               onPress={() => router.replace("/home")}
               activeOpacity={0.6}
             >
-              <Text style={[styles.laterBtnText, { color: colors.onSurfaceVariant }]}>
+              <Text
+                style={[
+                  styles.laterBtnText,
+                  { color: colors.onSurfaceVariant },
+                ]}
+              >
                 Continue without verifying
               </Text>
             </TouchableOpacity>
@@ -211,7 +219,9 @@ export default function AccountSetup() {
               {loading ? (
                 <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={[styles.primaryBtnText, { color: colors.onPrimary }]}>
+                <Text
+                  style={[styles.primaryBtnText, { color: colors.onPrimary }]}
+                >
                   Create and Verify
                 </Text>
               )}
@@ -222,7 +232,12 @@ export default function AccountSetup() {
               onPress={() => router.replace("/home")}
               activeOpacity={0.6}
             >
-              <Text style={[styles.laterBtnText, { color: colors.onSurfaceVariant }]}>
+              <Text
+                style={[
+                  styles.laterBtnText,
+                  { color: colors.onSurfaceVariant },
+                ]}
+              >
                 Later
               </Text>
             </TouchableOpacity>

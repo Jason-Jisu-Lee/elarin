@@ -10,10 +10,9 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Goal } from "../../src/types";
 import { getGoals, updateGoal, deleteGoal } from "../../src/storage";
@@ -23,15 +22,12 @@ import {
 } from "../../src/notifications";
 import { useTheme, fonts } from "../../src/theme";
 
-const TIER_LABELS = [
-  "Ideal Goal",
-  "Stepping Stone",
-  "Minimum Baseline",
-] as const;
+const TIER_LABELS = ["Action", "Micro Action"] as const;
 
 export default function GoalDetail() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [editing, setEditing] = useState(false);
@@ -39,11 +35,7 @@ export default function GoalDetail() {
   const [name, setName] = useState("");
   const [primary, setPrimary] = useState("");
   const [easier, setEasier] = useState("");
-  const [easiest, setEasiest] = useState("");
-  const [startTime, setStartTime] = useState("17:00");
-  const [remindersPerDay, setRemindersPerDay] = useState(2);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [pickerVisible, setPickerVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -60,42 +52,11 @@ export default function GoalDetail() {
     setName(g.name);
     setPrimary(g.tiers.primary);
     setEasier(g.tiers.easier);
-    setEasiest(g.tiers.easiest);
-    setStartTime(g.reminder.startTime);
-    setRemindersPerDay(g.reminder.remindersPerDay);
     setNotificationsEnabled(g.reminder.notificationsEnabled !== false);
   };
 
-  const formatTime = (timeStr: string): string => {
-    const [h, m] = timeStr.split(":").map(Number);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
-
-  const timeToDate = (timeStr: string): Date => {
-    const [h, m] = timeStr.split(":").map(Number);
-    const d = new Date();
-    d.setHours(h || 0, m || 0, 0, 0);
-    return d;
-  };
-
-  const onTimePickerChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") setPickerVisible(false);
-    if (event.type === "dismissed" || !date) return;
-    const h = date.getHours().toString().padStart(2, "0");
-    const m = date.getMinutes().toString().padStart(2, "0");
-    setStartTime(`${h}:${m}`);
-  };
-
   const handleSave = async () => {
-    if (
-      !goal ||
-      !name.trim() ||
-      !primary.trim() ||
-      !easier.trim() ||
-      !easiest.trim()
-    ) {
+    if (!goal || !name.trim() || !primary.trim() || !easier.trim()) {
       Alert.alert("Missing fields", "Please fill in all fields.");
       return;
     }
@@ -106,14 +67,10 @@ export default function GoalDetail() {
       tiers: {
         primary: primary.trim(),
         easier: easier.trim(),
-        easiest: easiest.trim(),
+        easiest: easier.trim(),
       },
       reminder: {
-        type: "exact",
-        startTime,
-        remindersPerDay,
-        activeDays: goal.reminder.activeDays,
-        frequency: goal.reminder.frequency,
+        ...goal.reminder,
         notificationsEnabled,
       },
     };
@@ -225,9 +182,8 @@ export default function GoalDetail() {
           />
 
           {[
-            { label: "Ideal Goal", val: primary, set: setPrimary },
-            { label: "Stepping Stone", val: easier, set: setEasier },
-            { label: "Minimum Baseline", val: easiest, set: setEasiest },
+            { label: "Action", val: primary, set: setPrimary },
+            { label: "Micro Action", val: easier, set: setEasier },
           ].map((tier) => (
             <View key={tier.label}>
               <Text
@@ -250,63 +206,6 @@ export default function GoalDetail() {
             </View>
           ))}
 
-          <Text style={[styles.editLabel, { color: colors.onSurfaceVariant }]}>
-            Reminder
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.timeBtn,
-              { backgroundColor: colors.surfaceContainerHigh },
-            ]}
-            onPress={() => setPickerVisible(true)}
-          >
-            <Text
-              style={[styles.timeBtnLabel, { color: colors.onSurfaceVariant }]}
-            >
-              At
-            </Text>
-            <Text style={[styles.timeBtnValue, { color: colors.primary }]}>
-              {formatTime(startTime)}
-            </Text>
-          </TouchableOpacity>
-
-          {pickerVisible && (
-            <DateTimePicker
-              mode="time"
-              value={timeToDate(startTime)}
-              onChange={onTimePickerChange}
-              is24Hour={false}
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-            />
-          )}
-
-          <Text style={[styles.editLabel, { color: colors.onSurfaceVariant }]}>
-            Reminders per day
-          </Text>
-          <View style={styles.typeRow}>
-            {[1, 2, 3].map((n) => (
-              <TouchableOpacity
-                key={n}
-                style={[
-                  styles.typeChip,
-                  { backgroundColor: colors.surfaceContainerHigh },
-                  remindersPerDay === n && { backgroundColor: colors.primary },
-                ]}
-                onPress={() => setRemindersPerDay(n)}
-              >
-                <Text
-                  style={[
-                    styles.typeChipText,
-                    { color: colors.onSurfaceVariant },
-                    remindersPerDay === n && { color: colors.onPrimary },
-                  ]}
-                >
-                  {n}x
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           <TouchableOpacity onPress={handleSave}>
             <LinearGradient
               colors={[colors.primary, colors.primaryContainer]}
@@ -324,8 +223,8 @@ export default function GoalDetail() {
     );
   }
 
-  // ─── View Mode — Action Ladder ───
-  const tiers = [goal.tiers.primary, goal.tiers.easier, goal.tiers.easiest];
+  // ─── View Mode ───
+  const tiers = [goal.tiers.primary, goal.tiers.easier];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
@@ -358,11 +257,13 @@ export default function GoalDetail() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Text style={[styles.ladderLabel, { color: colors.secondary }]}>
-          ACTION LADDER
-        </Text>
-
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(insets.bottom + 16, 40) },
+        ]}
+      >
         {/* Tier cards */}
         {tiers.map((tier, i) => (
           <View key={i}>
@@ -383,36 +284,13 @@ export default function GoalDetail() {
                 {tier}
               </Text>
             </TouchableOpacity>
-            {i < 2 && (
+            {i < 1 && (
               <Text style={[styles.arrow, { color: colors.outlineVariant }]}>
                 ↓
               </Text>
             )}
           </View>
         ))}
-
-        {/* Quote */}
-        <Text style={[styles.quote, { color: colors.onSurfaceVariant }]}>
-          "The enemy of a good plan is{"\n"}the dream of a perfect plan."
-        </Text>
-
-        {/* Reminder info */}
-        <View
-          style={[
-            styles.reminderInfo,
-            { backgroundColor: colors.surfaceContainerLow },
-          ]}
-        >
-          <Text
-            style={[styles.reminderLabel, { color: colors.onSurfaceVariant }]}
-          >
-            Reminder
-          </Text>
-          <Text style={[styles.reminderValue, { color: colors.onSurface }]}>
-            {formatTime(goal.reminder.startTime)} ·{" "}
-            {goal.reminder.remindersPerDay}x/day
-          </Text>
-        </View>
 
         {/* Delete */}
         <TouchableOpacity
@@ -471,14 +349,6 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   content: { padding: 24, paddingTop: 16, paddingBottom: 40 },
-  ladderLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginBottom: 20,
-    textAlign: "center",
-  },
   tierCard: {
     borderRadius: 24,
     paddingVertical: 22,
@@ -504,29 +374,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 18,
     paddingVertical: 10,
-  },
-  quote: {
-    fontSize: 15,
-    fontFamily: fonts.bodyItalic,
-    textAlign: "center",
-    marginTop: 32,
-    lineHeight: 24,
-  },
-  reminderInfo: {
-    marginTop: 28,
-    padding: 18,
-    borderRadius: 16,
-  },
-  reminderLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    letterSpacing: 2,
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
-  reminderValue: {
-    fontSize: 16,
-    fontFamily: fonts.bodyMedium,
   },
   deleteBtn: {
     marginTop: 28,
@@ -579,27 +426,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: fonts.bodyRegular,
   },
-  typeRow: { flexDirection: "row", gap: 10 },
-  typeChip: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  typeChipText: {
-    fontSize: 15,
-    fontFamily: fonts.bodySemiBold,
-  },
-  timeBtn: {
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  timeBtnLabel: { fontSize: 15, fontFamily: fonts.bodyRegular },
-  timeBtnValue: { fontSize: 18, fontFamily: fonts.bodySemiBold },
   saveBtn: {
     borderRadius: 16,
     paddingVertical: 16,

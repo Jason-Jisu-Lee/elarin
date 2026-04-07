@@ -159,7 +159,7 @@ export default function RootLayout() {
           <Stack.Screen name="create" options={{ headerShown: false }} />
           <Stack.Screen name="goal/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
-          <Stack.Screen name="account" options={{ headerShown: false }} />
+          <Stack.Screen name="account/index" options={{ headerShown: false }} />
           <Stack.Screen
             name="account/create"
             options={{ headerShown: false }}

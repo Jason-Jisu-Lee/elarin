@@ -74,6 +74,14 @@ type HeatmapEntry = {
   total: number;
 };
 
+const INSPIRING_QUOTES = [
+  "The enemy of a good plan is the dream of a perfect plan.",
+  "Small steps every day lead to big changes.",
+  "You don't have to be great to start, but you have to start to be great.",
+  "Discipline is choosing what you want most over what you want now.",
+  "The best time to start was yesterday. The next best time is now.",
+];
+
 export default function Home() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
@@ -91,6 +99,8 @@ export default function Home() {
   } | null>(null);
   const tutorialAnim = useRef(new Animated.Value(0)).current;
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
+  const swipeLeftProg = useRef<Map<string, any>>(new Map());
+  const swipeRightProg = useRef<Map<string, any>>(new Map());
 
   const load = useCallback(async () => {
     const [g, ds] = await Promise.all([getGoals(), getDailyStates()]);
@@ -202,41 +212,21 @@ export default function Home() {
     (a, b) => (FREQ_ORDER[a] ?? 99) - (FREQ_ORDER[b] ?? 99),
   );
 
-  const renderCompleteAction = () => (
-    <View
-      style={[
-        styles.completeAction,
-        { backgroundColor: isDark ? "#14532d" : "#bbf7d0" },
-      ]}
-    />
-  );
-
-  const renderResetAction = () => (
-    <View
-      style={[
-        styles.resetAction,
-        { backgroundColor: colors.surfaceContainerHighest },
-      ]}
-    />
-  );
-
-  // Heatmap color scale — light green (few) → dark green (many)
-  const getHeatColor = (ratio: number): string => {
+  // Heatmap color scale — count-based (1=light, 2=medium, 3+=darkest)
+  const getHeatColor = (ratio: number, completed: number): string => {
     if (ratio < 0) return "transparent";
-    if (ratio === 0)
+    if (completed === 0)
       return isDark
         ? colors.surfaceContainerHigh
         : colors.surfaceContainerHighest;
-    if (ratio <= 0.25) return isDark ? "#14532d" : "#dcfce7";
-    if (ratio <= 0.5) return isDark ? "#166534" : "#86efac";
-    if (ratio <= 0.75) return isDark ? "#16a34a" : "#22c55e";
+    if (completed === 1) return isDark ? "#166534" : "#86efac";
+    if (completed === 2) return isDark ? "#16a34a" : "#22c55e";
     return isDark ? "#4ade80" : "#15803d";
   };
 
   const legendColors = [
     isDark ? colors.surfaceContainerHigh : colors.surfaceContainerHighest,
-    isDark ? "#14532d" : "#dcfce7",
-    isDark ? "#166534" : "#86efac",
+    isDark ? "#166634" : "#86efac",
     isDark ? "#16a34a" : "#22c55e",
     isDark ? "#4ade80" : "#15803d",
   ];
@@ -280,18 +270,23 @@ export default function Home() {
 
     // Build complete day-by-day list for the window
     const dataMap = new Map(heatmapData.map((e) => [e.date, e]));
+    const todayStr = now.toISOString().split("T")[0];
     const windowDays: HeatmapEntry[] = [];
     const cursor = new Date(windowStart);
     while (cursor <= windowEnd) {
       const dateStr = cursor.toISOString().split("T")[0];
-      windowDays.push(
-        dataMap.get(dateStr) ?? {
+      const existing = dataMap.get(dateStr);
+      if (existing) {
+        windowDays.push(existing);
+      } else {
+        // Future dates or dates without data: show as empty cell (not invisible)
+        windowDays.push({
           date: dateStr,
-          ratio: -1,
+          ratio: 0,
           completed: 0,
           total: 0,
-        },
-      );
+        });
+      }
       cursor.setDate(cursor.getDate() + 1);
     }
 
@@ -350,7 +345,7 @@ export default function Home() {
     return (
       <View style={styles.heatmapWrap}>
         <Text style={[styles.heatmapTitle, { color: colors.onSurfaceVariant }]}>
-          Activity
+          {now.getFullYear()} Activity
         </Text>
 
         {/* Month labels row */}
@@ -427,7 +422,7 @@ export default function Home() {
                     style={[
                       styles.heatmapCell,
                       {
-                        backgroundColor: getHeatColor(day.ratio),
+                        backgroundColor: getHeatColor(day.ratio, day.completed),
                         borderWidth: day.ratio === 0 ? 1 : 0,
                         borderColor:
                           day.ratio === 0
@@ -550,18 +545,36 @@ export default function Home() {
                   const done = isDone(state);
                   const overdue = !done && isOverdue(goal);
                   const time = formatReminderTime(goal);
+                  const hasNotifications =
+                    goal.reminder.notificationsEnabled !== false;
 
-                  const cardBg = done
-                    ? isDark ? "#14532d" : "#dcfce7"
-                    : overdue
-                      ? isDark ? "#3b2200" : "#fef9c3"
-                      : colors.surfaceContainerHigh;
+                  // Only left bar changes color, not the whole card
+                  const cardBg = colors.surfaceContainerHigh;
 
                   const barColor = done
-                    ? isDark ? "#4ade80" : "#15803d"
-                    : overdue
-                      ? isDark ? "#d97706" : "#f59e0b"
-                      : colors.outlineVariant;
+                    ? isDark
+                      ? "#4ade80"
+                      : "#15803d"
+                    : isDark
+                      ? "#facc15"
+                      : "#eab308";
+
+                  // Status label for tasks without notifications
+                  const statusLabel =
+                    !hasNotifications && done ? "Complete" : null;
+                  const statusColor =
+                    !hasNotifications && done
+                      ? isDark
+                        ? "#4ade80"
+                        : "#15803d"
+                      : null;
+
+                  if (!swipeLeftProg.current.has(goal.id))
+                    swipeLeftProg.current.set(goal.id, new Animated.Value(0));
+                  if (!swipeRightProg.current.has(goal.id))
+                    swipeRightProg.current.set(goal.id, new Animated.Value(0));
+                  const leftProg = swipeLeftProg.current.get(goal.id);
+                  const rightProg = swipeRightProg.current.get(goal.id);
 
                   return (
                     <Swipeable
@@ -569,8 +582,14 @@ export default function Home() {
                       ref={(ref) => {
                         if (ref) swipeableRefs.current.set(goal.id, ref);
                       }}
-                      renderLeftActions={() => renderCompleteAction()}
-                      renderRightActions={() => renderResetAction()}
+                      renderLeftActions={(p) => {
+                        swipeLeftProg.current.set(goal.id, p);
+                        return <View style={{ width: 70 }} />;
+                      }}
+                      renderRightActions={(p) => {
+                        swipeRightProg.current.set(goal.id, p);
+                        return <View style={{ width: 70 }} />;
+                      }}
                       overshootLeft={false}
                       overshootRight={false}
                       onSwipeableOpen={(direction, swipeable) => {
@@ -588,12 +607,18 @@ export default function Home() {
                       >
                         <View style={styles.goalRow}>
                           <TouchableOpacity
-                            style={[styles.goalCard, { backgroundColor: cardBg }]}
+                            style={[
+                              styles.goalCard,
+                              { backgroundColor: cardBg },
+                            ]}
                             onPress={() => router.push(`/goal/${goal.id}`)}
                             activeOpacity={0.7}
                           >
                             <View
-                              style={[styles.leftBar, { backgroundColor: barColor }]}
+                              style={[
+                                styles.leftBar,
+                                { backgroundColor: barColor },
+                              ]}
                             />
                             <View style={styles.goalContent}>
                               <Text
@@ -610,21 +635,57 @@ export default function Home() {
                                 {goal.name}
                               </Text>
                             </View>
+                            {/* Swipe highlight overlays */}
+                            <Animated.View
+                              pointerEvents="none"
+                              style={[
+                                StyleSheet.absoluteFill,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(250,204,21,0.3)"
+                                    : "rgba(234,179,8,0.2)",
+                                  opacity: leftProg,
+                                },
+                              ]}
+                            />
+                            <Animated.View
+                              pointerEvents="none"
+                              style={[
+                                StyleSheet.absoluteFill,
+                                {
+                                  backgroundColor: isDark
+                                    ? "rgba(74,222,128,0.3)"
+                                    : "rgba(22,163,74,0.2)",
+                                  opacity: rightProg,
+                                },
+                              ]}
+                            />
                           </TouchableOpacity>
-                          {!done && time !== "" && (
+                          {statusLabel ? (
+                            <Text
+                              style={[
+                                styles.goalTime,
+                                { color: statusColor ?? undefined },
+                              ]}
+                            >
+                              {statusLabel}
+                            </Text>
+                          ) : !done && time !== "" ? (
                             <Text
                               style={[
                                 styles.goalTime,
                                 {
                                   color: overdue
-                                    ? isDark ? "#fbbf24" : "#d97706"
+                                    ? isDark
+                                      ? "#facc15"
+                                      : "#ca8a04"
                                     : colors.onSurfaceVariant,
                                 },
                               ]}
                             >
                               {time}
                             </Text>
-                          )}
+                          ) : null}
                         </View>
                       </Animated.View>
                     </Swipeable>
@@ -647,6 +708,11 @@ export default function Home() {
           },
         ]}
       >
+        {goals.length > 0 && (
+          <Text style={[styles.quoteText, { color: colors.onSurfaceVariant }]}>
+            "{INSPIRING_QUOTES[new Date().getDate() % INSPIRING_QUOTES.length]}"
+          </Text>
+        )}
         {renderHeatmap()}
       </View>
 
@@ -856,6 +922,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
   },
+  quoteText: {
+    fontSize: 12,
+    fontFamily: fonts.bodyItalic,
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: 18,
+  },
   heatmapWrap: {
     marginBottom: 4,
   },
@@ -924,19 +997,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.bodyMedium,
     textAlign: "center",
-  },
-  // Swipe actions
-  completeAction: {
-    width: 70,
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
-    marginBottom: 12,
-  },
-  resetAction: {
-    width: 70,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-    marginBottom: 12,
   },
   tutorialTooltip: {
     position: "absolute",

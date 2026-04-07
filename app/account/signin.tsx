@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signIn } from "../../src/auth";
+import { signIn, syncLocalDataToSupabase } from "../../src/auth";
 import { setAccountId } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 
@@ -39,7 +39,8 @@ export default function AccountSignIn() {
         return;
       }
       await setAccountId(result.userId);
-      router.replace("/account");
+      await syncLocalDataToSupabase(result.userId);
+      router.replace("/home");
     } finally {
       setLoading(false);
     }

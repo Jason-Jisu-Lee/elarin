@@ -209,3 +209,12 @@ export async function setAccountId(id: string): Promise<void> {
 export async function clearAccountId(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.ACCOUNT_ID);
 }
+
+/** Remove ALL elarin local data (goals, progress, profile, daily states, etc.) */
+export async function clearAllLocalData(): Promise<void> {
+  const allKeys = await AsyncStorage.getAllKeys();
+  const elarinKeys = allKeys.filter((k) => k.startsWith("elarin:"));
+  if (elarinKeys.length > 0) {
+    await AsyncStorage.multiRemove(elarinKeys);
+  }
+}

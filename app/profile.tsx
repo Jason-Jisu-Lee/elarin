@@ -8,11 +8,12 @@ import {
   Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getProfile,
   saveProfile,
   getAccountId,
-  clearAccountId,
+  clearAllLocalData,
 } from "../src/storage";
 import { signOut, updateUsername, isUsernameTaken } from "../src/auth";
 import { useTheme, fonts, storeTheme } from "../src/theme";
@@ -22,6 +23,7 @@ const USERNAME_RE = /^[a-zA-Z0-9]{3,15}$/;
 export default function Profile() {
   const router = useRouter();
   const { colors, setTheme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
@@ -74,9 +76,8 @@ export default function Profile() {
   const handleSignOut = async () => {
     setShowSignOutDialog(false);
     await signOut();
-    await clearAccountId();
-    setHasAccount(false);
-    setCurrentAccountId(null);
+    await clearAllLocalData();
+    router.replace("/onboarding");
   };
 
   return (
@@ -189,29 +190,35 @@ export default function Profile() {
       {/* Spacer to push login/logout to bottom */}
       <View style={{ flex: 1 }} />
 
-      {/* Log In / Log Out at the bottom */}
+      {/* Sign In / Sign Out at the bottom */}
       {hasAccount ? (
         <TouchableOpacity
           style={[
             styles.bottomBtn,
-            { backgroundColor: colors.surfaceContainerLowest },
+            {
+              backgroundColor: colors.surfaceContainerLowest,
+              marginBottom: Math.max(insets.bottom + 16, 40),
+            },
           ]}
           onPress={() => setShowSignOutDialog(true)}
         >
           <Text style={[styles.menuText, { color: colors.error }]}>
-            Log Out
+            Log out
           </Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={[
             styles.bottomBtn,
-            { backgroundColor: colors.surfaceContainerLowest },
+            {
+              backgroundColor: colors.surfaceContainerLowest,
+              marginBottom: Math.max(insets.bottom + 16, 40),
+            },
           ]}
           onPress={() => router.push("/account/signin")}
         >
           <Text style={[styles.menuText, { color: colors.primary }]}>
-            Log In
+            Log in
           </Text>
         </TouchableOpacity>
       )}
@@ -288,12 +295,7 @@ export default function Profile() {
             ]}
           >
             <Text style={[styles.dialogTitle, { color: colors.onSurface }]}>
-              Sign out?
-            </Text>
-            <Text
-              style={[styles.dialogBody, { color: colors.onSurfaceVariant }]}
-            >
-              Your goals stay on this device.
+              Log out?
             </Text>
             <View style={styles.dialogActions}>
               <TouchableOpacity
@@ -314,7 +316,7 @@ export default function Profile() {
                 onPress={handleSignOut}
               >
                 <Text style={[styles.dialogBtnText, { color: colors.error }]}>
-                  Sign Out
+                  Log out
                 </Text>
               </TouchableOpacity>
             </View>
@@ -390,7 +392,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    marginBottom: 40,
   },
   dialogOverlay: {
     flex: 1,

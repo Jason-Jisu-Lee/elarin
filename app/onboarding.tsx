@@ -8,17 +8,13 @@ import {
   TextInput,
   Animated,
   Easing,
-  LayoutAnimation,
   Platform,
   UIManager,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Audio } from "expo-av";
 import Svg, { Path } from "react-native-svg";
 import { setOnboarded, saveProfile } from "../src/storage";
 import { useTheme, fonts } from "../src/theme";
-
-const scratchSound = require("../assets/sounds/pencil-scratch.wav");
 
 if (
   Platform.OS === "android" &&
@@ -30,21 +26,11 @@ if (
 const PHASES = [
   "name",
   "sage",
-  "transition",
-  "ladder_intro",
-  "ladder_build",
-  "ladder_crossout",
-  "ladder_scribble",
+  "template_demo",
+  "philosophy",
 ] as const;
 
 type Phase = (typeof PHASES)[number];
-
-const LADDER = [
-  { core: "1 hour a day", prefix: "", suffix: "" },
-  { core: "30 minutes a day", prefix: "How about ", suffix: "?" },
-  { core: "10 minutes", prefix: "", suffix: "?" },
-  { core: "one page", prefix: "How about ", suffix: "?" },
-];
 
 const EASE_OUT = Easing.out(Easing.cubic);
 const EASE_IN = Easing.in(Easing.cubic);
@@ -108,45 +94,54 @@ export default function Onboarding() {
   const [phase, setPhase] = useState<Phase>(isReplay ? "sage" : "name");
   const [name, setName] = useState("");
   const [charWarning, setCharWarning] = useState(false);
-  const [visibleLines, setVisibleLines] = useState<number[]>([]);
-  const [showFirst, setShowFirst] = useState(true);
-  const [scribStep, setScribStep] = useState(0);
-  const [stripped, setStripped] = useState<Set<number>>(new Set());
+  const [sagePage, setSagePage] = useState(0);
   const [sageNextVisible, setSageNextVisible] = useState(false);
-  const [scribbleNextVisible, setScribbleNextVisible] = useState(false);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const [tdNextVisible, setTdNextVisible] = useState(false);
+  const [philoReadyVisible, setPhiloReadyVisible] = useState(false);
+  const [philoPage, setPhiloPage] = useState(0);
 
   // Animated values
   const phOp = useRef(new Animated.Value(0)).current;
   const phTY = useRef(new Animated.Value(16)).current;
   const phSc = useRef(new Animated.Value(0.98)).current;
-  const bgVal = useRef(new Animated.Value(0)).current;
   const fieldOp = useRef(new Animated.Value(0)).current;
   const btnOp = useRef(new Animated.Value(0)).current;
   const sage1Op = useRef(new Animated.Value(0)).current;
   const sage2Op = useRef(new Animated.Value(0)).current;
+  const sage3Op = useRef(new Animated.Value(0)).current;
+  const sage4Op = useRef(new Animated.Value(0)).current;
   const sageNextOp = useRef(new Animated.Value(0)).current;
-  const introOp = useRef(new Animated.Value(0)).current;
-  const introTY = useRef(new Animated.Value(12)).current;
-  const goalOp = useRef(new Animated.Value(0)).current;
-  const goalTY = useRef(new Animated.Value(12)).current;
-  const lnOp = useRef(LADDER.map(() => new Animated.Value(0))).current;
-  const lnTY = useRef(LADDER.map(() => new Animated.Value(22))).current;
-  const pfxOp = useRef(LADDER.map(() => new Animated.Value(1))).current;
-  const strikeW = useRef(new Animated.Value(0)).current;
-  const firstOp = useRef(new Animated.Value(1)).current;
-  const scOp = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
-  const scGrpOp = useRef(new Animated.Value(1)).current;
-  const scribNextOp = useRef(new Animated.Value(0)).current;
-  const allOp = useRef(new Animated.Value(1)).current;
+  const philoOp = useRef(
+    [0, 1, 2, 3, 4].map(() => new Animated.Value(0)),
+  ).current;
+  const philoBtnOp = useRef(new Animated.Value(0)).current;
+  const philoNextOp = useRef(new Animated.Value(0)).current;
+  const tdActionOp = useRef(new Animated.Value(0)).current;
+  const tdMicroOp = useRef(new Animated.Value(0)).current;
+  const tdScrib1Op = useRef(new Animated.Value(0)).current;
+  const tdScrib2Op = useRef(new Animated.Value(0)).current;
+  const tdMicroMicroOp = useRef(new Animated.Value(0)).current;
+  const tdScrib3Op = useRef(new Animated.Value(0)).current;
+  const tdNextOp = useRef(new Animated.Value(0)).current;
 
-  const pi = PHASES.indexOf(phase);
-  const isLadder = pi >= 3;
-  const isAutoLadder = pi >= 4;
+  // Progress bar: 7 steps (sage p0, sage p1, template_demo, philo p0..p3)
+  const TOTAL_STEPS = 7;
+  const progressWidth = useRef(new Animated.Value(0)).current;
 
-  const s1 = useTypewriter("You will try this first", scribStep >= 1, 22);
-  const s2 = useTypewriter("If that's too much, try this", scribStep >= 2, 22);
-  const s3 = useTypewriter("And if THAT is too much", scribStep >= 3, 22);
+  useEffect(() => {
+    if (phase === "name") return;
+    let step = 0;
+    if (phase === "sage") step = sagePage === 0 ? 1 : 2;
+    else if (phase === "template_demo") step = 3;
+    else if (phase === "philosophy") step = 4 + philoPage; // 4,5,6,7
+    Animated.timing(progressWidth, {
+      toValue: step / TOTAL_STEPS,
+      duration: 400,
+      easing: EASE_IO,
+      useNativeDriver: false,
+    }).start();
+  }, [phase, sagePage, philoPage]);
+
 
   const tIn = useCallback(
     (cb?: () => void) => {
@@ -220,300 +215,363 @@ export default function Onboarding() {
     }).start();
   }, [name]);
 
-  // SAGE (combined) — both sentences on one screen
+  // SAGE — page 0: "You already know...", page 1: path/step/nudge
   useEffect(() => {
     if (phase !== "sage") return;
-    sage1Op.setValue(0);
-    sage2Op.setValue(0);
     sageNextOp.setValue(0);
     setSageNextVisible(false);
 
-    // Fade in first sentence
-    Animated.timing(sage1Op, {
-      toValue: 1,
-      duration: 800,
-      easing: EASE_OUT,
-      useNativeDriver: true,
-    }).start();
+    if (sagePage === 0) {
+      sage1Op.setValue(0);
+      Animated.timing(sage1Op, {
+        toValue: 1,
+        duration: 800,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
 
-    // After delay, fade in second sentence
-    const t1 = setTimeout(() => {
+      const t0 = setTimeout(() => {
+        setSageNextVisible(true);
+        Animated.timing(sageNextOp, {
+          toValue: 1,
+          duration: 500,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 2200);
+
+      return () => clearTimeout(t0);
+    } else {
+      sage2Op.setValue(0);
+      sage3Op.setValue(0);
+      sage4Op.setValue(0);
+
       Animated.timing(sage2Op, {
         toValue: 1,
         duration: 800,
         easing: EASE_OUT,
         useNativeDriver: true,
       }).start();
-    }, 2000);
 
-    // Show "Next" button ~1s after second sentence starts fading in
+      const t1 = setTimeout(() => {
+        Animated.timing(sage3Op, {
+          toValue: 1,
+          duration: 800,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 1800);
+
+      const t2 = setTimeout(() => {
+        Animated.timing(sage4Op, {
+          toValue: 1,
+          duration: 800,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 3600);
+
+      const t3 = setTimeout(() => {
+        setSageNextVisible(true);
+        Animated.timing(sageNextOp, {
+          toValue: 1,
+          duration: 500,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 5300);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+  }, [phase, sagePage]);
+
+  const handleSageNext = () => {
+    if (sagePage === 0) {
+      Animated.parallel([
+        Animated.timing(sage1Op, {
+          toValue: 0,
+          duration: 450,
+          easing: EASE_IN,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sageNextOp, {
+          toValue: 0,
+          duration: 300,
+          easing: EASE_IN,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setSagePage(1));
+    } else {
+      Animated.parallel([
+        Animated.timing(sage2Op, {
+          toValue: 0,
+          duration: 450,
+          easing: EASE_IN,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sage3Op, {
+          toValue: 0,
+          duration: 450,
+          easing: EASE_IN,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sage4Op, {
+          toValue: 0,
+          duration: 450,
+          easing: EASE_IN,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sageNextOp, {
+          toValue: 0,
+          duration: 300,
+          easing: EASE_IN,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setPhase("template_demo"));
+    }
+  };
+
+  // TEMPLATE DEMO
+  useEffect(() => {
+    if (phase !== "template_demo") return;
+    tdActionOp.setValue(0);
+    tdMicroOp.setValue(0);
+    tdScrib1Op.setValue(0);
+    tdScrib2Op.setValue(0);
+    tdMicroMicroOp.setValue(0);
+    tdScrib3Op.setValue(0);
+    tdNextOp.setValue(0);
+    setTdNextVisible(false);
+
+    const t0 = setTimeout(() => {
+      Animated.timing(tdActionOp, {
+        toValue: 1,
+        duration: 600,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 300);
+
+    const t1 = setTimeout(() => {
+      Animated.timing(tdScrib1Op, {
+        toValue: 1,
+        duration: 400,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 1300);
+
     const t2 = setTimeout(() => {
-      setSageNextVisible(true);
-      Animated.timing(sageNextOp, {
+      Animated.timing(tdMicroOp, {
+        toValue: 1,
+        duration: 600,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 2600);
+
+    const t3 = setTimeout(() => {
+      Animated.timing(tdScrib2Op, {
+        toValue: 1,
+        duration: 400,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 3600);
+
+    const t4 = setTimeout(() => {
+      Animated.timing(tdMicroMicroOp, {
+        toValue: 1,
+        duration: 600,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 4800);
+
+    const t5 = setTimeout(() => {
+      Animated.timing(tdScrib3Op, {
+        toValue: 1,
+        duration: 400,
+        easing: EASE_OUT,
+        useNativeDriver: true,
+      }).start();
+    }, 5800);
+
+    const t6 = setTimeout(() => {
+      setTdNextVisible(true);
+      Animated.timing(tdNextOp, {
         toValue: 1,
         duration: 500,
         easing: EASE_OUT,
         useNativeDriver: true,
       }).start();
-    }, 3800);
+    }, 7200);
 
     return () => {
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      clearTimeout(t5);
+      clearTimeout(t6);
     };
   }, [phase]);
 
-  const handleSageNext = () => {
-    // Fade both sentences out together, then transition
+  // PHILOSOPHY — 4 pages
+  useEffect(() => {
+    if (phase !== "philosophy") return;
+    philoNextOp.setValue(0);
+
+    if (philoPage === 0) {
+      philoOp[0].setValue(0);
+      const t0 = setTimeout(() => {
+        Animated.timing(philoOp[0], {
+          toValue: 1,
+          duration: 900,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 400);
+      const t1 = setTimeout(() => {
+        Animated.timing(philoNextOp, {
+          toValue: 1,
+          duration: 600,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 3500);
+      return () => { clearTimeout(t0); clearTimeout(t1); };
+    } else if (philoPage === 1) {
+      philoOp[1].setValue(0);
+      const t0 = setTimeout(() => {
+        Animated.timing(philoOp[1], {
+          toValue: 1,
+          duration: 900,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 400);
+      const t1 = setTimeout(() => {
+        Animated.timing(philoNextOp, {
+          toValue: 1,
+          duration: 600,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 3500);
+      return () => { clearTimeout(t0); clearTimeout(t1); };
+    } else if (philoPage === 2) {
+      philoOp[2].setValue(0);
+      const t0 = setTimeout(() => {
+        Animated.timing(philoOp[2], {
+          toValue: 1,
+          duration: 900,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 400);
+      const t1 = setTimeout(() => {
+        Animated.timing(philoNextOp, {
+          toValue: 1,
+          duration: 600,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 3500);
+      return () => { clearTimeout(t0); clearTimeout(t1); };
+    } else {
+      philoOp[3].setValue(0);
+      philoOp[4].setValue(0);
+      philoBtnOp.setValue(0);
+      setPhiloReadyVisible(false);
+
+      const t0 = setTimeout(() => {
+        Animated.timing(philoOp[3], {
+          toValue: 1,
+          duration: 900,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 400);
+
+      const t1 = setTimeout(() => {
+        Animated.timing(philoOp[4], {
+          toValue: 1,
+          duration: 900,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 3000);
+
+      const t2 = setTimeout(() => {
+        setPhiloReadyVisible(true);
+        Animated.timing(philoBtnOp, {
+          toValue: 1,
+          duration: 600,
+          easing: EASE_OUT,
+          useNativeDriver: true,
+        }).start();
+      }, 5000);
+
+      return () => {
+        clearTimeout(t0);
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [phase, philoPage]);
+
+  const handlePhiloNext = () => {
+    const currentOp = philoOp[philoPage];
     Animated.parallel([
-      Animated.timing(sage1Op, {
+      Animated.timing(currentOp, {
         toValue: 0,
         duration: 450,
         easing: EASE_IN,
         useNativeDriver: true,
       }),
-      Animated.timing(sage2Op, {
-        toValue: 0,
-        duration: 450,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sageNextOp, {
+      Animated.timing(philoNextOp, {
         toValue: 0,
         duration: 300,
         easing: EASE_IN,
         useNativeDriver: true,
       }),
-    ]).start(() => setPhase("transition"));
+    ]).start(() => setPhiloPage(philoPage + 1));
   };
 
-  // TRANSITION
-  useEffect(() => {
-    if (phase !== "transition") return;
-    Animated.timing(bgVal, {
-      toValue: 1,
-      duration: 1400,
-      easing: EASE_IO,
-      useNativeDriver: false,
-    }).start(() => setTimeout(() => setPhase("ladder_intro"), 200));
-  }, [phase]);
-
-  // LADDER INTRO
-  useEffect(() => {
-    if (phase !== "ladder_intro") return;
-    introOp.setValue(0);
-    introTY.setValue(12);
-    goalOp.setValue(0);
-    goalTY.setValue(12);
+  const handlePhiloReady = () => {
     Animated.parallel([
-      Animated.timing(introOp, {
-        toValue: 1,
-        duration: 650,
-        easing: EASE_OUT,
-        useNativeDriver: true,
-      }),
-      Animated.timing(introTY, {
+      Animated.timing(philoOp[2], {
         toValue: 0,
-        duration: 650,
-        easing: EASE_OUT,
+        duration: 450,
+        easing: EASE_IN,
         useNativeDriver: true,
       }),
-    ]).start();
-    const t1 = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(goalOp, {
-          toValue: 1,
-          duration: 550,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }),
-        Animated.timing(goalTY, {
-          toValue: 0,
-          duration: 550,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 500);
-    const t2 = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(introOp, {
-          toValue: 0,
-          duration: 500,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-        Animated.timing(introTY, {
-          toValue: -8,
-          duration: 500,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        Animated.timing(goalOp, {
-          toValue: 0,
-          duration: 300,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }).start(() => {
-          setVisibleLines([0]);
-          lnOp[0].setValue(0);
-          lnTY[0].setValue(0);
-          Animated.timing(lnOp[0], {
-            toValue: 1,
-            duration: 400,
-            easing: EASE_OUT,
-            useNativeDriver: true,
-          }).start(() => setPhase("ladder_build"));
-        });
-      });
-    }, 2200);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [phase]);
-
-  // LADDER BUILD
-  useEffect(() => {
-    if (phase !== "ladder_build") return;
-    let dead = false;
-    const tt: ReturnType<typeof setTimeout>[] = [];
-    const reveal = (i: number, delay: number) => {
-      tt.push(
-        setTimeout(() => {
-          if (dead) return;
-          lnOp[i].setValue(0);
-          lnTY[i].setValue(24);
-          setVisibleLines((p) => [...p, i]);
-          Animated.parallel([
-            Animated.timing(lnOp[i], {
-              toValue: 1,
-              duration: 550,
-              easing: EASE_OUT,
-              useNativeDriver: true,
-            }),
-            Animated.timing(lnTY[i], {
-              toValue: 0,
-              duration: 550,
-              easing: EASE_OUT,
-              useNativeDriver: true,
-            }),
-          ]).start();
-          tt.push(
-            setTimeout(() => {
-              if (dead) return;
-              Animated.timing(pfxOp[i], {
-                toValue: 0,
-                duration: 450,
-                easing: EASE_IN,
-                useNativeDriver: true,
-              }).start(() => {
-                LayoutAnimation.configureNext({
-                  duration: 350,
-                  update: { type: LayoutAnimation.Types.easeInEaseOut },
-                });
-                setStripped((prev) => new Set(prev).add(i));
-              });
-            }, 700),
-          );
-        }, delay),
-      );
-    };
-    reveal(1, 700);
-    reveal(2, 2100);
-    reveal(3, 3500);
-    tt.push(
-      setTimeout(() => {
-        if (!dead) setPhase("ladder_crossout");
-      }, 5000),
-    );
-    return () => {
-      dead = true;
-      tt.forEach(clearTimeout);
-    };
-  }, [phase]);
-
-  // LADDER CROSSOUT
-  useEffect(() => {
-    if (phase !== "ladder_crossout") return;
-    strikeW.setValue(0);
-    Animated.timing(strikeW, {
-      toValue: 1,
-      duration: 650,
-      easing: EASE_IO,
-      useNativeDriver: false,
-    }).start(() => {
-      setTimeout(() => {
-        Animated.timing(firstOp, {
-          toValue: 0,
-          duration: 450,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }).start(() => {
-          LayoutAnimation.configureNext({
-            duration: 500,
-            update: { type: LayoutAnimation.Types.easeInEaseOut },
-          });
-          setShowFirst(false);
-          setTimeout(() => setPhase("ladder_scribble"), 500);
-        });
-      }, 350);
-    });
-  }, [phase]);
-
-  // LADDER SCRIBBLE
-  useEffect(() => {
-    if (phase !== "ladder_scribble") return;
-    scGrpOp.setValue(1);
-    setScribStep(0);
-    scOp.forEach((v) => v.setValue(0));
-    const playScribble = async () => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(scratchSound, {
-          volume: 0.3,
-        });
-        soundRef.current = sound;
-        await sound.playAsync();
-        sound.setOnPlaybackStatusUpdate((s) => {
-          if ("didJustFinish" in s && s.didJustFinish) sound.unloadAsync();
-        });
-      } catch {
-        /* sound load failure is non-fatal */
-      }
-    };
-    const show = (i: number, d: number) =>
-      setTimeout(() => {
-        setScribStep(i + 1);
-        playScribble();
-        Animated.timing(scOp[i], {
-          toValue: 1,
-          duration: 350,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, d);
-    const t1 = show(0, 400);
-    const t2 = show(1, 1700);
-    const t3 = show(2, 3000);
-    // After all scribble annotations, show "Next" button
-    const t4 = setTimeout(() => {
-      setScribbleNextVisible(true);
-      scribNextOp.setValue(0);
-      Animated.timing(scribNextOp, {
-        toValue: 1,
-        duration: 500,
-        easing: EASE_OUT,
+      Animated.timing(philoOp[3], {
+        toValue: 0,
+        duration: 450,
+        easing: EASE_IN,
         useNativeDriver: true,
-      }).start();
-    }, 4500);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, [phase]);
+      }),
+      Animated.timing(philoOp[4], {
+        toValue: 0,
+        duration: 450,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(philoBtnOp, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+    ]).start(() => handleFinish());
+  };
 
   const handleNameSubmit = () => {
     const trimmed = name.trim();
@@ -522,28 +580,53 @@ export default function Onboarding() {
     tOut(() => setPhase("sage"));
   };
 
-  const handleScribbleNext = () => {
+  const handleTemplateNext = () => {
     Animated.parallel([
-      Animated.timing(scGrpOp, {
+      Animated.timing(tdActionOp, {
         toValue: 0,
-        duration: 500,
+        duration: 400,
         easing: EASE_IN,
         useNativeDriver: true,
       }),
-      Animated.timing(scribNextOp, {
+      Animated.timing(tdMicroOp, {
+        toValue: 0,
+        duration: 400,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tdMicroMicroOp, {
+        toValue: 0,
+        duration: 400,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tdScrib1Op, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tdScrib2Op, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tdScrib3Op, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tdNextOp, {
         toValue: 0,
         duration: 300,
         easing: EASE_IN,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setScribStep(0);
-      Animated.timing(allOp, {
-        toValue: 0,
-        duration: 700,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }).start(() => handleFinish());
+      setPhiloPage(0);
+      setPhase("philosophy");
     });
   };
 
@@ -557,20 +640,38 @@ export default function Onboarding() {
     router.replace("/templates?onboarding=1");
   };
 
-  const bgColor = bgVal.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.surface, colors.surfaceContainerLow],
-  });
-
   return (
     <Animated.View
       style={[
         styles.root,
-        { backgroundColor: isLadder ? colors.surfaceContainerLow : bgColor },
+        {
+          backgroundColor:
+            phase === "template_demo" || phase === "philosophy"
+              ? colors.surfaceContainerLow
+              : colors.surface,
+        },
       ]}
     >
-      {/* Non-ladder phases */}
-      {!isLadder && phase !== "sage" && (
+      {/* Progress bar — visible on all screens after username */}
+      {phase !== "name" && (
+        <View style={[styles.progressTrack, { backgroundColor: colors.surfaceVariant }]}>
+          <Animated.View
+            style={[
+              styles.progressFill,
+              {
+                backgroundColor: colors.primary,
+                width: progressWidth.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
+        </View>
+      )}
+
+      {/* Name phase */}
+      {phase === "name" && (
         <Animated.View
           style={[
             styles.body,
@@ -581,7 +682,7 @@ export default function Onboarding() {
           ]}
         >
           {phase === "name" && (
-            <View style={styles.center}>
+            <View style={[styles.center, { paddingBottom: 48 }]}>
               <Text style={[styles.question, { color: colors.onSurface }]}>
                 Choose a username
               </Text>
@@ -642,267 +743,317 @@ export default function Onboarding() {
               </Animated.View>
             </View>
           )}
-
-          {phase === "transition" && <View />}
         </Animated.View>
       )}
 
-      {/* Sage (combined) — both sentences on one screen */}
+      {/* Sage — page 0: "You already know...", page 1: path/step/nudge */}
       {phase === "sage" && (
         <View style={styles.body}>
           <View style={styles.center}>
-            <Animated.Text
-              style={[
-                styles.sage,
-                { color: colors.onSurface, opacity: sage1Op },
-              ]}
-            >
-              You already know where you want to be.
-            </Animated.Text>
-            <Animated.Text
-              style={[
-                styles.sage,
-                { color: colors.onSurface, opacity: sage2Op, marginTop: 24 },
-              ]}
-            >
-              The path there is not a leap, or even a step{"\n"}— it's a nudge.
-            </Animated.Text>
-            {sageNextVisible && (
-              <Animated.View style={[styles.btnWrap, { opacity: sageNextOp }]}>
-                <TouchableOpacity
-                  onPress={handleSageNext}
-                  activeOpacity={0.3}
-                  style={styles.ghostBtn}
-                >
-                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
-                    Next
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* Ladder phases */}
-      {isLadder && (
-        <Animated.View style={[styles.body, { opacity: allOp }]}>
-          <View style={styles.center}>
-            {phase === "ladder_intro" && (
+            {sagePage === 0 ? (
+              <Animated.Text
+                style={[
+                  styles.sage,
+                  { color: colors.onSurfaceVariant, opacity: sage1Op },
+                ]}
+              >
+                You already know where you want to be...
+              </Animated.Text>
+            ) : (
               <>
                 <Animated.Text
                   style={[
-                    styles.introLabel,
-                    {
-                      color: colors.onSurface,
-                      opacity: introOp,
-                      transform: [{ translateY: introTY }],
-                    },
+                    styles.sage,
+                    { color: colors.onSurface, opacity: sage2Op },
                   ]}
                 >
-                  Let's say your goal is to read
+                  But the path there is not a{" "}
+                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                    leap
+                  </Text>
                 </Animated.Text>
                 <Animated.Text
                   style={[
-                    styles.goalLine,
+                    styles.sage,
                     {
                       color: colors.onSurface,
-                      opacity: goalOp,
-                      transform: [{ translateY: goalTY }],
+                      opacity: sage3Op,
+                      marginTop: 16,
                     },
                   ]}
                 >
-                  1 hour a day.
+                  or even a{" "}
+                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                    step
+                  </Text>
+                </Animated.Text>
+                <Animated.Text
+                  style={[
+                    styles.sage,
+                    {
+                      color: colors.onSurface,
+                      opacity: sage4Op,
+                      marginTop: 24,
+                    },
+                  ]}
+                >
+                  It's a{" "}
+                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                    nudge
+                  </Text>
                 </Animated.Text>
               </>
             )}
+          </View>
+          {sageNextVisible && (
+            <Animated.View
+              style={[styles.bottomBtnWrap, { opacity: sageNextOp }]}
+            >
+              <TouchableOpacity
+                onPress={handleSageNext}
+                activeOpacity={0.3}
+                style={styles.ghostBtn}
+              >
+                <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
+                  Next
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </View>
+      )}
 
-            {isAutoLadder &&
-              visibleLines.map((li) => {
-                if (li === 0 && !showFirst) return null;
-                const d = LADDER[li];
-                const isF = li === 0;
-                const hasAffix = d.prefix !== "" || d.suffix !== "";
-                return (
-                  <Animated.View
-                    key={li}
-                    style={[
-                      styles.lineRow,
-                      {
-                        opacity: isF
-                          ? Animated.multiply(lnOp[li], firstOp)
-                          : lnOp[li],
-                        transform: [{ translateY: lnTY[li] }],
-                      },
-                    ]}
-                  >
-                    {phase === "ladder_scribble" && li > 0 && (
-                      <View
-                        style={[
-                          styles.scribbleGroup,
-                          li === 1
-                            ? styles.scribLeft
-                            : li === 2
-                              ? styles.scribRight
-                              : styles.scribSlightLeft,
-                        ]}
-                      >
-                        <Animated.Text
-                          style={[
-                            styles.scrib,
-                            {
-                              color: colors.scribbleYellow,
-                              opacity: Animated.multiply(scOp[li - 1], scGrpOp),
-                            },
-                          ]}
-                        >
-                          {li === 1 && s1}
-                          {li === 2 && s2}
-                          {li === 3 && s3}
-                        </Animated.Text>
-                        <ScribbleArrow
-                          color={colors.scribbleYellow}
-                          flip={li === 2}
-                          opacity={Animated.multiply(scOp[li - 1], scGrpOp)}
-                        />
-                      </View>
-                    )}
-                    {isF ? (
-                      <View>
-                        {hasAffix && !stripped.has(li) ? (
-                          <View style={styles.lineInner}>
-                            {d.prefix !== "" && (
-                              <Animated.Text
-                                style={[
-                                  styles.goalLine,
-                                  {
-                                    color: colors.onSurface,
-                                    opacity: pfxOp[li],
-                                  },
-                                ]}
-                              >
-                                {d.prefix}
-                              </Animated.Text>
-                            )}
-                            <Text
-                              style={[
-                                styles.goalLine,
-                                { color: colors.onSurface, opacity: 0.4 },
-                              ]}
-                            >
-                              {d.core}
-                            </Text>
-                            {d.suffix !== "" && (
-                              <Animated.Text
-                                style={[
-                                  styles.goalLine,
-                                  {
-                                    color: colors.onSurface,
-                                    opacity: pfxOp[li],
-                                  },
-                                ]}
-                              >
-                                {d.suffix}
-                              </Animated.Text>
-                            )}
-                          </View>
-                        ) : (
-                          <Text
-                            style={[
-                              styles.goalLine,
-                              { color: colors.onSurface, opacity: 0.4 },
-                            ]}
-                          >
-                            {d.core}
-                          </Text>
-                        )}
-                        {phase === "ladder_crossout" && (
-                          <Animated.View
-                            style={[
-                              styles.strike,
-                              {
-                                backgroundColor: colors.scribbleRed,
-                                width: strikeW.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: ["0%", "110%"],
-                                }),
-                              },
-                            ]}
-                          />
-                        )}
-                      </View>
-                    ) : (
-                      <View style={styles.ladderCard}>
-                        {hasAffix && !stripped.has(li) ? (
-                          <View style={styles.lineInner}>
-                            {d.prefix !== "" && (
-                              <Animated.Text
-                                style={[
-                                  styles.cardText,
-                                  {
-                                    color: colors.onSurface,
-                                    opacity: pfxOp[li],
-                                  },
-                                ]}
-                              >
-                                {d.prefix}
-                              </Animated.Text>
-                            )}
-                            <Text
-                              style={[
-                                styles.cardText,
-                                { color: colors.onSurface },
-                              ]}
-                            >
-                              {d.core}
-                            </Text>
-                            {d.suffix !== "" && (
-                              <Animated.Text
-                                style={[
-                                  styles.cardText,
-                                  {
-                                    color: colors.onSurface,
-                                    opacity: pfxOp[li],
-                                  },
-                                ]}
-                              >
-                                {d.suffix}
-                              </Animated.Text>
-                            )}
-                          </View>
-                        ) : (
-                          <Text
-                            style={[
-                              styles.cardText,
-                              { color: colors.onSurface },
-                            ]}
-                          >
-                            {d.core}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </Animated.View>
-                );
-              })}
+      {/* Template demo screen */}
+      {phase === "template_demo" && (
+        <View style={[styles.body, { justifyContent: "center" }]}>
+          <View style={{ paddingHorizontal: 28, width: "100%" }}>
 
-            {phase === "ladder_scribble" && scribbleNextVisible && (
+            {/* Scribble label 1 — above Action field */}
+            <Animated.View
+              style={[styles.scribbleGroup, styles.scribRight, { opacity: tdScrib1Op }]}
+            >
+              <Text style={[styles.scrib, { color: colors.scribbleYellow }]}>
+                This is your main goal
+              </Text>
+              <ScribbleArrow
+                color={colors.scribbleYellow}
+                flip={true}
+                opacity={tdScrib1Op}
+              />
+            </Animated.View>
+
+            {/* Action field */}
+            <Animated.View style={{ opacity: tdActionOp }}>
+              <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
+                Action
+              </Text>
+              <View
+                style={[
+                  styles.tdField,
+                  { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
+                ]}
+              >
+                <Text style={[styles.tdFieldText, { color: colors.onSurface }]}>
+                  Read for 30 minutes
+                </Text>
+              </View>
+            </Animated.View>
+
+            {/* Scribble label 2 — above Micro Action field */}
+            <Animated.View
+              style={[styles.scribbleGroup, styles.scribLeft, { opacity: tdScrib2Op, marginTop: 24 }]}
+            >
+              <Text style={[styles.scrib, { color: colors.scribbleYellow }]}>
+                If that's too much, do this
+              </Text>
+              <ScribbleArrow
+                color={colors.scribbleYellow}
+                flip={false}
+                opacity={tdScrib2Op}
+              />
+            </Animated.View>
+
+            {/* Micro Action field */}
+            <Animated.View style={{ opacity: tdMicroOp }}>
+              <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
+                Micro Action
+              </Text>
+              <View
+                style={[
+                  styles.tdField,
+                  { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
+                ]}
+              >
+                <Text style={[styles.tdFieldText, { color: colors.onSurface }]}>
+                  Read for 10 minutes
+                </Text>
+              </View>
+            </Animated.View>
+
+            {/* Scribble label 3 — above Micro Micro Action field */}
+            <Animated.View
+              style={[styles.scribbleGroup, styles.scribRight, { opacity: tdScrib3Op, marginTop: 24 }]}
+            >
+              <Text style={[styles.scrib, { color: colors.scribbleYellow }]}>
+                Add one more micro-action{"\n"}for maximum laziness!
+              </Text>
+              <ScribbleArrow
+                color={colors.scribbleYellow}
+                flip={true}
+                opacity={tdScrib3Op}
+              />
+            </Animated.View>
+
+            {/* Micro Micro Action field */}
+            <Animated.View style={{ opacity: tdMicroMicroOp }}>
+              <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
+                Micro Micro Action
+              </Text>
+              <View
+                style={[
+                  styles.tdField,
+                  { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
+                ]}
+              >
+                <Text style={[styles.tdFieldText, { color: colors.onSurface }]}>
+                  Read one page
+                </Text>
+              </View>
+            </Animated.View>
+
+          </View>
+
+          {tdNextVisible && (
+            <Animated.View style={[styles.bottomBtnWrap, { opacity: tdNextOp }]}>
+              <TouchableOpacity
+                activeOpacity={0.3}
+                onPress={handleTemplateNext}
+                style={styles.ghostBtn}
+              >
+                <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
+                  Next
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </View>
+      )}
+
+      {/* Philosophy screen — 4 pages */}
+      {phase === "philosophy" && (
+        <View style={[styles.body, { justifyContent: "center" }]}>
+          <View style={styles.center}>
+            {philoPage === 0 && (
+              <Animated.Text
+                style={[
+                  styles.philoText,
+                  { color: colors.onSurfaceVariant, opacity: philoOp[0] },
+                ]}
+              >
+                You may be wondering whether reading just one page is even
+                worth it...
+              </Animated.Text>
+            )}
+
+            {philoPage === 1 && (
+              <Animated.Text
+                style={[
+                  styles.philoText,
+                  { color: colors.onSurface, opacity: philoOp[1] },
+                ]}
+              >
+                But it's not about the{" "}
+                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                  task
+                </Text>
+                , it's about the{" "}
+                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                  action
+                </Text>
+              </Animated.Text>
+            )}
+
+            {philoPage === 2 && (
+              <Animated.Text
+                style={[
+                  styles.philoText,
+                  { color: colors.onSurface, opacity: philoOp[2] },
+                ]}
+              >
+                Taking any initiative at all{" "}
+                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                  signals
+                </Text>{" "}
+                the brain that you've done something to{" "}
+                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                  improve
+                </Text>{" "}
+                yourself
+              </Animated.Text>
+            )}
+
+            {philoPage === 3 && (
+              <>
+                <Animated.Text
+                  style={[
+                    styles.philoText,
+                    { color: colors.onSurface, opacity: philoOp[3] },
+                  ]}
+                >
+                  Over time, that becomes not a history of what you've done
+                </Animated.Text>
+
+                <Animated.Text
+                  style={[
+                    styles.philoText,
+                    {
+                      color: colors.onSurface,
+                      opacity: philoOp[4],
+                      marginTop: 16,
+                    },
+                  ]}
+                >
+                  But a proof of{" "}
+                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
+                    who you are
+                  </Text>
+                </Animated.Text>
+              </>
+            )}
+          </View>
+
+          {philoPage < 3 ? (
+            <Animated.View
+              style={[styles.bottomBtnWrap, { opacity: philoNextOp }]}
+            >
+              <TouchableOpacity
+                activeOpacity={0.3}
+                onPress={handlePhiloNext}
+                style={styles.ghostBtn}
+              >
+                <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
+                  Next
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            philoReadyVisible && (
               <Animated.View
-                style={[styles.buildBtnWrap, { opacity: scribNextOp }]}
+                style={[styles.bottomBtnWrap, { opacity: philoBtnOp }]}
               >
                 <TouchableOpacity
                   activeOpacity={0.3}
-                  onPress={handleScribbleNext}
+                  onPress={handlePhiloReady}
                   style={styles.ghostBtn}
                 >
                   <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
-                    Next
+                    I'm Ready
                   </Text>
                 </TouchableOpacity>
               </Animated.View>
-            )}
-          </View>
-        </Animated.View>
+            )
+          )}
+        </View>
       )}
     </Animated.View>
   );
@@ -910,6 +1061,20 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  progressTrack: {
+    height: 3,
+    width: "100%",
+    borderRadius: 1.5,
+    position: "absolute",
+    top: 54,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 1.5,
+  },
   body: { flex: 1, justifyContent: "center", paddingHorizontal: 32 },
   center: { alignItems: "center" },
   question: {
@@ -939,6 +1104,9 @@ const styles = StyleSheet.create({
   ghostBtn: {
     paddingVertical: 12,
     paddingHorizontal: 32,
+    borderWidth: 1,
+    borderRadius: 10,
+    borderColor: "rgba(128,128,128,0.25)",
   },
   plainBtn: {
     fontSize: 22,
@@ -1007,4 +1175,36 @@ const styles = StyleSheet.create({
   scribRight: { alignSelf: "flex-end", marginRight: 24 },
   scribSlightLeft: { alignSelf: "flex-start", marginLeft: 40 },
   buildBtnWrap: { marginTop: 40, alignItems: "center" },
+  bottomBtnWrap: {
+    position: "absolute",
+    bottom: 72,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  philoText: {
+    fontSize: 19,
+    fontFamily: fonts.bodyMedium,
+    textAlign: "center",
+    lineHeight: 30,
+    letterSpacing: -0.2,
+    paddingHorizontal: 8,
+  },
+  tdLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  tdField: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  tdFieldText: {
+    fontSize: 17,
+    fontFamily: fonts.bodyMedium,
+  },
 });

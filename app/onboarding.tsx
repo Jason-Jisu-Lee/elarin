@@ -12,6 +12,7 @@ import {
   UIManager,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { Audio } from "expo-av";
 import Svg, { Path } from "react-native-svg";
 import { setOnboarded, saveProfile } from "../src/storage";
 import { useTheme, fonts } from "../src/theme";
@@ -67,23 +68,115 @@ function ScribbleArrow({
   );
 }
 
-function useTypewriter(text: string, active: boolean, speed = 28) {
-  const [out, setOut] = useState("");
+// Segment: plain text or bold text
+type Seg = { text: string; bold?: boolean };
+
+// Splits a flat string + boldWords list into segments for mixed-weight rendering
+function makeSegs(text: string, boldWords: string[] = []): Seg[] {
+  if (boldWords.length === 0) return [{ text }];
+  const pattern = boldWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const re = new RegExp(`(${pattern})`, "g");
+  return text.split(re).filter(Boolean).map((part) => ({
+    text: part,
+    bold: boldWords.includes(part),
+  }));
+}
+
+// Renders text char-by-char with a blinking cursor, playing a sound each tick.
+// Calls onDone when the full string is revealed.
+function TypewriterText({
+  segments,
+  active,
+  speed = 32,
+  style,
+  cursorColor,
+  soundRef,
+  onDone,
+}: {
+  segments: Seg[];
+  active: boolean;
+  speed?: number;
+  style?: object | object[];
+  cursorColor: string;
+  soundRef: React.RefObject<Audio.Sound | null>;
+  onDone?: () => void;
+}) {
+  const fullText = segments.map((s) => s.text).join("");
+  const [count, setCount] = useState(0);
+  const [cursorOn, setCursorOn] = useState(true);
+  const doneRef = useRef(false);
+  const cursorBlink = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (!active) {
-      setOut("");
+      setCount(0);
+      doneRef.current = false;
       return;
     }
+    doneRef.current = false;
+    setCount(0);
     let i = 0;
-    setOut("");
     const iv = setInterval(() => {
       i++;
-      setOut(text.slice(0, i));
-      if (i >= text.length) clearInterval(iv);
+      setCount(i);
+      // play sound
+      if (soundRef.current && fullText[i - 1] !== " ") {
+        soundRef.current.setPositionAsync(0).then(() => {
+          soundRef.current?.playAsync();
+        });
+      }
+      if (i >= fullText.length) {
+        clearInterval(iv);
+        if (!doneRef.current) {
+          doneRef.current = true;
+          onDone?.();
+        }
+      }
     }, speed);
     return () => clearInterval(iv);
-  }, [active, text, speed]);
-  return out;
+  }, [active]);
+
+  // Blinking cursor after done
+  useEffect(() => {
+    if (cursorBlink.current) clearInterval(cursorBlink.current);
+    cursorBlink.current = setInterval(() => setCursorOn((v) => !v), 530);
+    return () => {
+      if (cursorBlink.current) clearInterval(cursorBlink.current);
+    };
+  }, []);
+
+  // Render visible chars split across segments
+  let remaining = count;
+  const parts: React.ReactNode[] = [];
+  segments.forEach((seg, idx) => {
+    const visible = Math.min(remaining, seg.text.length);
+    remaining -= visible;
+    if (visible > 0) {
+      parts.push(
+        <Text
+          key={idx}
+          style={
+            seg.bold
+              ? { fontFamily: fonts.headlineExtraBold }
+              : undefined
+          }
+        >
+          {seg.text.slice(0, visible)}
+        </Text>,
+      );
+    }
+  });
+
+  const isDone = count >= fullText.length;
+
+  return (
+    <Text style={style}>
+      {parts}
+      {(!isDone || cursorOn) && (
+        <Text style={{ color: isDone ? cursorColor : cursorColor, opacity: isDone ? (cursorOn ? 0.7 : 0) : 1 }}>|</Text>
+      )}
+    </Text>
+  );
 }
 
 export default function Onboarding() {
@@ -97,30 +190,49 @@ export default function Onboarding() {
   const [sagePage, setSagePage] = useState(0);
   const [sageNextVisible, setSageNextVisible] = useState(false);
   const [tdNextVisible, setTdNextVisible] = useState(false);
+  const [philoNextVisible, setPhiloNextVisible] = useState(false);
   const [philoReadyVisible, setPhiloReadyVisible] = useState(false);
   const [philoPage, setPhiloPage] = useState(0);
 
-  // Animated values
+  // Typewriter active flags — one per line
+  const [sage1Active, setSage1Active] = useState(false);
+  const [sage2Active, setSage2Active] = useState(false);
+  const [sage3Active, setSage3Active] = useState(false);
+  const [sage4Active, setSage4Active] = useState(false);
+  const [tdActionActive, setTdActionActive] = useState(false);
+  const [tdMicroActive, setTdMicroActive] = useState(false);
+  const [tdMicroMicroActive, setTdMicroMicroActive] = useState(false);
+  const [philo0Active, setPhilo0Active] = useState(false);
+  const [philo1Active, setPhilo1Active] = useState(false);
+  const [philo2Active, setPhilo2Active] = useState(false);
+  const [philo3Active, setPhilo3Active] = useState(false);
+  const [philo4Active, setPhilo4Active] = useState(false);
+
+  // Typing sound
+  const soundRef = useRef<Audio.Sound | null>(null);
+  useEffect(() => {
+    Audio.Sound.createAsync(
+      require("../assets/sounds/pencil-scratch.wav"),
+      { volume: 0.12, shouldPlay: false },
+    ).then(({ sound }) => {
+      soundRef.current = sound;
+    });
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
+  }, []);
+
+  // Animated values (for scribble arrows, buttons, progress — NOT text)
   const phOp = useRef(new Animated.Value(0)).current;
   const phTY = useRef(new Animated.Value(16)).current;
   const phSc = useRef(new Animated.Value(0.98)).current;
   const fieldOp = useRef(new Animated.Value(0)).current;
   const btnOp = useRef(new Animated.Value(0)).current;
-  const sage1Op = useRef(new Animated.Value(0)).current;
-  const sage2Op = useRef(new Animated.Value(0)).current;
-  const sage3Op = useRef(new Animated.Value(0)).current;
-  const sage4Op = useRef(new Animated.Value(0)).current;
   const sageNextOp = useRef(new Animated.Value(0)).current;
-  const philoOp = useRef(
-    [0, 1, 2, 3, 4].map(() => new Animated.Value(0)),
-  ).current;
   const philoBtnOp = useRef(new Animated.Value(0)).current;
   const philoNextOp = useRef(new Animated.Value(0)).current;
-  const tdActionOp = useRef(new Animated.Value(0)).current;
-  const tdMicroOp = useRef(new Animated.Value(0)).current;
   const tdScrib1Op = useRef(new Animated.Value(0)).current;
   const tdScrib2Op = useRef(new Animated.Value(0)).current;
-  const tdMicroMicroOp = useRef(new Animated.Value(0)).current;
   const tdScrib3Op = useRef(new Animated.Value(0)).current;
   const tdNextOp = useRef(new Animated.Value(0)).current;
 
@@ -220,142 +332,61 @@ export default function Onboarding() {
     if (phase !== "sage") return;
     sageNextOp.setValue(0);
     setSageNextVisible(false);
+    setSage1Active(false);
+    setSage2Active(false);
+    setSage3Active(false);
+    setSage4Active(false);
 
     if (sagePage === 0) {
-      sage1Op.setValue(0);
-      Animated.timing(sage1Op, {
-        toValue: 1,
-        duration: 800,
-        easing: EASE_OUT,
-        useNativeDriver: true,
-      }).start();
-
-      const t0 = setTimeout(() => {
-        setSageNextVisible(true);
-        Animated.timing(sageNextOp, {
-          toValue: 1,
-          duration: 500,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 2200);
-
+      const t0 = setTimeout(() => setSage1Active(true), 300);
       return () => clearTimeout(t0);
     } else {
-      sage2Op.setValue(0);
-      sage3Op.setValue(0);
-      sage4Op.setValue(0);
-
-      Animated.timing(sage2Op, {
-        toValue: 1,
-        duration: 800,
-        easing: EASE_OUT,
-        useNativeDriver: true,
-      }).start();
-
-      const t1 = setTimeout(() => {
-        Animated.timing(sage3Op, {
-          toValue: 1,
-          duration: 800,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 1800);
-
-      const t2 = setTimeout(() => {
-        Animated.timing(sage4Op, {
-          toValue: 1,
-          duration: 800,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 3600);
-
-      const t3 = setTimeout(() => {
-        setSageNextVisible(true);
-        Animated.timing(sageNextOp, {
-          toValue: 1,
-          duration: 500,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 5300);
-
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
+      const t0 = setTimeout(() => setSage2Active(true), 200);
+      return () => clearTimeout(t0);
     }
   }, [phase, sagePage]);
 
   const handleSageNext = () => {
     if (sagePage === 0) {
-      Animated.parallel([
-        Animated.timing(sage1Op, {
-          toValue: 0,
-          duration: 450,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sageNextOp, {
-          toValue: 0,
-          duration: 300,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setSagePage(1));
+      Animated.timing(sageNextOp, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }).start(() => {
+        setSage1Active(false);
+        setSagePage(1);
+      });
     } else {
-      Animated.parallel([
-        Animated.timing(sage2Op, {
-          toValue: 0,
-          duration: 450,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sage3Op, {
-          toValue: 0,
-          duration: 450,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sage4Op, {
-          toValue: 0,
-          duration: 450,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-        Animated.timing(sageNextOp, {
-          toValue: 0,
-          duration: 300,
-          easing: EASE_IN,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setPhase("template_demo"));
+      Animated.timing(sageNextOp, {
+        toValue: 0,
+        duration: 300,
+        easing: EASE_IN,
+        useNativeDriver: true,
+      }).start(() => {
+        setSage2Active(false);
+        setSage3Active(false);
+        setSage4Active(false);
+        setPhase("template_demo");
+      });
     }
   };
 
   // TEMPLATE DEMO
   useEffect(() => {
     if (phase !== "template_demo") return;
-    tdActionOp.setValue(0);
-    tdMicroOp.setValue(0);
     tdScrib1Op.setValue(0);
     tdScrib2Op.setValue(0);
-    tdMicroMicroOp.setValue(0);
     tdScrib3Op.setValue(0);
     tdNextOp.setValue(0);
     setTdNextVisible(false);
+    setTdActionActive(false);
+    setTdMicroActive(false);
+    setTdMicroMicroActive(false);
 
-    const t0 = setTimeout(() => {
-      Animated.timing(tdActionOp, {
-        toValue: 1,
-        duration: 600,
-        easing: EASE_OUT,
-        useNativeDriver: true,
-      }).start();
-    }, 300);
-
+    // Action text starts typing at 300ms
+    const t0 = setTimeout(() => setTdActionActive(true), 300);
+    // Scribble 1 appears after action is ~done (~19 chars × 32ms = ~600ms after start)
     const t1 = setTimeout(() => {
       Animated.timing(tdScrib1Op, {
         toValue: 1,
@@ -363,17 +394,10 @@ export default function Onboarding() {
         easing: EASE_OUT,
         useNativeDriver: true,
       }).start();
-    }, 1300);
-
-    const t2 = setTimeout(() => {
-      Animated.timing(tdMicroOp, {
-        toValue: 1,
-        duration: 600,
-        easing: EASE_OUT,
-        useNativeDriver: true,
-      }).start();
-    }, 2600);
-
+    }, 1400);
+    // Micro action starts typing
+    const t2 = setTimeout(() => setTdMicroActive(true), 2600);
+    // Scribble 2
     const t3 = setTimeout(() => {
       Animated.timing(tdScrib2Op, {
         toValue: 1,
@@ -381,17 +405,10 @@ export default function Onboarding() {
         easing: EASE_OUT,
         useNativeDriver: true,
       }).start();
-    }, 3600);
-
-    const t4 = setTimeout(() => {
-      Animated.timing(tdMicroMicroOp, {
-        toValue: 1,
-        duration: 600,
-        easing: EASE_OUT,
-        useNativeDriver: true,
-      }).start();
-    }, 4800);
-
+    }, 3700);
+    // Micro micro action starts typing
+    const t4 = setTimeout(() => setTdMicroMicroActive(true), 4800);
+    // Scribble 3
     const t5 = setTimeout(() => {
       Animated.timing(tdScrib3Op, {
         toValue: 1,
@@ -399,8 +416,8 @@ export default function Onboarding() {
         easing: EASE_OUT,
         useNativeDriver: true,
       }).start();
-    }, 5800);
-
+    }, 5600);
+    // Next button
     const t6 = setTimeout(() => {
       setTdNextVisible(true);
       Animated.timing(tdNextOp, {
@@ -409,7 +426,7 @@ export default function Onboarding() {
         easing: EASE_OUT,
         useNativeDriver: true,
       }).start();
-    }, 7200);
+    }, 7000);
 
     return () => {
       clearTimeout(t0);
@@ -426,151 +443,50 @@ export default function Onboarding() {
   useEffect(() => {
     if (phase !== "philosophy") return;
     philoNextOp.setValue(0);
+    setPhiloNextVisible(false);
+    setPhilo0Active(false);
+    setPhilo1Active(false);
+    setPhilo2Active(false);
+    setPhilo3Active(false);
+    setPhilo4Active(false);
 
     if (philoPage === 0) {
-      philoOp[0].setValue(0);
-      const t0 = setTimeout(() => {
-        Animated.timing(philoOp[0], {
-          toValue: 1,
-          duration: 900,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 400);
-      const t1 = setTimeout(() => {
-        Animated.timing(philoNextOp, {
-          toValue: 1,
-          duration: 600,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 3500);
-      return () => { clearTimeout(t0); clearTimeout(t1); };
+      const t0 = setTimeout(() => setPhilo0Active(true), 400);
+      return () => clearTimeout(t0);
     } else if (philoPage === 1) {
-      philoOp[1].setValue(0);
-      const t0 = setTimeout(() => {
-        Animated.timing(philoOp[1], {
-          toValue: 1,
-          duration: 900,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 400);
-      const t1 = setTimeout(() => {
-        Animated.timing(philoNextOp, {
-          toValue: 1,
-          duration: 600,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 3500);
-      return () => { clearTimeout(t0); clearTimeout(t1); };
+      const t0 = setTimeout(() => setPhilo1Active(true), 400);
+      return () => clearTimeout(t0);
     } else if (philoPage === 2) {
-      philoOp[2].setValue(0);
-      const t0 = setTimeout(() => {
-        Animated.timing(philoOp[2], {
-          toValue: 1,
-          duration: 900,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 400);
-      const t1 = setTimeout(() => {
-        Animated.timing(philoNextOp, {
-          toValue: 1,
-          duration: 600,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 3500);
-      return () => { clearTimeout(t0); clearTimeout(t1); };
+      const t0 = setTimeout(() => setPhilo2Active(true), 400);
+      return () => clearTimeout(t0);
     } else {
-      philoOp[3].setValue(0);
-      philoOp[4].setValue(0);
       philoBtnOp.setValue(0);
       setPhiloReadyVisible(false);
-
-      const t0 = setTimeout(() => {
-        Animated.timing(philoOp[3], {
-          toValue: 1,
-          duration: 900,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 400);
-
-      const t1 = setTimeout(() => {
-        Animated.timing(philoOp[4], {
-          toValue: 1,
-          duration: 900,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 3000);
-
-      const t2 = setTimeout(() => {
-        setPhiloReadyVisible(true);
-        Animated.timing(philoBtnOp, {
-          toValue: 1,
-          duration: 600,
-          easing: EASE_OUT,
-          useNativeDriver: true,
-        }).start();
-      }, 5000);
-
-      return () => {
-        clearTimeout(t0);
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
+      const t0 = setTimeout(() => setPhilo3Active(true), 400);
+      return () => clearTimeout(t0);
     }
   }, [phase, philoPage]);
 
   const handlePhiloNext = () => {
-    const currentOp = philoOp[philoPage];
-    Animated.parallel([
-      Animated.timing(currentOp, {
-        toValue: 0,
-        duration: 450,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(philoNextOp, {
-        toValue: 0,
-        duration: 300,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setPhiloPage(philoPage + 1));
+    Animated.timing(philoNextOp, {
+      toValue: 0,
+      duration: 300,
+      easing: EASE_IN,
+      useNativeDriver: true,
+    }).start(() => {
+      setPhiloNextVisible(false);
+      philoNextOp.setValue(0);
+      setPhiloPage(philoPage + 1);
+    });
   };
 
   const handlePhiloReady = () => {
-    Animated.parallel([
-      Animated.timing(philoOp[2], {
-        toValue: 0,
-        duration: 450,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(philoOp[3], {
-        toValue: 0,
-        duration: 450,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(philoOp[4], {
-        toValue: 0,
-        duration: 450,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(philoBtnOp, {
-        toValue: 0,
-        duration: 300,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-    ]).start(() => handleFinish());
+    Animated.timing(philoBtnOp, {
+      toValue: 0,
+      duration: 300,
+      easing: EASE_IN,
+      useNativeDriver: true,
+    }).start(() => handleFinish());
   };
 
   const handleNameSubmit = () => {
@@ -582,24 +498,6 @@ export default function Onboarding() {
 
   const handleTemplateNext = () => {
     Animated.parallel([
-      Animated.timing(tdActionOp, {
-        toValue: 0,
-        duration: 400,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(tdMicroOp, {
-        toValue: 0,
-        duration: 400,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
-      Animated.timing(tdMicroMicroOp, {
-        toValue: 0,
-        duration: 400,
-        easing: EASE_IN,
-        useNativeDriver: true,
-      }),
       Animated.timing(tdScrib1Op, {
         toValue: 0,
         duration: 300,
@@ -625,6 +523,9 @@ export default function Onboarding() {
         useNativeDriver: true,
       }),
     ]).start(() => {
+      setTdActionActive(false);
+      setTdMicroActive(false);
+      setTdMicroMicroActive(false);
       setPhiloPage(0);
       setPhase("philosophy");
     });
@@ -751,57 +652,64 @@ export default function Onboarding() {
         <View style={styles.body}>
           <View style={styles.center}>
             {sagePage === 0 ? (
-              <Animated.Text
-                style={[
-                  styles.sage,
-                  { color: colors.onSurfaceVariant, opacity: sage1Op },
-                ]}
-              >
-                You already know where you want to be...
-              </Animated.Text>
+              <TypewriterText
+                segments={makeSegs("You already know where you want to be...")}
+                active={sage1Active}
+                speed={34}
+                style={[styles.sage, { color: colors.onSurfaceVariant }]}
+                cursorColor={colors.onSurfaceVariant}
+                soundRef={soundRef}
+                onDone={() => {
+                  setSageNextVisible(true);
+                  Animated.timing(sageNextOp, {
+                    toValue: 1,
+                    duration: 500,
+                    easing: EASE_OUT,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+              />
             ) : (
               <>
-                <Animated.Text
-                  style={[
-                    styles.sage,
-                    { color: colors.onSurface, opacity: sage2Op },
-                  ]}
-                >
-                  But the path there is not a{" "}
-                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                    leap
-                  </Text>
-                </Animated.Text>
-                <Animated.Text
-                  style={[
-                    styles.sage,
-                    {
-                      color: colors.onSurface,
-                      opacity: sage3Op,
-                      marginTop: 16,
-                    },
-                  ]}
-                >
-                  or even a{" "}
-                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                    step
-                  </Text>
-                </Animated.Text>
-                <Animated.Text
-                  style={[
-                    styles.sage,
-                    {
-                      color: colors.onSurface,
-                      opacity: sage4Op,
-                      marginTop: 24,
-                    },
-                  ]}
-                >
-                  It's a{" "}
-                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                    nudge
-                  </Text>
-                </Animated.Text>
+                <TypewriterText
+                  segments={makeSegs("But the path there is not a leap", ["leap"])}
+                  active={sage2Active}
+                  speed={30}
+                  style={[styles.sage, { color: colors.onSurface }]}
+                  cursorColor={colors.onSurface}
+                  soundRef={soundRef}
+                  onDone={() => setSage3Active(true)}
+                />
+                {sage3Active && (
+                  <TypewriterText
+                    segments={makeSegs("or even a step", ["step"])}
+                    active={sage3Active}
+                    speed={30}
+                    style={[styles.sage, { color: colors.onSurface, marginTop: 16 }]}
+                    cursorColor={colors.onSurface}
+                    soundRef={soundRef}
+                    onDone={() => setSage4Active(true)}
+                  />
+                )}
+                {sage4Active && (
+                  <TypewriterText
+                    segments={makeSegs("It's a nudge", ["nudge"])}
+                    active={sage4Active}
+                    speed={30}
+                    style={[styles.sage, { color: colors.onSurface, marginTop: 24 }]}
+                    cursorColor={colors.onSurface}
+                    soundRef={soundRef}
+                    onDone={() => {
+                      setSageNextVisible(true);
+                      Animated.timing(sageNextOp, {
+                        toValue: 1,
+                        duration: 500,
+                        easing: EASE_OUT,
+                        useNativeDriver: true,
+                      }).start();
+                    }}
+                  />
+                )}
               </>
             )}
           </View>
@@ -843,7 +751,7 @@ export default function Onboarding() {
             </Animated.View>
 
             {/* Action field */}
-            <Animated.View style={{ opacity: tdActionOp }}>
+            <View>
               <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
                 Action
               </Text>
@@ -853,11 +761,16 @@ export default function Onboarding() {
                   { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
                 ]}
               >
-                <Text style={[styles.tdFieldText, { color: colors.onSurface }]}>
-                  Read for 30 minutes
-                </Text>
+                <TypewriterText
+                  segments={makeSegs("Read for 30 minutes")}
+                  active={tdActionActive}
+                  speed={32}
+                  style={[styles.tdFieldText, { color: colors.onSurface }]}
+                  cursorColor={colors.onSurface}
+                  soundRef={soundRef}
+                />
               </View>
-            </Animated.View>
+            </View>
 
             {/* Scribble label 2 — above Micro Action field */}
             <Animated.View
@@ -874,7 +787,7 @@ export default function Onboarding() {
             </Animated.View>
 
             {/* Micro Action field */}
-            <Animated.View style={{ opacity: tdMicroOp }}>
+            <View>
               <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
                 Micro Action
               </Text>
@@ -884,11 +797,16 @@ export default function Onboarding() {
                   { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
                 ]}
               >
-                <Text style={[styles.tdFieldText, { color: colors.onSurface }]}>
-                  Read for 10 minutes
-                </Text>
+                <TypewriterText
+                  segments={makeSegs("Read for 10 minutes")}
+                  active={tdMicroActive}
+                  speed={32}
+                  style={[styles.tdFieldText, { color: colors.onSurface }]}
+                  cursorColor={colors.onSurface}
+                  soundRef={soundRef}
+                />
               </View>
-            </Animated.View>
+            </View>
 
             {/* Scribble label 3 — above Micro Micro Action field */}
             <Animated.View
@@ -905,7 +823,7 @@ export default function Onboarding() {
             </Animated.View>
 
             {/* Micro Micro Action field */}
-            <Animated.View style={{ opacity: tdMicroMicroOp }}>
+            <View>
               <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
                 Micro Micro Action
               </Text>
@@ -915,11 +833,16 @@ export default function Onboarding() {
                   { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
                 ]}
               >
-                <Text style={[styles.tdFieldText, { color: colors.onSurface }]}>
-                  Read one page
-                </Text>
+                <TypewriterText
+                  segments={makeSegs("Read one page")}
+                  active={tdMicroMicroActive}
+                  speed={32}
+                  style={[styles.tdFieldText, { color: colors.onSurface }]}
+                  cursorColor={colors.onSurface}
+                  soundRef={soundRef}
+                />
               </View>
-            </Animated.View>
+            </View>
 
           </View>
 
@@ -944,98 +867,125 @@ export default function Onboarding() {
         <View style={[styles.body, { justifyContent: "center" }]}>
           <View style={styles.center}>
             {philoPage === 0 && (
-              <Animated.Text
-                style={[
-                  styles.philoText,
-                  { color: colors.onSurfaceVariant, opacity: philoOp[0] },
-                ]}
-              >
-                You may be wondering whether reading just one page is even
-                worth it...
-              </Animated.Text>
+              <TypewriterText
+                segments={makeSegs(
+                  "You may be wondering whether reading just one page is even worth it..."
+                )}
+                active={philo0Active}
+                speed={30}
+                style={[styles.philoText, { color: colors.onSurfaceVariant }]}
+                cursorColor={colors.onSurfaceVariant}
+                soundRef={soundRef}
+                onDone={() => {
+                  setPhiloNextVisible(true);
+                  Animated.timing(philoNextOp, {
+                    toValue: 1,
+                    duration: 500,
+                    easing: EASE_OUT,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+              />
             )}
 
             {philoPage === 1 && (
-              <Animated.Text
-                style={[
-                  styles.philoText,
-                  { color: colors.onSurface, opacity: philoOp[1] },
-                ]}
-              >
-                But it's not about the{" "}
-                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                  task
-                </Text>
-                , it's about the{" "}
-                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                  action
-                </Text>
-              </Animated.Text>
+              <TypewriterText
+                segments={makeSegs(
+                  "But it's not about the task, it's about the action",
+                  ["task", "action"]
+                )}
+                active={philo1Active}
+                speed={30}
+                style={[styles.philoText, { color: colors.onSurface }]}
+                cursorColor={colors.onSurface}
+                soundRef={soundRef}
+                onDone={() => {
+                  setPhiloNextVisible(true);
+                  Animated.timing(philoNextOp, {
+                    toValue: 1,
+                    duration: 500,
+                    easing: EASE_OUT,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+              />
             )}
 
             {philoPage === 2 && (
-              <Animated.Text
-                style={[
-                  styles.philoText,
-                  { color: colors.onSurface, opacity: philoOp[2] },
-                ]}
-              >
-                Taking any initiative at all{" "}
-                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                  signals
-                </Text>{" "}
-                the brain that you've done something to{" "}
-                <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                  improve
-                </Text>{" "}
-                yourself
-              </Animated.Text>
+              <TypewriterText
+                segments={makeSegs(
+                  "Taking any initiative at all signals the brain that you've done something to improve yourself",
+                  ["signals", "improve"]
+                )}
+                active={philo2Active}
+                speed={30}
+                style={[styles.philoText, { color: colors.onSurface }]}
+                cursorColor={colors.onSurface}
+                soundRef={soundRef}
+                onDone={() => {
+                  setPhiloNextVisible(true);
+                  Animated.timing(philoNextOp, {
+                    toValue: 1,
+                    duration: 500,
+                    easing: EASE_OUT,
+                    useNativeDriver: true,
+                  }).start();
+                }}
+              />
             )}
 
             {philoPage === 3 && (
               <>
-                <Animated.Text
-                  style={[
-                    styles.philoText,
-                    { color: colors.onSurface, opacity: philoOp[3] },
-                  ]}
-                >
-                  Over time, that becomes not a history of what you've done
-                </Animated.Text>
-
-                <Animated.Text
-                  style={[
-                    styles.philoText,
-                    {
-                      color: colors.onSurface,
-                      opacity: philoOp[4],
-                      marginTop: 16,
-                    },
-                  ]}
-                >
-                  But a proof of{" "}
-                  <Text style={{ fontFamily: fonts.headlineExtraBold }}>
-                    who you are
-                  </Text>
-                </Animated.Text>
+                <TypewriterText
+                  segments={makeSegs(
+                    "Over time, that becomes not a history of what you've done"
+                  )}
+                  active={philo3Active}
+                  speed={30}
+                  style={[styles.philoText, { color: colors.onSurface }]}
+                  cursorColor={colors.onSurface}
+                  soundRef={soundRef}
+                  onDone={() => setTimeout(() => setPhilo4Active(true), 800)}
+                />
+                {philo4Active && (
+                  <TypewriterText
+                    segments={makeSegs("But a proof of who you are", ["who you are"])}
+                    active={philo4Active}
+                    speed={30}
+                    style={[styles.philoText, { color: colors.onSurface, marginTop: 16 }]}
+                    cursorColor={colors.onSurface}
+                    soundRef={soundRef}
+                    onDone={() => {
+                      setPhiloReadyVisible(true);
+                      Animated.timing(philoBtnOp, {
+                        toValue: 1,
+                        duration: 500,
+                        easing: EASE_OUT,
+                        useNativeDriver: true,
+                      }).start();
+                    }}
+                  />
+                )}
               </>
             )}
           </View>
 
           {philoPage < 3 ? (
-            <Animated.View
-              style={[styles.bottomBtnWrap, { opacity: philoNextOp }]}
-            >
-              <TouchableOpacity
-                activeOpacity={0.3}
-                onPress={handlePhiloNext}
-                style={styles.ghostBtn}
+            philoNextVisible && (
+              <Animated.View
+                style={[styles.bottomBtnWrap, { opacity: philoNextOp }]}
               >
-                <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
-                  Next
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
+                <TouchableOpacity
+                  activeOpacity={0.3}
+                  onPress={handlePhiloNext}
+                  style={styles.ghostBtn}
+                >
+                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
+                    Next
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )
           ) : (
             philoReadyVisible && (
               <Animated.View

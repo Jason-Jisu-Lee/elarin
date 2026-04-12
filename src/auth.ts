@@ -20,6 +20,7 @@ export async function signUp(
     email: params.email,
     password: params.password,
     options: {
+      emailRedirectTo: "elarin://",
       data: {
         username: params.username,
         birthday: params.birthday,
@@ -29,6 +30,15 @@ export async function signUp(
 
   if (error) return { message: error.message };
   if (!data.user) return { message: "Sign up failed - no user returned." };
+
+  // Supabase returns a user with empty identities when the email already exists
+  // (security measure to prevent email enumeration). Detect this and inform the user.
+  if (!data.user.identities || data.user.identities.length === 0) {
+    return {
+      message:
+        "An account with this email already exists. Please sign in or use a different email.",
+    };
+  }
 
   // If no session (email confirmation enabled), we can't insert the profile
   // because RLS requires auth.uid(). Tell the user to confirm email first.
@@ -51,11 +61,30 @@ export async function signUp(
   return { userId: data.user.id };
 }
 
-/** Sign in with email + password. Returns userId or error. */
+/** Look up the email for a given username via RPC (works unauthenticated). */
+export async function getUserEmailByUsername(
+  username: string,
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_email_by_username", {
+    p_username: username,
+  });
+  if (error || !data) return null;
+  return data as string;
+}
+
+/** Sign in with email OR username + password. Returns userId or error. */
 export async function signIn(
-  email: string,
+  identifier: string,
   password: string,
 ): Promise<{ userId: string } | AuthError> {
+  let email = identifier;
+
+  if (!identifier.includes("@")) {
+    const found = await getUserEmailByUsername(identifier);
+    if (!found) return { message: "No account found with that username." };
+    email = found;
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -210,6 +239,7 @@ export async function syncLocalDataToSupabase(userId: string): Promise<void> {
       await supabase.from("profiles").upsert({
         id: userId,
         username: profile.username,
+        birthday: profile.birthday || "2000-01-01",
         platform: "android",
       });
     }

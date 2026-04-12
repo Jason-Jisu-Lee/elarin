@@ -14,6 +14,7 @@ import {
   saveProfile,
   getAccountId,
   clearAllLocalData,
+  setOnboarded,
 } from "../src/storage";
 import { signOut, updateUsername, isUsernameTaken } from "../src/auth";
 import { useTheme, fonts, storeTheme } from "../src/theme";
@@ -77,7 +78,8 @@ export default function Profile() {
     setShowSignOutDialog(false);
     await signOut();
     await clearAllLocalData();
-    router.replace("/onboarding");
+    await setOnboarded(true);
+    router.replace("/account/signin");
   };
 
   return (

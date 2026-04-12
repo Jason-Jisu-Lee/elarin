@@ -150,17 +150,8 @@ export default function CreateGoal() {
   // Request notification permission; proceed to "done" only if granted (or not needed)
   const handleTimeNext = async () => {
     if (notificationsEnabled) {
-      // Always re-request — on Android 13+ this shows the system dialog every time
-      // if permanently denied, canAskAgain is false so we open Settings instead
-      const { status, canAskAgain } =
-        await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync();
       if (status !== "granted") {
-        if (!canAskAgain) {
-          // Permanently denied — send user to app settings
-          await Notifications.getPermissionsAsync(); // no-op, just keeps import used
-          const { openSettings } = await import("expo-linking");
-          openSettings();
-        }
         setPermError(true);
         return;
       }
@@ -478,10 +469,9 @@ export default function CreateGoal() {
                 <Text
                   style={[styles.permWarningText, { color: colors.onSurface }]}
                 >
-                  Please grant notification permission for this app, or set
-                  reminder to{" "}
-                  <Text style={{ fontFamily: fonts.bodySemiBold }}>"None"</Text>
-                  .
+                  Tap "Allow" in the system dialog, or select "None" to skip.
+                  If no dialog appears, enable notifications in your phone's
+                  Settings manually.
                 </Text>
               </View>
             )}

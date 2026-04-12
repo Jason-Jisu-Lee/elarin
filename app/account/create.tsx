@@ -252,7 +252,25 @@ export default function AccountCreate() {
         )}
 
         {error !== "" && (
-          <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
+          <Text style={[styles.error, { color: colors.error }]}>
+            {error.includes("already exists") ? (
+              <>
+                An account with this email already exists. Please{" "}
+                <Text
+                  style={{
+                    color: colors.primary,
+                    textDecorationLine: "underline",
+                  }}
+                  onPress={() => router.replace("/account/signin")}
+                >
+                  sign in
+                </Text>{" "}
+                or use a different email.
+              </>
+            ) : (
+              error
+            )}
+          </Text>
         )}
         {info !== "" && (
           <Text style={[styles.info, { color: colors.primary }]}>{info}</Text>

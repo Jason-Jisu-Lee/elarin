@@ -25,6 +25,7 @@ import {
 import { recordDoIt } from "../src/progression";
 import { Goal, DailyGoalState } from "../src/types";
 import { useTheme, fonts } from "../src/theme";
+import quotes from "../assets/motivation_bank.json";
 
 const FREQ_ORDER: Record<string, number> = {
   daily: 0,
@@ -74,14 +75,6 @@ type HeatmapEntry = {
   total: number;
 };
 
-const INSPIRING_QUOTES = [
-  "The enemy of a good plan is the dream of a perfect plan.",
-  "Small steps every day lead to big changes.",
-  "You don't have to be great to start, but you have to start to be great.",
-  "Discipline is choosing what you want most over what you want now.",
-  "The best time to start was yesterday. The next best time is now.",
-];
-
 export default function Home() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
@@ -98,11 +91,15 @@ export default function Home() {
     text: string;
   } | null>(null);
   const tutorialAnim = useRef(new Animated.Value(0)).current;
+  const [quoteIndex, setQuoteIndex] = useState(() =>
+    Math.floor(Math.random() * quotes.length),
+  );
   const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
   const swipeLeftProg = useRef<Map<string, any>>(new Map());
   const swipeRightProg = useRef<Map<string, any>>(new Map());
 
   const load = useCallback(async () => {
+    setQuoteIndex(Math.floor(Math.random() * quotes.length));
     const [g, ds] = await Promise.all([getGoals(), getDailyStates()]);
     setGoals(g);
     setDailyStates(ds);
@@ -703,16 +700,21 @@ export default function Home() {
           styles.heatmapFixed,
           {
             backgroundColor: colors.surface,
-            borderTopColor: colors.outlineVariant,
             paddingBottom: Math.max(insets.bottom + 6, 14),
           },
         ]}
       >
         {goals.length > 0 && (
           <Text style={[styles.quoteText, { color: colors.onSurfaceVariant }]}>
-            "{INSPIRING_QUOTES[new Date().getDate() % INSPIRING_QUOTES.length]}"
+            "{quotes[quoteIndex % quotes.length]}"
           </Text>
         )}
+        <View
+          style={[
+            styles.heatmapDivider,
+            { backgroundColor: colors.outlineVariant },
+          ]}
+        />
         {renderHeatmap()}
       </View>
 
@@ -736,18 +738,40 @@ export default function Home() {
         </View>
       )}
 
-      {/* Swipe tutorial tooltip */}
+      {/* Swipe tutorial */}
       {showTutorial && (
-        <View
-          style={[
-            styles.tutorialTooltip,
-            { backgroundColor: colors.inverseSurface },
-          ]}
-        >
+        <View style={styles.tutorialOverlay}>
           <Text
-            style={[styles.tutorialText, { color: colors.inverseOnSurface }]}
+            style={[
+              styles.tutorialArrow,
+              {
+                color: isDark ? "rgba(74,222,128,0.5)" : "rgba(21,128,61,0.4)",
+              },
+            ]}
           >
-            Swipe to act
+            {"«"}
+          </Text>
+          <View
+            style={[
+              styles.tutorialTooltip,
+              { backgroundColor: colors.surfaceContainerHigh },
+            ]}
+          >
+            <Text
+              style={[styles.tutorialText, { color: colors.onSurfaceVariant }]}
+            >
+              Swipe the task
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.tutorialArrow,
+              {
+                color: isDark ? "rgba(250,204,21,0.5)" : "rgba(202,138,4,0.4)",
+              },
+            ]}
+          >
+            {"»"}
           </Text>
         </View>
       )}
@@ -918,7 +942,6 @@ const styles = StyleSheet.create({
   },
   // Heatmap
   heatmapFixed: {
-    borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 20,
     paddingTop: 10,
   },
@@ -926,8 +949,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.bodyItalic,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 6,
     lineHeight: 18,
+  },
+  heatmapDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginBottom: 8,
   },
   heatmapWrap: {
     marginBottom: 4,
@@ -998,10 +1025,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     textAlign: "center",
   },
-  tutorialTooltip: {
+  tutorialOverlay: {
     position: "absolute",
-    top: 140,
-    alignSelf: "center",
+    top: 200,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  tutorialArrow: {
+    fontSize: 28,
+    fontFamily: fonts.headlineBold,
+  },
+  tutorialTooltip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,

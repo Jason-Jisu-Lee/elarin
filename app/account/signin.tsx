@@ -11,21 +11,21 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { signIn, syncLocalDataToSupabase } from "../../src/auth";
-import { setAccountId } from "../../src/storage";
+import { setAccountId, setOnboarded } from "../../src/storage";
 import { useTheme, fonts } from "../../src/theme";
 
 export default function AccountSignIn() {
   const router = useRouter();
   const { colors } = useTheme();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+    if (!identifier.trim() || !password) {
+      setError("Please enter your username/email and password.");
       return;
     }
 
@@ -33,12 +33,13 @@ export default function AccountSignIn() {
     setLoading(true);
 
     try {
-      const result = await signIn(email.trim(), password);
+      const result = await signIn(identifier.trim(), password);
       if ("message" in result) {
         setError(result.message);
         return;
       }
       await setAccountId(result.userId);
+      await setOnboarded(true);
       await syncLocalDataToSupabase(result.userId);
       router.replace("/home");
     } finally {
@@ -59,7 +60,7 @@ export default function AccountSignIn() {
         <Text style={[styles.title, { color: colors.onSurface }]}>Sign In</Text>
 
         <Text style={[styles.label, { color: colors.onSurfaceVariant }]}>
-          Email
+          Username / Email
         </Text>
         <TextInput
           style={[
@@ -70,12 +71,11 @@ export default function AccountSignIn() {
               backgroundColor: colors.surfaceContainerLowest,
             },
           ]}
-          value={email}
-          onChangeText={setEmail}
+          value={identifier}
+          onChangeText={setIdentifier}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
-          placeholder="you@example.com"
+          placeholder="Username / Email"
           placeholderTextColor={colors.outlineVariant}
           returnKeyType="next"
         />
@@ -95,7 +95,7 @@ export default function AccountSignIn() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholder="your password"
+          placeholder="Password"
           placeholderTextColor={colors.outlineVariant}
           returnKeyType="done"
           onSubmitEditing={handleSignIn}
@@ -137,7 +137,12 @@ const styles = StyleSheet.create({
   inner: { flex: 1, paddingHorizontal: 28, paddingTop: 56 },
   backBtn: { marginBottom: 24 },
   backText: { fontSize: 22, fontFamily: fonts.headlineBold },
-  title: { fontSize: 28, fontFamily: fonts.headlineBold, marginBottom: 32 },
+  title: {
+    fontSize: 28,
+    fontFamily: fonts.headlineBold,
+    marginBottom: 32,
+    textAlign: "center",
+  },
   label: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,

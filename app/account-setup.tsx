@@ -11,8 +11,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signUp, resendVerification } from "../src/auth";
-import { setAccountId, getProfile } from "../src/storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { signUp } from "../src/auth";
+import { getProfile, saveProfile } from "../src/storage";
 import { useTheme, fonts } from "../src/theme";
 
 const PASSWORD_RE = /^[a-zA-Z0-9!@#$%^&*]{6,18}$/;
@@ -26,9 +27,12 @@ export default function AccountSetup() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
-  const [awaitingVerification, setAwaitingVerification] = useState(false);
+  const [birthday, setBirthday] = useState<Date | null>(null);
+  const [showBdayPicker, setShowBdayPicker] = useState(false);
+
+  const formatDate = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const handleCreate = async () => {
     if (!EMAIL_RE.test(email.trim())) {
@@ -43,52 +47,42 @@ export default function AccountSetup() {
       setError("Passwords do not match.");
       return;
     }
+    if (!birthday) {
+      setError("Please select your birthday.");
+      return;
+    }
 
     setError("");
-    setInfo("");
     setLoading(true);
     try {
       const profile = await getProfile();
       const username = profile?.username ?? "";
+      const bdayStr = formatDate(birthday);
+      await saveProfile({ username, birthday: bdayStr });
 
       const result = await signUp({
         username,
         email: email.trim(),
         password,
-        birthday: "",
+        birthday: bdayStr,
       });
 
       if ("message" in result) {
-        // If Supabase says check email, show verification UI
         if (result.message.toLowerCase().includes("check your email")) {
-          setAwaitingVerification(true);
-          setInfo("Verification email sent! Check your inbox.");
-          setError("");
+          router.push({
+            pathname: "/account-verify",
+            params: { email: email.trim() },
+          });
         } else {
           setError(result.message);
         }
         return;
       }
 
+      // Direct sign-up without email confirmation (shouldn't happen, but handle it)
+      const { setAccountId } = await import("../src/storage");
       await setAccountId(result.userId);
       router.replace("/home");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (!email.trim()) return;
-    setLoading(true);
-    setError("");
-    setInfo("");
-    try {
-      const err = await resendVerification(email.trim());
-      if (err) {
-        setError(err.message);
-      } else {
-        setInfo("Verification email resent! Check your inbox.");
-      }
     } finally {
       setLoading(false);
     }
@@ -104,11 +98,11 @@ export default function AccountSetup() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.title, { color: colors.onSurface }]}>
-          Account creation
+          Account Creation
         </Text>
         <Text style={[styles.subtitle, { color: colors.onSurfaceVariant }]}>
-          This is required to sync your data online, generate analytics, and
-          interact with the community.
+          This is required to sync your data as a user and generate analytics
+          only
         </Text>
 
         <TextInput
@@ -167,82 +161,66 @@ export default function AccountSetup() {
           onSubmitEditing={handleCreate}
         />
 
+        <TouchableOpacity
+          style={[
+            styles.input,
+            styles.birthdayBtn,
+            {
+              borderColor: colors.outlineVariant,
+              backgroundColor: colors.surfaceContainerLowest,
+            },
+          ]}
+          onPress={() => setShowBdayPicker(true)}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={{
+              color: birthday ? colors.onSurface : colors.outlineVariant,
+              fontFamily: fonts.bodyRegular,
+              fontSize: 15,
+            }}
+          >
+            {birthday
+              ? birthday.toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "Birthday"}
+          </Text>
+        </TouchableOpacity>
+        {showBdayPicker && (
+          <DateTimePicker
+            mode="date"
+            display="spinner"
+            value={birthday ?? new Date(2000, 0, 1)}
+            minimumDate={new Date(1900, 0, 1)}
+            maximumDate={new Date()}
+            onChange={(_, date) => {
+              if (Platform.OS === "android") setShowBdayPicker(false);
+              if (date) setBirthday(date);
+            }}
+          />
+        )}
+
         {error !== "" && (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         )}
-        {info !== "" && (
-          <Text style={[styles.info, { color: colors.primary }]}>{info}</Text>
-        )}
 
-        {awaitingVerification ? (
-          <>
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={handleResend}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <Text
-                  style={[styles.primaryBtnText, { color: colors.onPrimary }]}
-                >
-                  Resend Verification Email
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.laterBtn}
-              onPress={() => router.replace("/home")}
-              activeOpacity={0.6}
-            >
-              <Text
-                style={[
-                  styles.laterBtnText,
-                  { color: colors.onSurfaceVariant },
-                ]}
-              >
-                Continue without verifying
-              </Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-              onPress={handleCreate}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <Text
-                  style={[styles.primaryBtnText, { color: colors.onPrimary }]}
-                >
-                  Create and Verify
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.laterBtn}
-              onPress={() => router.replace("/home")}
-              activeOpacity={0.6}
-            >
-              <Text
-                style={[
-                  styles.laterBtnText,
-                  { color: colors.onSurfaceVariant },
-                ]}
-              >
-                Later
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity
+          style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+          onPress={handleCreate}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <Text style={[styles.primaryBtnText, { color: colors.onPrimary }]}>
+              Create and Verify
+            </Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -260,12 +238,14 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontFamily: fonts.headlineBold,
     marginBottom: 12,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
     fontFamily: fonts.bodyRegular,
     lineHeight: 20,
     marginBottom: 36,
+    textAlign: "center",
   },
   input: {
     borderWidth: 1,
@@ -281,10 +261,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     marginBottom: 12,
   },
-  info: {
-    fontSize: 13,
-    fontFamily: fonts.bodyMedium,
-    marginBottom: 12,
+  birthdayBtn: {
+    justifyContent: "center",
   },
   primaryBtn: {
     borderRadius: 14,
@@ -296,13 +274,5 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontSize: 16,
     fontFamily: fonts.headlineBold,
-  },
-  laterBtn: {
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  laterBtnText: {
-    fontSize: 15,
-    fontFamily: fonts.bodyMedium,
   },
 });

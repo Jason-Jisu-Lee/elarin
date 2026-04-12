@@ -79,4 +79,5 @@ export interface DailyGoalState {
 
 export interface UserProfile {
   username: string;
+  birthday?: string;
 }

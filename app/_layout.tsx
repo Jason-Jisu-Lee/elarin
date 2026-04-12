@@ -39,6 +39,8 @@ import { processPendingNativeActions } from "../src/alarms";
 import { recordDoIt, recordStepDown, recordSnooze } from "../src/progression";
 import { getAccountId as getSupabaseAccountId } from "../src/auth";
 import { setAccountId } from "../src/storage";
+import { supabase } from "../src/supabase";
+import * as Linking from "expo-linking";
 import {
   ThemeContext,
   lightColors,
@@ -81,6 +83,36 @@ export default function RootLayout() {
     getSupabaseAccountId().then((id) => {
       if (id) setAccountId(id);
     });
+
+    // Handle deep links for email verification
+    const handleUrl = (url: string) => {
+      if (url.includes("access_token") || url.includes("refresh_token")) {
+        // Extract hash fragment and let Supabase process it
+        const hashIndex = url.indexOf("#");
+        if (hashIndex >= 0) {
+          const params = new URLSearchParams(url.substring(hashIndex + 1));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+          if (accessToken && refreshToken) {
+            supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+          }
+        }
+      }
+    };
+
+    // Check if app was opened via deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl(url);
+    });
+    // Listen for deep links while app is open
+    const linkSub = Linking.addEventListener("url", (event) => {
+      handleUrl(event.url);
+    });
+
+    return () => linkSub.remove();
   }, []);
 
   useEffect(() => {
@@ -154,6 +186,10 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="theme-select" options={{ headerShown: false }} />
           <Stack.Screen name="account-setup" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="account-verify"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen name="home" options={{ headerShown: false }} />
           <Stack.Screen name="templates" options={{ headerShown: false }} />
           <Stack.Screen name="create" options={{ headerShown: false }} />

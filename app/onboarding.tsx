@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Audio } from "expo-av";
 import Svg, { Path } from "react-native-svg";
 import { setOnboarded, saveProfile } from "../src/storage";
+import { isUsernameTaken } from "../src/auth";
 import { useTheme, fonts } from "../src/theme";
 
 if (
@@ -24,12 +25,7 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const PHASES = [
-  "name",
-  "sage",
-  "template_demo",
-  "philosophy",
-] as const;
+const PHASES = ["name", "sage", "template_demo", "philosophy"] as const;
 
 type Phase = (typeof PHASES)[number];
 
@@ -50,11 +46,11 @@ function ScribbleArrow({
 }) {
   // Arrow path: starts top, curves left with a loop, ends pointing down at bottom-center
   const path = flip
-    ? "M62 4 C72 8, 78 18, 70 28 C62 38, 52 32, 56 24 C60 16, 72 20, 74 30 L68 52 L74 48 M68 52 L64 46"
-    : "M38 4 C28 8, 22 18, 30 28 C38 38, 48 32, 44 24 C40 16, 28 20, 26 30 L32 52 L26 48 M32 52 L36 46";
+    ? "M62 4 C72 8, 78 18, 70 28 C62 38, 52 32, 56 24 C60 16, 72 20, 74 30 L84 52 L78 47 M84 52 L88 47"
+    : "M38 4 C28 8, 22 18, 30 28 C38 38, 48 32, 44 24 C40 16, 28 20, 26 30 L16 52 L10 47 M16 52 L20 47";
   return (
     <Animated.View style={{ opacity, alignItems: "center" }}>
-      <Svg width={100} height={56} viewBox="0 0 100 56">
+      <Svg width={84} height={47} viewBox="0 0 100 56">
         <Path
           d={path}
           stroke={color}
@@ -68,18 +64,72 @@ function ScribbleArrow({
   );
 }
 
+// Animated doodle-style trail that draws itself — two parallel hand-drawn lines
+function DrawingPath({
+  color,
+  progress,
+}: {
+  color: string;
+  progress: Animated.Value;
+}) {
+  const PATH_LENGTH = 820;
+  const [offset, setOffset] = useState(PATH_LENGTH);
+  useEffect(() => {
+    const id = progress.addListener(({ value }) => {
+      setOffset(PATH_LENGTH * (1 - value));
+    });
+    return () => progress.removeListener(id);
+  }, [progress]);
+  // Two parallel gently-meandering lines — doodle trail going top-to-bottom
+  const d1 =
+    "M 48 0 C 38 55, 68 95, 52 150 C 36 210, 65 255, 50 310 C 35 370, 62 410, 48 465 C 34 520, 58 555, 46 610";
+  const d2 =
+    "M 60 0 C 50 55, 80 95, 64 150 C 48 210, 77 255, 62 310 C 47 370, 74 410, 60 465 C 46 520, 70 555, 58 610";
+  const common = {
+    stroke: color,
+    strokeWidth: 1.6 as number,
+    fill: "none" as const,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeDasharray: `${PATH_LENGTH}`,
+    strokeDashoffset: `${offset}`,
+  };
+  return (
+    <Svg
+      width={70}
+      height="100%"
+      viewBox="0 0 100 610"
+      style={{
+        position: "absolute",
+        right: 4,
+        top: 0,
+        bottom: 0,
+        opacity: 0.35,
+      }}
+    >
+      <Path d={d1} {...common} />
+      <Path d={d2} {...common} />
+    </Svg>
+  );
+}
+
 // Segment: plain text or bold text
 type Seg = { text: string; bold?: boolean };
 
 // Splits a flat string + boldWords list into segments for mixed-weight rendering
 function makeSegs(text: string, boldWords: string[] = []): Seg[] {
   if (boldWords.length === 0) return [{ text }];
-  const pattern = boldWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const pattern = boldWords
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
   const re = new RegExp(`(${pattern})`, "g");
-  return text.split(re).filter(Boolean).map((part) => ({
-    text: part,
-    bold: boldWords.includes(part),
-  }));
+  return text
+    .split(re)
+    .filter(Boolean)
+    .map((part) => ({
+      text: part,
+      bold: boldWords.includes(part),
+    }));
 }
 
 // Renders text char-by-char with a blinking cursor, playing a sound each tick.
@@ -103,9 +153,7 @@ function TypewriterText({
 }) {
   const fullText = segments.map((s) => s.text).join("");
   const [count, setCount] = useState(0);
-  const [cursorOn, setCursorOn] = useState(true);
   const doneRef = useRef(false);
-  const cursorBlink = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!active) {
@@ -136,15 +184,6 @@ function TypewriterText({
     return () => clearInterval(iv);
   }, [active]);
 
-  // Blinking cursor after done
-  useEffect(() => {
-    if (cursorBlink.current) clearInterval(cursorBlink.current);
-    cursorBlink.current = setInterval(() => setCursorOn((v) => !v), 530);
-    return () => {
-      if (cursorBlink.current) clearInterval(cursorBlink.current);
-    };
-  }, []);
-
   // Render visible chars split across segments
   let remaining = count;
   const parts: React.ReactNode[] = [];
@@ -155,11 +194,7 @@ function TypewriterText({
       parts.push(
         <Text
           key={idx}
-          style={
-            seg.bold
-              ? { fontFamily: fonts.headlineExtraBold }
-              : undefined
-          }
+          style={seg.bold ? { fontFamily: fonts.headlineExtraBold } : undefined}
         >
           {seg.text.slice(0, visible)}
         </Text>,
@@ -172,9 +207,7 @@ function TypewriterText({
   return (
     <Text style={style}>
       {parts}
-      {(!isDone || cursorOn) && (
-        <Text style={{ color: isDone ? cursorColor : cursorColor, opacity: isDone ? (cursorOn ? 0.7 : 0) : 1 }}>|</Text>
-      )}
+      {!isDone && <Text style={{ color: cursorColor }}>|</Text>}
     </Text>
   );
 }
@@ -187,6 +220,8 @@ export default function Onboarding() {
   const [phase, setPhase] = useState<Phase>(isReplay ? "sage" : "name");
   const [name, setName] = useState("");
   const [charWarning, setCharWarning] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [sagePage, setSagePage] = useState(0);
   const [sageNextVisible, setSageNextVisible] = useState(false);
   const [tdNextVisible, setTdNextVisible] = useState(false);
@@ -204,6 +239,7 @@ export default function Onboarding() {
   const [tdMicroMicroActive, setTdMicroMicroActive] = useState(false);
   const [philo0Active, setPhilo0Active] = useState(false);
   const [philo1Active, setPhilo1Active] = useState(false);
+  const [philo1bActive, setPhilo1bActive] = useState(false);
   const [philo2Active, setPhilo2Active] = useState(false);
   const [philo3Active, setPhilo3Active] = useState(false);
   const [philo4Active, setPhilo4Active] = useState(false);
@@ -211,10 +247,10 @@ export default function Onboarding() {
   // Typing sound
   const soundRef = useRef<Audio.Sound | null>(null);
   useEffect(() => {
-    Audio.Sound.createAsync(
-      require("../assets/sounds/pencil-scratch.wav"),
-      { volume: 0.12, shouldPlay: false },
-    ).then(({ sound }) => {
+    Audio.Sound.createAsync(require("../assets/sounds/pencil-scratch.wav"), {
+      volume: 0.12,
+      shouldPlay: false,
+    }).then(({ sound }) => {
       soundRef.current = sound;
     });
     return () => {
@@ -235,6 +271,7 @@ export default function Onboarding() {
   const tdScrib2Op = useRef(new Animated.Value(0)).current;
   const tdScrib3Op = useRef(new Animated.Value(0)).current;
   const tdNextOp = useRef(new Animated.Value(0)).current;
+  const pathProgress = useRef(new Animated.Value(0)).current;
 
   // Progress bar: 7 steps (sage p0, sage p1, template_demo, philo p0..p3)
   const TOTAL_STEPS = 7;
@@ -253,7 +290,6 @@ export default function Onboarding() {
       useNativeDriver: false,
     }).start();
   }, [phase, sagePage, philoPage]);
-
 
   const tIn = useCallback(
     (cb?: () => void) => {
@@ -320,7 +356,7 @@ export default function Onboarding() {
 
   useEffect(() => {
     Animated.timing(btnOp, {
-      toValue: name.trim().length >= 3 ? 1 : 0,
+      toValue: name.trim().length >= 6 ? 1 : 0,
       duration: 280,
       easing: EASE_OUT,
       useNativeDriver: true,
@@ -341,6 +377,14 @@ export default function Onboarding() {
       const t0 = setTimeout(() => setSage1Active(true), 300);
       return () => clearTimeout(t0);
     } else {
+      pathProgress.setValue(0);
+      // Total typing: ~32+14+12 = 58 chars × 38ms = ~2200ms + gaps
+      Animated.timing(pathProgress, {
+        toValue: 1,
+        duration: 3200,
+        easing: EASE_IO,
+        useNativeDriver: false,
+      }).start();
       const t0 = setTimeout(() => setSage2Active(true), 200);
       return () => clearTimeout(t0);
     }
@@ -446,6 +490,7 @@ export default function Onboarding() {
     setPhiloNextVisible(false);
     setPhilo0Active(false);
     setPhilo1Active(false);
+    setPhilo1bActive(false);
     setPhilo2Active(false);
     setPhilo3Active(false);
     setPhilo4Active(false);
@@ -489,9 +534,20 @@ export default function Onboarding() {
     }).start(() => handleFinish());
   };
 
-  const handleNameSubmit = () => {
+  const handleNameSubmit = async () => {
     const trimmed = name.trim();
-    if (trimmed.length < 3) return;
+    if (trimmed.length < 6) {
+      setUsernameError("Must be at least 6 characters.");
+      return;
+    }
+    setUsernameError("");
+    setCheckingUsername(true);
+    const taken = await isUsernameTaken(trimmed);
+    setCheckingUsername(false);
+    if (taken) {
+      setUsernameError("That username is taken.");
+      return;
+    }
     setName(trimmed);
     tOut(() => setPhase("sage"));
   };
@@ -555,7 +611,12 @@ export default function Onboarding() {
     >
       {/* Progress bar — visible on all screens after username */}
       {phase !== "name" && (
-        <View style={[styles.progressTrack, { backgroundColor: colors.surfaceVariant }]}>
+        <View
+          style={[
+            styles.progressTrack,
+            { backgroundColor: colors.surfaceVariant },
+          ]}
+        >
           <Animated.View
             style={[
               styles.progressFill,
@@ -604,12 +665,13 @@ export default function Onboarding() {
                   value={name}
                   onChangeText={(t) => {
                     const filtered = t
-                      .replace(/[^a-zA-Z0-9]/g, "")
-                      .slice(0, 15);
-                    if (filtered !== t.slice(0, 15)) {
+                      .replace(/[^a-zA-Z0-9!@#$%^&*]/g, "")
+                      .slice(0, 17);
+                    if (filtered !== t.slice(0, 17)) {
                       setCharWarning(true);
                       setTimeout(() => setCharWarning(false), 2000);
                     }
+                    setUsernameError("");
                     setName(filtered);
                   }}
                   placeholderTextColor={colors.outlineVariant}
@@ -618,7 +680,7 @@ export default function Onboarding() {
                   autoCorrect={false}
                   onSubmitEditing={handleNameSubmit}
                   returnKeyType="next"
-                  maxLength={15}
+                  maxLength={17}
                 />
                 {charWarning && (
                   <Text
@@ -627,18 +689,24 @@ export default function Onboarding() {
                       { color: colors.onSurfaceVariant },
                     ]}
                   >
-                    Letters and numbers only
+                    Letters, numbers, and !@#$%^&* only
+                  </Text>
+                )}
+                {usernameError !== "" && (
+                  <Text style={[styles.charHint, { color: colors.error }]}>
+                    {usernameError}
                   </Text>
                 )}
               </Animated.View>
               <Animated.View style={[styles.btnWrap, { opacity: btnOp }]}>
                 <TouchableOpacity
                   onPress={handleNameSubmit}
+                  disabled={checkingUsername}
                   activeOpacity={0.3}
                   style={styles.ghostBtn}
                 >
                   <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
-                    Continue
+                    {checkingUsername ? "Checking..." : "Continue"}
                   </Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -655,7 +723,7 @@ export default function Onboarding() {
               <TypewriterText
                 segments={makeSegs("You already know where you want to be...")}
                 active={sage1Active}
-                speed={34}
+                speed={43}
                 style={[styles.sage, { color: colors.onSurfaceVariant }]}
                 cursorColor={colors.onSurfaceVariant}
                 soundRef={soundRef}
@@ -671,10 +739,13 @@ export default function Onboarding() {
               />
             ) : (
               <>
+                <DrawingPath color={colors.onSurface} progress={pathProgress} />
                 <TypewriterText
-                  segments={makeSegs("But the path there is not a leap", ["leap"])}
+                  segments={makeSegs("But the path there is not a leap", [
+                    "leap",
+                  ])}
                   active={sage2Active}
-                  speed={30}
+                  speed={38}
                   style={[styles.sage, { color: colors.onSurface }]}
                   cursorColor={colors.onSurface}
                   soundRef={soundRef}
@@ -684,8 +755,11 @@ export default function Onboarding() {
                   <TypewriterText
                     segments={makeSegs("or even a step", ["step"])}
                     active={sage3Active}
-                    speed={30}
-                    style={[styles.sage, { color: colors.onSurface, marginTop: 16 }]}
+                    speed={38}
+                    style={[
+                      styles.sage,
+                      { color: colors.onSurface, marginTop: 16 },
+                    ]}
                     cursorColor={colors.onSurface}
                     soundRef={soundRef}
                     onDone={() => setSage4Active(true)}
@@ -695,8 +769,11 @@ export default function Onboarding() {
                   <TypewriterText
                     segments={makeSegs("It's a nudge", ["nudge"])}
                     active={sage4Active}
-                    speed={30}
-                    style={[styles.sage, { color: colors.onSurface, marginTop: 24 }]}
+                    speed={38}
+                    style={[
+                      styles.sage,
+                      { color: colors.onSurface, marginTop: 24 },
+                    ]}
                     cursorColor={colors.onSurface}
                     soundRef={soundRef}
                     onDone={() => {
@@ -735,10 +812,13 @@ export default function Onboarding() {
       {phase === "template_demo" && (
         <View style={[styles.body, { justifyContent: "center" }]}>
           <View style={{ paddingHorizontal: 28, width: "100%" }}>
-
             {/* Scribble label 1 — above Action field */}
             <Animated.View
-              style={[styles.scribbleGroup, styles.scribRight, { opacity: tdScrib1Op }]}
+              style={[
+                styles.scribbleGroup,
+                styles.scribRight,
+                { opacity: tdScrib1Op },
+              ]}
             >
               <Text style={[styles.scrib, { color: colors.scribbleYellow }]}>
                 This is your main goal
@@ -752,19 +832,24 @@ export default function Onboarding() {
 
             {/* Action field */}
             <View>
-              <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
+              <Text
+                style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}
+              >
                 Action
               </Text>
               <View
                 style={[
                   styles.tdField,
-                  { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
+                  {
+                    borderColor: colors.outline,
+                    backgroundColor: colors.surfaceContainer,
+                  },
                 ]}
               >
                 <TypewriterText
                   segments={makeSegs("Read for 30 minutes")}
                   active={tdActionActive}
-                  speed={32}
+                  speed={40}
                   style={[styles.tdFieldText, { color: colors.onSurface }]}
                   cursorColor={colors.onSurface}
                   soundRef={soundRef}
@@ -774,7 +859,11 @@ export default function Onboarding() {
 
             {/* Scribble label 2 — above Micro Action field */}
             <Animated.View
-              style={[styles.scribbleGroup, styles.scribLeft, { opacity: tdScrib2Op, marginTop: 24 }]}
+              style={[
+                styles.scribbleGroup,
+                styles.scribLeft,
+                { opacity: tdScrib2Op, marginTop: 24 },
+              ]}
             >
               <Text style={[styles.scrib, { color: colors.scribbleYellow }]}>
                 If that's too much, do this
@@ -788,19 +877,24 @@ export default function Onboarding() {
 
             {/* Micro Action field */}
             <View>
-              <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
+              <Text
+                style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}
+              >
                 Micro Action
               </Text>
               <View
                 style={[
                   styles.tdField,
-                  { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
+                  {
+                    borderColor: colors.outline,
+                    backgroundColor: colors.surfaceContainer,
+                  },
                 ]}
               >
                 <TypewriterText
                   segments={makeSegs("Read for 10 minutes")}
                   active={tdMicroActive}
-                  speed={32}
+                  speed={40}
                   style={[styles.tdFieldText, { color: colors.onSurface }]}
                   cursorColor={colors.onSurface}
                   soundRef={soundRef}
@@ -810,7 +904,11 @@ export default function Onboarding() {
 
             {/* Scribble label 3 — above Micro Micro Action field */}
             <Animated.View
-              style={[styles.scribbleGroup, styles.scribRight, { opacity: tdScrib3Op, marginTop: 24 }]}
+              style={[
+                styles.scribbleGroup,
+                styles.scribRight,
+                { opacity: tdScrib3Op, marginTop: 24 },
+              ]}
             >
               <Text style={[styles.scrib, { color: colors.scribbleYellow }]}>
                 Add one more micro-action{"\n"}for maximum laziness!
@@ -824,30 +922,36 @@ export default function Onboarding() {
 
             {/* Micro Micro Action field */}
             <View>
-              <Text style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}>
+              <Text
+                style={[styles.tdLabel, { color: colors.onSurfaceVariant }]}
+              >
                 Micro Micro Action
               </Text>
               <View
                 style={[
                   styles.tdField,
-                  { borderColor: colors.outline, backgroundColor: colors.surfaceContainer },
+                  {
+                    borderColor: colors.outline,
+                    backgroundColor: colors.surfaceContainer,
+                  },
                 ]}
               >
                 <TypewriterText
                   segments={makeSegs("Read one page")}
                   active={tdMicroMicroActive}
-                  speed={32}
+                  speed={40}
                   style={[styles.tdFieldText, { color: colors.onSurface }]}
                   cursorColor={colors.onSurface}
                   soundRef={soundRef}
                 />
               </View>
             </View>
-
           </View>
 
           {tdNextVisible && (
-            <Animated.View style={[styles.bottomBtnWrap, { opacity: tdNextOp }]}>
+            <Animated.View
+              style={[styles.bottomBtnWrap, { opacity: tdNextOp }]}
+            >
               <TouchableOpacity
                 activeOpacity={0.3}
                 onPress={handleTemplateNext}
@@ -869,10 +973,10 @@ export default function Onboarding() {
             {philoPage === 0 && (
               <TypewriterText
                 segments={makeSegs(
-                  "You may be wondering whether reading just one page is even worth it..."
+                  "You may be wondering whether reading just one page is even worth it...",
                 )}
                 active={philo0Active}
-                speed={30}
+                speed={38}
                 style={[styles.philoText, { color: colors.onSurfaceVariant }]}
                 cursorColor={colors.onSurfaceVariant}
                 soundRef={soundRef}
@@ -889,36 +993,49 @@ export default function Onboarding() {
             )}
 
             {philoPage === 1 && (
-              <TypewriterText
-                segments={makeSegs(
-                  "But it's not about the task, it's about the action",
-                  ["task", "action"]
+              <>
+                <TypewriterText
+                  segments={makeSegs("But it's not about the task", ["task"])}
+                  active={philo1Active}
+                  speed={38}
+                  style={[styles.philoText, { color: colors.onSurface }]}
+                  cursorColor={colors.onSurface}
+                  soundRef={soundRef}
+                  onDone={() => setTimeout(() => setPhilo1bActive(true), 400)}
+                />
+                {philo1bActive && (
+                  <TypewriterText
+                    segments={makeSegs("It's about the action", ["action"])}
+                    active={philo1bActive}
+                    speed={38}
+                    style={[
+                      styles.philoText,
+                      { color: colors.onSurface, marginTop: 16 },
+                    ]}
+                    cursorColor={colors.onSurface}
+                    soundRef={soundRef}
+                    onDone={() => {
+                      setPhiloNextVisible(true);
+                      Animated.timing(philoNextOp, {
+                        toValue: 1,
+                        duration: 500,
+                        easing: EASE_OUT,
+                        useNativeDriver: true,
+                      }).start();
+                    }}
+                  />
                 )}
-                active={philo1Active}
-                speed={30}
-                style={[styles.philoText, { color: colors.onSurface }]}
-                cursorColor={colors.onSurface}
-                soundRef={soundRef}
-                onDone={() => {
-                  setPhiloNextVisible(true);
-                  Animated.timing(philoNextOp, {
-                    toValue: 1,
-                    duration: 500,
-                    easing: EASE_OUT,
-                    useNativeDriver: true,
-                  }).start();
-                }}
-              />
+              </>
             )}
 
             {philoPage === 2 && (
               <TypewriterText
                 segments={makeSegs(
                   "Taking any initiative at all signals the brain that you've done something to improve yourself",
-                  ["signals", "improve"]
+                  ["signals", "improve"],
                 )}
                 active={philo2Active}
-                speed={30}
+                speed={38}
                 style={[styles.philoText, { color: colors.onSurface }]}
                 cursorColor={colors.onSurface}
                 soundRef={soundRef}
@@ -938,10 +1055,10 @@ export default function Onboarding() {
               <>
                 <TypewriterText
                   segments={makeSegs(
-                    "Over time, that becomes not a history of what you've done"
+                    "Over time, that becomes not a history of what you've done",
                   )}
                   active={philo3Active}
-                  speed={30}
+                  speed={38}
                   style={[styles.philoText, { color: colors.onSurface }]}
                   cursorColor={colors.onSurface}
                   soundRef={soundRef}
@@ -949,10 +1066,15 @@ export default function Onboarding() {
                 />
                 {philo4Active && (
                   <TypewriterText
-                    segments={makeSegs("But a proof of who you are", ["who you are"])}
+                    segments={makeSegs("But a proof of who you are", [
+                      "who you are",
+                    ])}
                     active={philo4Active}
-                    speed={30}
-                    style={[styles.philoText, { color: colors.onSurface, marginTop: 16 }]}
+                    speed={38}
+                    style={[
+                      styles.philoText,
+                      { color: colors.onSurface, marginTop: 16 },
+                    ]}
                     cursorColor={colors.onSurface}
                     soundRef={soundRef}
                     onDone={() => {
@@ -970,39 +1092,41 @@ export default function Onboarding() {
             )}
           </View>
 
-          {philoPage < 3 ? (
-            philoNextVisible && (
-              <Animated.View
-                style={[styles.bottomBtnWrap, { opacity: philoNextOp }]}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.3}
-                  onPress={handlePhiloNext}
-                  style={styles.ghostBtn}
+          {philoPage < 3
+            ? philoNextVisible && (
+                <Animated.View
+                  style={[styles.bottomBtnWrap, { opacity: philoNextOp }]}
                 >
-                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
-                    Next
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )
-          ) : (
-            philoReadyVisible && (
-              <Animated.View
-                style={[styles.bottomBtnWrap, { opacity: philoBtnOp }]}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.3}
-                  onPress={handlePhiloReady}
-                  style={styles.ghostBtn}
+                  <TouchableOpacity
+                    activeOpacity={0.3}
+                    onPress={handlePhiloNext}
+                    style={styles.ghostBtn}
+                  >
+                    <Text
+                      style={[styles.plainBtn, { color: colors.onSurface }]}
+                    >
+                      Next
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )
+            : philoReadyVisible && (
+                <Animated.View
+                  style={[styles.bottomBtnWrap, { opacity: philoBtnOp }]}
                 >
-                  <Text style={[styles.plainBtn, { color: colors.onSurface }]}>
-                    I'm Ready
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )
-          )}
+                  <TouchableOpacity
+                    activeOpacity={0.3}
+                    onPress={handlePhiloReady}
+                    style={styles.ghostBtn}
+                  >
+                    <Text
+                      style={[styles.plainBtn, { color: colors.onSurface }]}
+                    >
+                      I'm Ready
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
         </View>
       )}
     </Animated.View>
@@ -1119,7 +1243,7 @@ const styles = StyleSheet.create({
   },
   scribbleGroup: {
     alignItems: "center",
-    marginBottom: -4,
+    marginBottom: -8,
   },
   scribLeft: { alignSelf: "flex-start", marginLeft: 24 },
   scribRight: { alignSelf: "flex-end", marginRight: 24 },
@@ -1145,6 +1269,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     letterSpacing: 0.8,
     textTransform: "uppercase",
+    textAlign: "center",
     marginBottom: 6,
   },
   tdField: {

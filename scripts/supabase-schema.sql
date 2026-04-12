@@ -55,3 +55,24 @@ create policy "events: owner read"
 create policy "events: owner insert"
   on public.events for insert
   with check (auth.uid() = user_id);
+
+-- ── username lookup (unauthenticated, needed for uniqueness checks + sign-in) ──
+-- Allow anyone to read profiles so isUsernameTaken and username→email lookups work.
+create policy "profiles: public read"
+  on public.profiles for select
+  using (true);
+
+-- RPC: look up the auth email for a given username (used for sign-in by username).
+-- SECURITY DEFINER lets it read auth.users via the postgres role.
+create or replace function public.get_email_by_username(p_username text)
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select au.email
+  from auth.users au
+  join public.profiles p on au.id = p.id
+  where lower(p.username) = lower(p_username)
+  limit 1;
+$$;
